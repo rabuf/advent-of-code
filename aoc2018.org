@@ -28,9 +28,8 @@ to sum the input.
 *** Part 2
 This one was trickier, but mostly because I shouldn't code after
 midnight. I used a hash table to track whether a frequency had ever
-been seen. Every time, on both loops, test if the current frequency
-has been seen twice. If it has, the loop terminates. Ultimately
-returning the frequency.
+been seen. If the frequency has been seen before, return from the
+outer loop. Otherwise, add the new frequency to the hash table.
 #+NAME: find-first-duplicate
 #+BEGIN_SRC lisp
   (defun find-first-duplicate (changes)
