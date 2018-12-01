@@ -35,14 +35,13 @@ outer loop. Otherwise, add the new frequency to the hash table.
   (defun find-first-duplicate (changes)
     (let ((tracker (make-hash-table))
           (frequency 0))
-      (setf (gethash 0 tracker) t)
       (loop named outer
         do (loop for change in changes
-                 do (incf frequency change)
                  when (gethash frequency tracker)
                    do (return-from outer frequency)
                  else
-                   do (setf (gethash frequency tracker) t)))))
+                   do (setf (gethash frequency tracker) t)
+                 do (incf frequency change)))))
 #+END_SRC
 
 #+NAME: problem-1b
