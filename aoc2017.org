@@ -68,3 +68,70 @@ simple rotation.
 : Problem 1a: 1144
 : Problem 1b: 1194
 ** Day 2
+*** Input
+The input for this one is a sequence of lines each with a sequence of
+numbers. Using two loops, I read each line and then read across the
+line to collect its numbers. Treating the line as an input stream and
+using the lisp reader.
+#+NAME: day2-input
+#+BEGIN_SRC lisp
+  (defvar *input-2017-2*
+    (with-open-file (s "input/2017/2.txt")
+      (loop for line = (read-line s nil :eof)
+            until (eq line :eof)
+            collect (with-input-from-string (l line)
+                      (loop for num = (read l nil :eof)
+                            until (eq num :eof)
+                            collect num)))))
+#+END_SRC
+*** Part 1
+This one was straightforward. For each row take the difference of the
+min and max entries, then sum up the result from all rows.
+#+NAME: simple-checksum
+#+BEGIN_SRC lisp
+  (defun simple-checksum (rows)
+    (loop for row in rows
+          sum (- (reduce #'max row) (reduce #'min row))))
+#+END_SRC
+#+NAME: problem-2a
+#+BEGIN_SRC lisp :noweb yes
+  <<simple-checksum>>
+  (defun problem-2017-2a ()
+     (format t "Problem 2a: ~a~%" (simple-checksum *input-2017-2*)))
+#+END_SRC
+*** Part 2
+This one is more complex. On each row, find the pair of values that
+evenly divide each other. I'm sure there's a simpler loop
+construct. I'm basically constructing something akin to a division
+table for each row, throwing out all values that aren't integers or
+where the row and column are the same value. Then summing up the
+results from all the rows.
+#+NAME: complex-checksum
+#+BEGIN_SRC lisp
+  (defun complex-checksum (rows)
+    (loop for row in rows
+          sum (loop named outer
+                    for r in row
+                    do (loop for c in row
+                             if (and (not (= r c)) (integerp (/ r c)))
+                               do (return-from outer (/ r c))))))
+#+END_SRC
+#+NAME: problem-2a
+#+BEGIN_SRC lisp :noweb yes
+  <<complex-checksum>>
+  (defun problem-2017-2b ()
+     (format t "Problem 2b: ~a~%" (complex-checksum *input-2017-2*)))
+#+END_SRC
+*** Putting it all together
+#+NAME: day2
+#+BEGIN_SRC lisp :noweb yes :results output :exports both
+  <<day2-input>>
+  <<problem-2a>>
+  <<problem-2b>>
+  (problem-2017-2a)
+  (problem-2017-2b)
+#+END_SRC
+*** Answer
+#+RESULTS: day2
+: Problem 2a: 45972
+: Problem 2b: 326
