@@ -56,7 +56,7 @@ returning the frequency.
 #+END_SRC
 *** Putting it all together 
 #+NAME: day1
-#+BEGIN_SRC lisp :noweb no-export :results output :tangle day1.lisp
+#+BEGIN_SRC lisp :noweb no-export :results output :tangle day1.lisp :exports both
   <<day1-input>>
   <<problem-1a>>
   <<problem-1b>>
