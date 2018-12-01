@@ -11,7 +11,7 @@ The input for this one is a file with a number per line in the format
 then had it parse each line into an integer directly.
 #+NAME: day1-input
 #+BEGIN_SRC lisp
-  (defvar input-1
+  (defvar *input-1*
     (with-open-file (s "1.txt")
       (loop for line = (read-line s nil :eof)
             until (eq line :eof)
@@ -23,7 +23,7 @@ to sum the input.
 #+NAME: problem-1a
 #+BEGIN_SRC lisp
   (defun problem-1a ()
-    (format t "Problem 1a: ~a~%" (apply #'+ input-1)))
+    (format t "Problem 1a: ~a~%" (reduce #'+ *input-1*)))
 #+END_SRC
 *** Part 2
 This one was trickier, but mostly because I shouldn't code after
@@ -36,16 +36,14 @@ returning the frequency.
   (defun find-first-duplicate ()
     (let ((tracker (make-hash-table))
           (frequency 0))
-      (setf (gethash 0 tracker) 1)
-      (loop
-        do (loop for change in input-1
+      (setf (gethash 0 tracker) t)
+      (loop named outer
+        do (loop for change in *input-1*
                  do (incf frequency change)
-                    (if (gethash frequency tracker)
-                        (setf (gethash frequency tracker) 2)
-                        (setf (gethash frequency tracker) 1))
-                 until (= 2 (gethash frequency tracker)))
-        until (= 2 (gethash frequency tracker))
-        finally (return frequency))))
+                 when (gethash frequency tracker)
+                   do (return-from outer frequency)
+                 else
+                   do (setf (gethash frequency tracker) t)))))
 #+END_SRC
 
 #+NAME: problem-1b
