@@ -3,7 +3,7 @@
 * Advent of Code 2018 [1/25]
 This will be my attempt to solve the various Advent of Code 2018
 problems with Common Lisp.
-** DONE Day 1 [/]
+** DONE Day 1
 [[https://adventofcode.com/2018/day/1][Problem Description]]
 *** Input
 The input for this one is a file with a number per line in the format
