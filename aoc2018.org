@@ -33,12 +33,12 @@ has been seen twice. If it has, the loop terminates. Ultimately
 returning the frequency.
 #+NAME: find-first-duplicate
 #+BEGIN_SRC lisp
-  (defun find-first-duplicate ()
+  (defun find-first-duplicate (changes)
     (let ((tracker (make-hash-table))
           (frequency 0))
       (setf (gethash 0 tracker) t)
       (loop named outer
-        do (loop for change in *input-1*
+        do (loop for change in changes
                  do (incf frequency change)
                  when (gethash frequency tracker)
                    do (return-from outer frequency)
@@ -50,7 +50,7 @@ returning the frequency.
 #+BEGIN_SRC lisp :noweb yes
   <<find-first-duplicate>>
   (defun problem-1b ()
-    (format t "Problem 1b: ~a~%" (find-first-duplicate)))
+    (format t "Problem 1b: ~a~%" (find-first-duplicate *input-1*)))
 #+END_SRC
 *** Putting it all together 
 #+NAME: day1
