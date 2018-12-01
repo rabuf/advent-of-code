@@ -12,7 +12,7 @@ then had it parse each line into an integer directly.
 #+NAME: day1-input
 #+BEGIN_SRC lisp
   (defvar *input-1*
-    (with-open-file (s "1.txt")
+    (with-open-file (s "input/2018/1.txt")
       (loop for line = (read-line s nil :eof)
             until (eq line :eof)
             collect (parse-integer line))))
