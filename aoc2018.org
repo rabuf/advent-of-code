@@ -1,6 +1,6 @@
 #+STARTUP: indent
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2018 [1/25]
+* Advent of Code 2018 [2/25]
 This will be my attempt to solve the various Advent of Code 2018
 problems with Common Lisp.
 ** DONE Day 1
@@ -63,8 +63,10 @@ outer loop. Otherwise, add the new frequency to the hash table.
 #+RESULTS: day1
 : Problem 1a: 502
 : Problem 1b: 71961
-** TODO Day 2
+** DONE Day 2
 *** Input
+Today's input is a file with one string per line. Each line is an ID
+of a box.
 #+NAME: day2-input
 #+BEGIN_SRC lisp
   (defvar *input-2*
@@ -73,16 +75,16 @@ outer loop. Otherwise, add the new frequency to the hash table.
             until (eq line :eof)
             collect line)))
 #+END_SRC
-
 *** Part 1
 We need to count up the number of IDs which have one or more
 characters precisely twice and thrice. Multiplying these two together
 to generate our checksum.
 
-I'll simplify this later.
-#+NAME: count-2p
+The first thing I've done is generalize the original counting
+functions, so now there's one that takes a parameter.
+#+NAME: count-np
 #+BEGIN_SRC lisp
-  (defun count-2p (string)
+  (defun count-np (string n)
     (let ((chars (make-hash-table)))
       (loop for c across string
             if (gethash c chars)
@@ -90,46 +92,30 @@ I'll simplify this later.
             else
               do (setf (gethash c chars) 1))
       (loop for c being the hash-keys of chars
-            if (= (gethash c chars) 2)
-              return t)))
-#+END_SRC
-#+NAME: count-3p
-#+BEGIN_SRC lisp
-  (defun count-3p (string)
-    (let ((chars (make-hash-table)))
-      (loop for c across string
-            if (gethash c chars)
-              do (incf (gethash c chars))
-            else
-              do (setf (gethash c chars) 1))
-      (loop for c being the hash-keys of chars
-            if (= (gethash c chars) 3)
+            if (= (gethash c chars) n)
               return t)))
 #+END_SRC
 #+NAME: checksum
 #+BEGIN_SRC lisp
   (defun checksum (strings)
     (* (loop for s in strings
-             count (count-2p s))
+             count (count-np s 2))
        (loop for s in strings
-             count (count-3p s))))
+             count (count-np s 3))))
 #+END_SRC
 #+NAME: problem-2a
 #+BEGIN_SRC lisp :noweb yes
   <<count-2p>>
   <<count-3p>>
+  <<count-np>>
   <<checksum>>
   (defun problem-2a () (format t "Problem 2b: ~a~%" (checksum *input-2*)))
 #+END_SRC
-
-#+RESULTS: problem-2a
-: PROBLEM-2A
 *** Part 2
 The follow up problem is to find the pair of strings which are
-different by only one character. If I had levenstein distance
-implemented that'd be handy. But I don't, so I'm going to cheat. Go
-character by character on each pair of strings, kicking them out if
-more than two differ.
+different by only one character. Go character by character on each
+pair of strings, kicking them out if more than two differ. If any pair
+are found that differ by just 1, return that immediately.
 #+NAME: problem-2b
 #+BEGIN_SRC lisp
   (defun find-boxes (strings)
