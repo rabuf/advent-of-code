@@ -64,6 +64,107 @@ outer loop. Otherwise, add the new frequency to the hash table.
 : Problem 1a: 502
 : Problem 1b: 71961
 ** TODO Day 2
+*** Input
+#+NAME: day2-input
+#+BEGIN_SRC lisp
+  (defvar *input-2*
+    (with-open-file (s "input/2018/2.txt")
+      (loop for line = (read-line s nil :eof)
+            until (eq line :eof)
+            collect line)))
+#+END_SRC
+
+*** Part 1
+We need to count up the number of IDs which have one or more
+characters precisely twice and thrice. Multiplying these two together
+to generate our checksum.
+
+I'll simplify this later.
+#+NAME: count-2p
+#+BEGIN_SRC lisp
+  (defun count-2p (string)
+    (let ((chars (make-hash-table)))
+      (loop for c across string
+            if (gethash c chars)
+              do (incf (gethash c chars))
+            else
+              do (setf (gethash c chars) 1))
+      (loop for c being the hash-keys of chars
+            if (= (gethash c chars) 2)
+              return t)))
+#+END_SRC
+#+NAME: count-3p
+#+BEGIN_SRC lisp
+  (defun count-3p (string)
+    (let ((chars (make-hash-table)))
+      (loop for c across string
+            if (gethash c chars)
+              do (incf (gethash c chars))
+            else
+              do (setf (gethash c chars) 1))
+      (loop for c being the hash-keys of chars
+            if (= (gethash c chars) 3)
+              return t)))
+#+END_SRC
+#+NAME: checksum
+#+BEGIN_SRC lisp
+  (defun checksum (strings)
+    (* (loop for s in strings
+             count (count-2p s))
+       (loop for s in strings
+             count (count-3p s))))
+#+END_SRC
+#+NAME: problem-2a
+#+BEGIN_SRC lisp :noweb yes
+  <<count-2p>>
+  <<count-3p>>
+  <<checksum>>
+  (defun problem-2a () (format t "Problem 2b: ~a~%" (checksum *input-2*)))
+#+END_SRC
+
+#+RESULTS: problem-2a
+: PROBLEM-2A
+*** Part 2
+The follow up problem is to find the pair of strings which are
+different by only one character. If I had levenstein distance
+implemented that'd be handy. But I don't, so I'm going to cheat. Go
+character by character on each pair of strings, kicking them out if
+more than two differ.
+#+NAME: problem-2b
+#+BEGIN_SRC lisp
+  (defun find-boxes (strings)
+    (loop named outer
+          for s1 in strings
+          do (loop for s2 in strings
+                   do (loop for c1 across s1
+                            for c2 across s2
+                            with diffs = 0
+                            if (not (char= c1 c2))
+                               do (incf diffs)
+                            if (> diffs 1)
+                              return nil
+                            finally (if (= diffs 1) (return-from outer (list s1 s2)))))))
+  (defun problem-2b () (format t "Problem 2b:~%~{~a~%~}~%" (find-boxes *input-2*)))
+#+END_SRC
+*** Putting it all together
+#+NAME: day2
+#+BEGIN_SRC lisp :results output :exports both :noweb yes
+  <<day2-input>>
+  <<problem-2a>>
+  <<problem-2b>>
+  (problem-2a)
+  (problem-2b)
+#+END_SRC
+*** Answers
+#+RESULTS: day2
+: Problem 2b: 8892
+: Problem 2b:
+: zihwtxagsifpbsnwleydukjmqv
+: zihwtxagwifpbsnwleydukjmqv
+: 
+I didn't *finish* part 2 in code, I just printed both strings and
+examined them. Going to spend some time now cleaning these solutions
+up, I'm not happy with either.
 ** TODO Day 3
 ** TODO Day 4
 ** TODO Day 5
