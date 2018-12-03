@@ -1,6 +1,6 @@
 #+STARTUP: indent
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2018 [2/25]
+* Advent of Code 2018 [3/25]
 This will be my attempt to solve the various Advent of Code 2018
 problems with Common Lisp.
 ** DONE Day 1
@@ -151,7 +151,86 @@ are found that differ by just 1, return that immediately.
 I didn't *finish* part 2 in code, I just printed both strings and
 examined them. Going to spend some time now cleaning these solutions
 up, I'm not happy with either.
-** TODO Day 3
+** DONE Day 3
+*** Input
+Each line of the input file had the format:
+#+BEGIN_EXPORT ascii
+  #ID @ LEFT,TOP : WIDTHxHEIGHT
+#+END_EXPORT
+I didn't want to parse that, so I had emacs transform that into a list
+of the form:
+#+BEGIN_EXPORT ascii
+  ((id (left top) (witdth height) ...)
+#+END_EXPORT
+A single read of the input file is all that's needed to parse it
+thanks to CL's reader.
+#+NAME: day3-input
+#+BEGIN_SRC lisp
+  (defvar *input-3*
+    (with-open-file (s "input/2018/3.txt")
+      (read s)))
+#+END_SRC
+*** Part 1
+We need to find out how many spaces have been claimed multiple
+times. The maximum size is 1000x1000 based on evaluating the claims.
+#+NAME: problem-3a
+#+BEGIN_SRC lisp :noweb yes
+  (defun overlapping-spaces (cuts)
+    (let ((fabric (make-array '(1000 1000) :initial-element 0))
+          (overlap 0))
+      (loop for (id (left top) (width height)) in cuts
+            do (loop for i from left below (+ left width)
+                     do (loop for j from top below (+ top height)
+                              do (incf (aref fabric i j)))))
+      (loop for i from 0 below 1000
+            do (loop for j from 0 below 1000
+                     if (> (aref fabric i j) 1)
+                       do (incf overlap)))
+      overlap))
+  (defun problem-3a () (format t "Problem 3a: ~a~%" (overlapping-spaces *input-3*)))
+#+END_SRC
+*** Part 2
+So the logic above mostly works for what we need now. However, instead
+of counting the claims we will mark each space with the various
+claims, this'll just be a list. nil will represent unclaimed
+spaces. At the end, we just need to find one claim which is fully its
+own. To do that, we iterate over the space of each claim. If it has
+any spaces which are shared, we skip it and go to the next one. If we
+get to the very end of the cut and there's no overlap, we return that.
+#+NAME: problem-3b
+#+BEGIN_SRC lisp :noweb yes
+  (defun unique-claim (cuts)
+    (let ((fabric (make-array '(1000 1000) :initial-element nil))
+          (unique nil))
+      (loop for (id (left top) (width height)) in cuts
+            do (loop for i from left below (+ left width)
+                     do (loop for j from top below (+ top height)
+                              do (setf (aref fabric i j) (cons id (aref fabric i j))))))
+      (loop named outer
+            for (id (left top) (width height)) in cuts
+            do (loop named per-id
+                     for i from left below (+ left width)
+                     do (loop for j from top below (+ top height)
+                              if (> (length (aref fabric i j)) 1)
+                                do (return-from per-id nil)
+                              if (and (= i (1- (+ left width)))
+                                      (= j (1- (+ top height))))
+                                do (return-from outer (aref fabric i j)))))))
+  (defun problem-3b () (format t "Problem 3b: ~a~%" (unique-claim *input-3*)))
+#+END_SRC
+*** Putting it all together
+#+NAME: day3
+#+BEGIN_SRC lisp :results output :exports both :noweb yes
+  <<day3-input>>
+  <<problem-3a>>
+  <<problem-3b>>
+  (problem-3a)
+  (problem-3b)
+#+END_SRC
+*** Answers
+#+RESULTS: day3
+: Problem 3a: 110546
+: Problem 3b: (819)
 ** TODO Day 4
 ** TODO Day 5
 ** TODO Day 6
