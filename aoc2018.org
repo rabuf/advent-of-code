@@ -341,19 +341,17 @@ common sleeping minute.
     (let ((time-sleeping (make-hash-table)))
       (loop for (id-state (year month day hour minute)) in states
             with guard = 0
-            with sleeping = nil
             with t0 = 0
             if (numberp id-state)
               do (setf guard id-state)
                  (setf sleeping nil)
             if (and (stringp id-state) (string-equal "wake" id-state))
-              do (setf sleeping nil)
-                 (let ((t1 (+ (if (= hour 23) 0 60) minute)))
+              do (let ((t1 (+ (if (= hour 23) 0 60) minute)))
                    (if (not (gethash guard time-sleeping))
                        (setf (gethash guard time-sleeping)
                              (- t1 t0))
                        (incf (gethash guard time-sleeping)
-                           (- t1 t0))))
+                             (- t1 t0))))
             if (and (stringp id-state) (string-equal "fall" id-state))
               do (setf t0 (+ (if (= hour 23) 0 60) minute)))
       (car (sort (loop for guard being the hash-keys of time-sleeping
@@ -365,14 +363,12 @@ common sleeping minute.
     (let ((minutes (make-array (* 3 60) :initial-element 0)))
       (loop for (id-state (_year _month _day hour minute)) in states
             with guard = 0
-            with sleeping = nil
             with t0 = 0
             if (numberp id-state)
               do (setf guard id-state)
                  (setf sleeping nil)
             if (and (= guard guard-id)  (stringp id-state) (string-equal "wake" id-state))
-              do (setf sleeping nil)
-                 (let ((t1 (+ (if (= hour 23) 0 60) minute)))
+              do (let ((t1 (+ (if (= hour 23) 0 60) minute)))
                    (loop for i from t0 below t1
                          do (incf (aref minutes i))))
             if (and (= guard guard-id) (stringp id-state) (string-equal "fall" id-state))
