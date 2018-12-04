@@ -279,6 +279,32 @@ factor that into its own function. And since both problems now create
 the same =fabric= array, we could generate it once and pass it to each
 to use in their solutions. But I don't feel like making those changes.
 ** TODO Day 4
+*** Input
+#+NAME: day4-input
+#+BEGIN_SRC lisp
+  (defvar *input-4* nil)
+#+END_SRC
+*** Part 1
+#+NAME: problem-4a
+#+BEGIN_SRC lisp :noweb yes
+  (defun problem-4a () (format t "Problem 4a: ~a~%" (identity *input-4*)))
+#+END_SRC
+*** Part 2
+#+NAME: problem-4b :noweb yes
+#+BEGIN_SRC lisp :noweb yes
+  (defun problem-4b () (format t "Problem 4b: ~a~%" (identity *input-4*)))
+#+END_SRC
+*** Putting it all together
+#+NAME: day4
+#+BEGIN_SRC lisp :results output :exports both :noweb yes
+  <<day4-input>>
+  <<problem-4a>>
+  <<problem-4b>>
+  (problem-4a)
+  (problem-4b)
+#+END_SRC
+*** Answer
+#+RESULTS: day4
 ** TODO Day 5
 ** TODO Day 6
 ** TODO Day 7
