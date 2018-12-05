@@ -67,14 +67,15 @@ them all). But basically:
 - =nil= :: empty 
 - =a= :: any lowercase character
 - =A= :: any uppercase character
-- =a= :: any character not =A= or =a=
+- =b= :: any character not =A= or =a=
 - =Z= :: any thing else on the stack
 
 | Input | Stack | Resulting stack |
 | a     | nil   | a               |
 | a     | AZ    | Z               |
 | A     | aZ    | Z               |
-| A     | bZ    | AZ              |
+| A     | bZ    | AbZ             |
+| a     | bZ    | abZ             |
 
 The change, versus above, is that we remove the extra pop and the
 potentially unnecessary push. We only push characters that we know
