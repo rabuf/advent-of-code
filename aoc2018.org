@@ -1,8 +1,14 @@
 #+STARTUP: indent
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2018 [3/25]
+* Advent of Code 2018 [4/25]
 This will be my attempt to solve the various Advent of Code 2018
 problems with Common Lisp.
+
+Each day will (starting with Day 4, I'll move the rest later) be in
+its own org file. I'm finding that the noweb references are
+unhelpfully close together. I'd like, for instance, to just have a
+block called =parse-input= and not =parse-input-day4= or similarly
+qualified.
 ** DONE Day 1
 [[https://adventofcode.com/2018/day/1][Problem Description]]
 *** Input
@@ -278,166 +284,7 @@ Of course, since that first loop is now identical in each we could
 factor that into its own function. And since both problems now create
 the same =fabric= array, we could generate it once and pass it to each
 to use in their solutions. But I don't feel like making those changes.
-** TODO Day 4
-*** Initial stuffs
-Using ppcre this time (maybe, depends on spec) to help with processing
-the input file.
-#+NAME: day4-initial
-#+BEGIN_SRC lisp
-  (ql:quickload "cl-ppcre")
-#+END_SRC
-Most likely I'll want =ppcre:all-matches-as-strings= and then I'll
-pass the strings through a parser (=parse-int=) or read or similar.
-*** Input
-Welp, this input is interesting. Here's the example:
-#+BEGIN_EXAMPLE
-[1518-11-01 00:00] Guard #10 begins shift
-[1518-11-01 00:05] falls asleep
-[1518-11-01 00:25] wakes up
-[1518-11-01 00:30] falls asleep
-[1518-11-01 00:55] wakes up
-[1518-11-01 23:58] Guard #99 begins shift
-[1518-11-02 00:40] falls asleep
-[1518-11-02 00:50] wakes up
-[1518-11-03 00:05] Guard #10 begins shift
-[1518-11-03 00:24] falls asleep
-[1518-11-03 00:29] wakes up
-[1518-11-04 00:02] Guard #99 begins shift
-[1518-11-04 00:36] falls asleep
-[1518-11-04 00:46] wakes up
-[1518-11-05 00:03] Guard #99 begins shift
-[1518-11-05 00:45] falls asleep
-[1518-11-05 00:55] wakes up
-#+END_EXAMPLE
-So, the input file is not ordered, but that's not a *huge* problem. We
-can sort it once we parse it. I failed to sort it correctly, brain is
-not working on that one. I had emacs sort it for me.
-#+NAME: parse-input4
-#+BEGIN_SRC lisp
-  (defun parse-input4-line (line)
-    (let ((time-stamp (mapcar #'parse-integer (ppcre:all-matches-as-strings "\\d+" line)))
-          (state-change (ppcre:all-matches-as-strings "(fall|wake)" line)))
-      (cond ((null state-change) (list (car (last time-stamp)) (butlast time-stamp)))
-            (t (list (car state-change) time-stamp)))))
-#+END_SRC
-
-#+NAME: day4-input
-#+BEGIN_SRC lisp :noweb yes
-  <<parse-input4>>
-  (defparameter *input-4*
-     (with-open-file (s "input/2018/4.txt")
-       (loop for line = (read-line s nil :eof)
-             until (eq line :eof)
-             collect (parse-input4-line line))))
-#+END_SRC
-*** Part 1
-Ok, so the problem is:
-
-Find the guard who sleeps the most minutes, then find their most
-common sleeping minute.
-#+NAME: problem-4a
-#+BEGIN_SRC lisp :noweb yes
-  (defun sleepiest (states)
-    (let ((time-sleeping (make-hash-table)))
-      (loop for (id-state (year month day hour minute)) in states
-            with guard = 0
-            with t0 = 0
-            if (numberp id-state)
-              do (setf guard id-state)
-                 (setf sleeping nil)
-            if (and (stringp id-state) (string-equal "wake" id-state))
-              do (let ((t1 (+ (if (= hour 23) 0 60) minute)))
-                   (if (not (gethash guard time-sleeping))
-                       (setf (gethash guard time-sleeping)
-                             (- t1 t0))
-                       (incf (gethash guard time-sleeping)
-                             (- t1 t0))))
-            if (and (stringp id-state) (string-equal "fall" id-state))
-              do (setf t0 (+ (if (= hour 23) 0 60) minute)))
-      (car (sort (loop for guard being the hash-keys of time-sleeping
-                       collect (cons guard (gethash guard time-sleeping)))
-                 #'>
-                 :key #'cdr))))
-
-  (defun favorite-minute (states guard-id)
-    (let ((minutes (make-array (* 3 60) :initial-element 0)))
-      (loop for (id-state (_year _month _day hour minute)) in states
-            with guard = 0
-            with t0 = 0
-            if (numberp id-state)
-              do (setf guard id-state)
-                 (setf sleeping nil)
-            if (and (= guard guard-id)  (stringp id-state) (string-equal "wake" id-state))
-              do (let ((t1 (+ (if (= hour 23) 0 60) minute)))
-                   (loop for i from t0 below t1
-                         do (incf (aref minutes i))))
-            if (and (= guard guard-id) (stringp id-state) (string-equal "fall" id-state))
-              do (setf t0 (+ (if (= hour 23) 0 60) minute)))
-      (let ((minute (position (loop for m across minutes
-                                    maximize m)
-                              minutes)))
-        (values
-         (if (> minute 59) (- minute 60) minute)
-         (aref minutes minute)))))
-
-
-  (defun solve-4a (guard-states)
-    (let* ((sleepiest-guard (sleepiest guard-states))
-           (guard-id (car sleepiest-guard))
-           (favorite-minute (favorite-minute guard-states guard-id)))
-      (* guard-id favorite-minute)))
-  (defun problem-4a () (format t "Problem 4a: ~a~%" (solve-4a *input-4*)))
-#+END_SRC
-
-#+RESULTS: problem-4a
-: PROBLEM-4A
-
-*** Part 2
-In this one the strategy is the guard who is asleep on one minute the
-most. We need the guard id and the minute.
-#+NAME: problem-4b :noweb yes
-#+BEGIN_SRC lisp :noweb yes
-  ;; returns a list of all guard ids
-  (defun all-guard-ids (states)
-    (remove-duplicates (remove-if-not #'numberp (mapcar #'car states))))
-
-  (defun solve-4b (states)
-    (let ((guards (all-guard-ids states)))
-      (let ((possibles
-              (loop for guard in guards
-                    collect (multiple-value-bind (minute time) (favorite-minute states guard) (list guard minute time)))))
-        (destructuring-bind (g m _t) (car (sort possibles #'> :key #'third))
-          (* g m)))))
-
-  (defun problem-4b () (format t "Problem 4b: ~a~%" (solve-4b *input-4*)))
-#+END_SRC
-
-#+RESULTS: problem-4b :noweb yes
-: PROBLEM-4B
-
-*** Putting it all together
-#+NAME: day4
-#+BEGIN_SRC lisp :results output :exports both :noweb yes
-  <<day4-initial>>
-  <<day4-input>>
-  <<problem-4a>>
-  <<problem-4b>>
-  (problem-4a)
-  (problem-4b)
-#+END_SRC
-*** Answer
-#+RESULTS: day4
-: To load "cl-ppcre":
-:   Load 1 ASDF system:
-:     cl-ppcre
-: ; Loading "cl-ppcre"
-: 
-: Problem 4a: 101194
-: Problem 4b: 102095
-*** Thoughts
-Well, I sucked on this one. I'm going to commit this before I improve
-it tomorrow night, but I'm not going to share this one unless someone
-looks through my commit history.
+** DONE [[file:2018.04.org][Day 4]]
 ** TODO Day 5
 ** TODO Day 6
 ** TODO Day 7
@@ -459,5 +306,3 @@ looks through my commit history.
 ** TODO Day 23
 ** TODO Day 24
 ** TODO Day 25
-
-

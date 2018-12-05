@@ -1,0 +1,203 @@
+#+STARTUP: indent
+#+OPTIONS: num:nil toc:nil
+* DONE Day 4
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by typing =C-c C-c= in the
+block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes
+  <<packages>>
+  (defpackage :aoc-2018-04
+    (:use :common-lisp
+          :iterate)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2018-04)
+#+END_SRC
+** Input
+Welp, this input is interesting. Here's the example:
+#+BEGIN_EXAMPLE
+[1518-11-01 00:00] Guard #10 begins shift
+[1518-11-01 00:05] falls asleep
+[1518-11-01 00:25] wakes up
+[1518-11-01 00:30] falls asleep
+[1518-11-01 00:55] wakes up
+[1518-11-01 23:58] Guard #99 begins shift
+[1518-11-02 00:40] falls asleep
+[1518-11-02 00:50] wakes up
+[1518-11-03 00:05] Guard #10 begins shift
+[1518-11-03 00:24] falls asleep
+[1518-11-03 00:29] wakes up
+[1518-11-04 00:02] Guard #99 begins shift
+[1518-11-04 00:36] falls asleep
+[1518-11-04 00:46] wakes up
+[1518-11-05 00:03] Guard #99 begins shift
+[1518-11-05 00:45] falls asleep
+[1518-11-05 00:55] wakes up
+#+END_EXAMPLE
+I initially did this with a loop and a lot of nonsense. But this time
+I'm trying something different.
+
+I'm going to parse into a structure that looks something like:
+#+BEGIN_SRC lisp
+  ((guard-id ((:wake minute) (:sleep minute) ...))
+   (guard-id ...)
+   ...)
+#+END_SRC
+Since we only care about the minute they fell asleep and woke and
+whether they fell asleep or woke, the regex is pretty
+straightforward. We can ignore everything else on the line.
+#+NAME: parse-sleep-wake
+#+BEGIN_SRC lisp
+  (defun parse-sleep-wake (entry)
+    (multiple-value-bind (_string values) (ppcre:scan-to-strings ":(\\d+)\\] (falls|wakes)" entry)
+      (let ((minute (parse-integer (aref values 0)))
+            (state (aref values 1)))
+        (cond ((string= "falls" state) (list :sleep minute))
+              ((string= "wakes" state) (list :wake minute))
+              (t (assert nil
+                         "What happened?"))))))
+#+END_SRC
+Looping over all entries, if the entry is a guard entry we collect
+everything gathered so far (=current=) and reverse it, this is because
+using cons and, later, reverse can be faster than appending to the end
+of the list.
+
+If it's not a guard entry, it's a sleep/wake entry and we go to the
+parse function above. cons-ing the result with the previous entries.
+#+NAME: parse-input
+#+BEGIN_SRC lisp
+  (defun parse-input (entries)
+    (let ((watches nil))
+      (iter (for entry in entries)
+            (with guard-id = nil)
+            (with current = nil)
+            (multiple-value-bind (_string guard) (ppcre:scan-to-strings "Guard #(\\d+)" entry)
+              (cond ((null guard) (setf current (cons (parse-sleep-wake entry) current)))
+                    (t (unless (null guard-id) ;; so we don't get (nil nil)
+                         (setf watches (cons (list guard-id (reverse current)) watches)))
+                       (setf current nil)
+                       (setf guard-id (parse-integer (aref guard 0)))))))
+      watches))
+#+END_SRC
+
+#+NAME: read-input
+#+BEGIN_SRC lisp
+    (defun read-input (file)
+      (iter (for line in-file file using #'read-line)
+            (collect line)))
+#+END_SRC
+Before parsing the inputs we sort them so that all entries are in the
+correct order. This ensures we know which guard fell asleep and woke
+at which times without having to do much data juggling later.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes
+  <<parse-sleep-wake>>
+  <<parse-input>>
+  <<read-input>>
+  (defparameter *input*
+    (parse-input (sort (read-input "input/2018/4.txt") #'string<)))
+#+END_SRC
+** Part 1
+Creating one the histograms is fairly straightforward. Create one
+array per guard. Then loop over each watch and either set t0 (start
+sleeping) or increment all times between when the guard slept and
+woke.
+#+NAME: histograms
+#+BEGIN_SRC lisp
+  (defun histograms (watches)
+    (let ((time-sleeping (make-hash-table)))
+      (iter (for (guard _entry) in watches)
+            (unless (gethash guard time-sleeping)
+              (setf (gethash guard time-sleeping) (make-array 60 :initial-element 0))))
+      (iter (for (guard entries) in watches)
+            (let ((t0 0))
+              (iter (for (state minute) in entries)
+                    (cond ((eq :sleep state) (setf t0 minute))
+                          ((eq :wake state)
+                           (iter (for t1 from t0 below minute)
+                                 (incf (aref (gethash guard time-sleeping) t1))))))))
+      time-sleeping))
+#+END_SRC
+So this is actually going to be common to both problems. Though I
+didn't know that the first time. There are two questions we have to
+answer:
+
+Which guard sleeps the most, and given a histogram what is the most
+popular time to sleep. Now that I know =iterate= a bit, both of these
+are fairly easy to answer.
+#+NAME: sleepiest-guard
+#+BEGIN_SRC lisp
+  (defun sleepiest-guard (guards)
+    (iter (for (guard histogram) in-hashtable guards)
+          (finding guard maximizing (reduce #'+ histogram))))
+#+END_SRC
+
+#+NAME: sleepiest-minute
+#+BEGIN_SRC lisp
+  (defun sleepiest-minute (histogram)
+    (iter (for minute from 0 below 60)
+          (finding minute maximizing (aref histogram minute))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes
+  (defun solve-a (watches)
+    (let* ((guards (histograms watches))
+           (guard (sleepiest-guard guards))
+           (minute (sleepiest-minute (gethash guard guards))))
+      (* guard minute)))
+  (defun problem-a () (format t "Problem 4a: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+In this one the strategy is the guard who is asleep on one minute the
+most. We need the guard id and the minute.
+
+To start we will find the sleepiest minute (already have!) for each
+guard, with the time spent sleeping.
+#+NAME: problem-4
+#+BEGIN_SRC lisp :noweb yes
+  (defun solve-b (watches)
+    (let* ((guards (histograms watches))
+           (possibles (iter (for (guard histogram) in-hashtable guards)
+                            (collect (iter (for minute from 0 below 60)
+                                           (finding (list (* guard minute) (aref histogram minute))
+                                                          maximizing (aref histogram minute)))))))
+      (iter (for (answer time) in possibles)
+            (finding answer maximizing time))))
+  (defun problem-b () (format t "Problem 4b: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes
+  <<histograms>>
+  <<sleepiest-guard>>
+  <<sleepiest-minute>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 4a: 101194
+: Problem 4b: 102095
+** Thoughts
+My first solution was pretty awful. You can find it in the commit
+history (in file aoc2018.org). This one is much better, I think.
