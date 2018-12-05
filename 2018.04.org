@@ -169,8 +169,9 @@ guard, with the time spent sleeping.
     (iter outer
           (for (guard histogram) in-hashtable watches)
           (iter (for minute from 0 below 60)
-                (finding (list guard minute)
-                         maximizing (aref histogram minute)))))
+                (in outer
+                    (finding (list guard minute)
+                             maximizing (aref histogram minute))))))
 #+END_SRC
 
 #+NAME: problem-b
@@ -200,7 +201,7 @@ guard, with the time spent sleeping.
 ** Answer
 #+RESULTS: answers
 : Problem 4a: 101194
-: Problem 4b: 1
+: Problem 4b: 102095
 ** Thoughts
 My first solution was pretty awful. You can find it in the commit
 history (in file aoc2018.org). This one is much better, I think.
