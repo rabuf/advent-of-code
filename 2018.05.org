@@ -76,8 +76,6 @@ The input is a single massive line of letters. So reading is easy.
 #+RESULTS: cancel-pairs
 : CANCEL-PAIRS
 
-That took too long to come up with. Should've just done the recursive
-thing to start with.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes
   (defun problem-a () (format t "Problem 5a: ~a~%" (cancel-pairs *input*)))
