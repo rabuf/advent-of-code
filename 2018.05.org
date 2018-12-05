@@ -48,29 +48,23 @@ The input is a single massive line of letters. So reading is easy.
 #+END_SRC
 
 ** Part 1
+Don't code late at night.
 
+Completely rewriting this one.
 #+NAME: cancel-pairs
 #+BEGIN_SRC lisp
-  (defun cancel-pairs-iterative (polymer)
-    (iter (for cn in-string polymer with-index i)
-          (when (= i (1- (length polymer)))
-            (collect cn result-type string)
-            (terminate))
-          (let ((cn+1 (char polymer (1+ i))))
-            (cond ((or (and (char= (char-upcase cn) cn+1)
-                            (char= cn (char-downcase cn+1)))
-                       (and (char= cn (char-upcase cn+1))
-                            (char= (char-downcase cn) cn+1)))
-                   (incf i 1))
-                  (t (collect (char polymer i) result-type string))))))
+  (defun polarity-match (a b)
+    (and (not (char= a b))
+         (char-equal a b)))
   (defun cancel-pairs (polymer)
-    (iter (with current = (length polymer))
-          (with previous = 0)
-          (when (= current previous) (return current))
-          (progn
-            (setf polymer (cancel-pairs-iterative polymer))
-            (setf previous current)
-            (setf current (length polymer)))))
+    (let ((result nil))
+      (iter (for c in-string polymer)
+            (push c result)
+            (unless (null (cadr result))
+              (cond ((polarity-match (car result) (cadr result))
+                     (pop result)
+                     (pop result)))))
+      result))
 #+END_SRC
 
 #+RESULTS: cancel-pairs
@@ -78,7 +72,7 @@ The input is a single massive line of letters. So reading is easy.
 
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes
-  (defun problem-a () (format t "Problem 5a: ~a~%" (cancel-pairs *input*)))
+  (defun problem-a () (format t "Problem 5a: ~a~%" (length (cancel-pairs *input*))))
 #+END_SRC
 ** Part 2
 For this one, I have to remove all of one letter and see which
@@ -87,8 +81,12 @@ produces the minimum. iterate will be helpful here.
 #+BEGIN_SRC lisp
   (defun remove-block (polymer)
     (iter (for c in-string "abcdefghijklmnopqrstuvwxyz")
-          (minimizing (cancel-pairs (remove c polymer :test #'char-equal)))))
+          (minimizing (length (cancel-pairs (remove c polymer :test #'char-equal))))))
 #+END_SRC
+
+#+RESULTS: remove-block
+: REMOVE-BLOCK
+
 Improvement: Single pass over the list to remove characters by
 changing the test to be more permissive. Doesn't match on exact char,
 but either case.
