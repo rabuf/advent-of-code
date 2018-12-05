@@ -285,7 +285,7 @@ factor that into its own function. And since both problems now create
 the same =fabric= array, we could generate it once and pass it to each
 to use in their solutions. But I don't feel like making those changes.
 ** DONE [[file:2018.04.org][Day 4]]
-** TODO Day 5
+** TODO [[file:2018.05.org][Day 5]]
 ** TODO Day 6
 ** TODO Day 7
 ** TODO Day 8
