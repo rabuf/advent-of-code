@@ -45,9 +45,7 @@ The input is a single massive line of letters. So reading is easy.
 #+END_SRC
 
 ** Part 1
-Don't code late at night.
-
-Completely rewriting this one.
+Don't code late at night. Completely rewrote this one.
 #+NAME: cancel-pairs
 #+BEGIN_SRC lisp
   (defun polarity-match (a b)
@@ -74,7 +72,7 @@ produces the minimum. iterate will be helpful here.
 #+NAME: remove-block
 #+BEGIN_SRC lisp
   (defun remove-block (polymer)
-    (iter (for c in-string "abcdefghijklmnopqrstuvwxyz")
+    (iter (for c in-string (remove-duplicates (string-upcase polymer)))
           (minimizing (length (cancel-pairs (remove c polymer :test #'char-equal))))))
 #+END_SRC
 
