@@ -64,9 +64,7 @@ straightforward. We can ignore everything else on the line.
       (let ((minute (parse-integer (aref values 0)))
             (state (aref values 1)))
         (cond ((string= "falls" state) (list :sleep minute))
-              ((string= "wakes" state) (list :wake minute))
-              (t (assert nil
-                         "What happened?"))))))
+              ((string= "wakes" state) (list :wake minute))))))
 #+END_SRC
 Looping over all entries, if the entry is a guard entry we collect
 everything gathered so far (=current=) and reverse it, this is because
@@ -165,16 +163,20 @@ most. We need the guard id and the minute.
 
 To start we will find the sleepiest minute (already have!) for each
 guard, with the time spent sleeping.
-#+NAME: problem-4
+#+NAME: guard-with-sleepiest-minute
+#+BEGIN_SRC lisp
+  (defun guard-with-sleepiest-minute (watches)
+    (iter outer
+          (for (guard histogram) in-hashtable watches)
+          (iter (for minute from 0 below 60)
+                (finding (list guard minute)
+                         maximizing (aref histogram minute)))))
+#+END_SRC
+
+#+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes
   (defun solve-b (watches)
-    (let* ((guards (histograms watches))
-           (possibles (iter (for (guard histogram) in-hashtable guards)
-                            (collect (iter (for minute from 0 below 60)
-                                           (finding (list (* guard minute) (aref histogram minute))
-                                                          maximizing (aref histogram minute)))))))
-      (iter (for (answer time) in possibles)
-            (finding answer maximizing time))))
+    (apply #'* (guard-with-sleepiest-minute (histograms watches))))
   (defun problem-b () (format t "Problem 4b: ~a~%" (solve-b *input*)))
 #+END_SRC
 ** Putting it all together
@@ -183,9 +185,10 @@ guard, with the time spent sleeping.
   <<histograms>>
   <<sleepiest-guard>>
   <<sleepiest-minute>>
+  <<guard-with-sleepiest-minute>>
 #+END_SRC
 #+NAME: answers
-#+BEGIN_SRC lisp :results output :exports both :noweb yes
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.04.lisp
   <<initialize>>
   <<input>>
   <<functions>>
@@ -197,7 +200,7 @@ guard, with the time spent sleeping.
 ** Answer
 #+RESULTS: answers
 : Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 4b: 1
 ** Thoughts
 My first solution was pretty awful. You can find it in the commit
 history (in file aoc2018.org). This one is much better, I think.
