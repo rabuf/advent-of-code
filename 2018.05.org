@@ -46,7 +46,6 @@ The input is a single massive line of letters. So reading is easy.
 
 ** Part 1
 Don't code late at night. Completely rewrote this one.
-#+NAME: cancel-pairs
 #+BEGIN_SRC lisp
   (defun polarity-match (a b)
     (and (not (char= a b))
@@ -61,7 +60,52 @@ Don't code late at night. Completely rewrote this one.
                      (pop result)))))
       result))
 #+END_SRC
+A slightly different version of the above. Since this actually maps to
+a pushdown automata with a fairly simple rule (NB: not enumerating
+them all). But basically:
 
+- =nil= :: empty 
+- =a= :: any lowercase character
+- =A= :: any uppercase character
+- =a= :: any character not =A= or =a=
+- =Z= :: any thing else on the stack
+
+| Input | Stack | Resulting stack |
+| a     | nil   | a               |
+| a     | AZ    | Z               |
+| A     | aZ    | Z               |
+| A     | bZ    | AZ              |
+
+The change, versus above, is that we remove the extra pop and the
+potentially unnecessary push. We only push characters that we know
+belong in the final result. Of course, push and pop are relatively
+fast operations so this is only a minor improvement. And the middle
+two conditions could both be satisfied by using =polarity-match= from
+above so we'd have two test expressions instead of 3 to run through
+before reaching the default case.
+#+NAME: cancel-pairs
+#+BEGIN_SRC lisp
+  (defun cancel-pairs (polymer)
+    (let ((result nil))
+      (iter (for c in-string polymer)
+            (cond ((null result) (push c result))
+                  ((and (lower-case-p c) (char= (char-upcase c) (car result)))
+                   (pop result))
+                  ((and (upper-case-p c) (char= (char-downcase c) (car result)))
+                   (pop result))
+                  (t (push c result))))
+      result))
+#+END_SRC
+
+#+RESULTS:
+: CANCEL-PAIRS
+
+A full enumerated set of conditions would have something like:
+#+BEGIN_SRC lisp
+  (cond (and (char= c #\a) (char= (car result) #\A))
+        ...)
+#+END_SRC
+Which would, of course, be tedious to write.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes
   (defun problem-a () (format t "Problem 5a: ~a~%" (length (cancel-pairs *input*))))
