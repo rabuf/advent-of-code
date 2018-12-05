@@ -13,6 +13,10 @@ block [[answers][answers]]
   (unless (find-package :iterate)
     (ql:quickload "iterate"))
 #+END_SRC
+
+#+RESULTS: packages
+| iterate |
+
 *** Create package for this day
 #+NAME: initialize
 #+BEGIN_SRC lisp :noweb yes
@@ -24,43 +28,100 @@ block [[answers][answers]]
              :problem-b))
   (in-package :aoc-2018-05)
 #+END_SRC
-** Input
-#+NAME: parse-input
-#+BEGIN_SRC lisp
-  (defun parse-input (line)
-    (identity line))
-#+END_SRC
 
+#+RESULTS: initialize
+: #<PACKAGE "AOC-2018-05">
+
+** Input
+The input is a single massive line of letters. So reading is easy.
 #+NAME: read-input
 #+BEGIN_SRC lisp
-    (defun read-input (file)
-      (iter (for line in-file file using #'read-line)
-            (collect (parse-input line))))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes
-  <<parse-input>>
   <<read-input>>
-  (defparameter *input*
-    (read-input "input/2018/5.txt"))
+  (defvar *input*
+    (car (read-input "input/2018/5.txt")))
 #+END_SRC
+
 ** Part 1
+Iterating over the sequence, we need to cancel out like terms (lower
+case next to capital). I'm going to try something in iterate that may
+work well for this.
+
+Didn't work. Ok, thinking about this. Find a pair that match, remove
+that pair. So we have to go character by character.
+#+NAME: cancel-pairs
+#+BEGIN_SRC lisp
+  (defun cancel-pairs-iterative (polymer)
+    (let ((i 0))
+      (map 'string #'identity
+           (iter (while (< i (length polymer)))
+                 (cond ((= i (1- (length polymer)))
+                        (collect (char polymer i))
+                        (incf i))
+                       (t
+                        (let ((cn (char-int (char polymer i)))
+                              (cn+1 (char-int (char polymer (1+ i)))))
+                          (cond ((or (= (- cn (char-int #\a))
+                                        (- cn+1 (char-int #\A)))
+                                     (= (- cn (char-int #\A))
+                                        (- cn+1 (char-int #\a))))
+                                 (incf i 2))
+                                (t (collect (char polymer i))
+                                   (incf i))))))))))
+  (defun cancel-pairs (polymer)
+    (let ((current (length polymer))
+          (previous 0))
+      (iter (while (not (= current previous)))
+            (progn
+              (setf polymer (cancel-pairs-iterative  polymer))
+              (setf previous current)
+              (setf current (length polymer))))
+      current))
+#+END_SRC
+
+#+RESULTS: cancel-pairs
+: CANCEL-PAIRS
+
+That took too long to come up with. Should've just done the recursive
+thing to start with.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes
-  (defun problem-a () (format t "Problem 5a: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 5a: ~a~%" (cancel-pairs *input*)))
 #+END_SRC
 ** Part 2
+For this one, I have to remove all of one letter and see which produces the minimum. iterate will be helpful here.
+#+NAME: remove-block
+#+BEGIN_SRC lisp
+  (defun remove-block (polymer)
+    (iter (for l in-string "abcdefghijklmnopqrstuvwxyz")
+          (for u in-string "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+          (minimizing (cancel-pairs (remove u (remove l polymer))))))
+#+END_SRC
+
+#+RESULTS: remove-block
+: REMOVE-BLOCK
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes
-  (defun problem-b () (format t "Problem 5b: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 5b: ~a~%" (remove-block *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes
-
+  <<cancel-pairs>>
+  <<remove-block>>
 #+END_SRC
+
+#+RESULTS: functions
+: REMOVE-BLOCK
+
 #+NAME: answers
-#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.04.lisp
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.05.lisp
   <<initialize>>
   <<input>>
   <<functions>>
@@ -71,6 +132,6 @@ block [[answers][answers]]
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 5a: NIL
-: Problem 5b: NIL
+: Problem 5a: 11310
+: Problem 5b: 6020
 ** Thoughts
