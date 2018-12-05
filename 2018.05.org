@@ -2,8 +2,11 @@
 #+OPTIONS: num:nil toc:nil
 * DONE Day 5
 If you have a lisp installation, emacs, org-mode, and org-babel
-support for lisp installed you can run this by typing =C-c C-c= in the
-block [[answers][answers]]
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2018-05)=
+4. Typing =C-c C-c= in the block [[answers][answers]].
 ** Initial stuffs
 *** Packages to load
 #+NAME: packages
@@ -13,9 +16,6 @@ block [[answers][answers]]
   (unless (find-package :iterate)
     (ql:quickload "iterate"))
 #+END_SRC
-
-#+RESULTS: packages
-| iterate |
 
 *** Create package for this day
 #+NAME: initialize
@@ -28,9 +28,6 @@ block [[answers][answers]]
              :problem-b))
   (in-package :aoc-2018-05)
 #+END_SRC
-
-#+RESULTS: initialize
-: #<PACKAGE "AOC-2018-05">
 
 ** Input
 The input is a single massive line of letters. So reading is easy.
@@ -67,9 +64,6 @@ Completely rewriting this one.
       result))
 #+END_SRC
 
-#+RESULTS: cancel-pairs
-: CANCEL-PAIRS
-
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes
   (defun problem-a () (format t "Problem 5a: ~a~%" (length (cancel-pairs *input*))))
@@ -83,9 +77,6 @@ produces the minimum. iterate will be helpful here.
     (iter (for c in-string "abcdefghijklmnopqrstuvwxyz")
           (minimizing (length (cancel-pairs (remove c polymer :test #'char-equal))))))
 #+END_SRC
-
-#+RESULTS: remove-block
-: REMOVE-BLOCK
 
 Improvement: Single pass over the list to remove characters by
 changing the test to be more permissive. Doesn't match on exact char,
@@ -101,12 +92,8 @@ but either case.
   <<remove-block>>
 #+END_SRC
 
-#+RESULTS: functions
-: REMOVE-BLOCK
-
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.05.lisp
-  <<initialize>>
   <<input>>
   <<functions>>
   <<problem-a>>
@@ -118,4 +105,5 @@ but either case.
 #+RESULTS: answers
 : Problem 5a: 11310
 : Problem 5b: 6020
+
 ** Thoughts
