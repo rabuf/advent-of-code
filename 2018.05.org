@@ -48,40 +48,29 @@ The input is a single massive line of letters. So reading is easy.
 #+END_SRC
 
 ** Part 1
-Iterating over the sequence, we need to cancel out like terms (lower
-case next to capital). I'm going to try something in iterate that may
-work well for this.
 
-Didn't work. Ok, thinking about this. Find a pair that match, remove
-that pair. So we have to go character by character.
 #+NAME: cancel-pairs
 #+BEGIN_SRC lisp
   (defun cancel-pairs-iterative (polymer)
-    (let ((i 0))
-      (map 'string #'identity
-           (iter (while (< i (length polymer)))
-                 (cond ((= i (1- (length polymer)))
-                        (collect (char polymer i))
-                        (incf i))
-                       (t
-                        (let ((cn (char-int (char polymer i)))
-                              (cn+1 (char-int (char polymer (1+ i)))))
-                          (cond ((or (= (- cn (char-int #\a))
-                                        (- cn+1 (char-int #\A)))
-                                     (= (- cn (char-int #\A))
-                                        (- cn+1 (char-int #\a))))
-                                 (incf i 2))
-                                (t (collect (char polymer i))
-                                   (incf i))))))))))
+    (iter (for cn in-string polymer with-index i)
+          (when (= i (1- (length polymer)))
+            (collect cn result-type string)
+            (terminate))
+          (let ((cn+1 (char polymer (1+ i))))
+            (cond ((or (and (char= (char-upcase cn) cn+1)
+                            (char= cn (char-downcase cn+1)))
+                       (and (char= cn (char-upcase cn+1))
+                            (char= (char-downcase cn) cn+1)))
+                   (incf i 1))
+                  (t (collect (char polymer i) result-type string))))))
   (defun cancel-pairs (polymer)
-    (let ((current (length polymer))
-          (previous 0))
-      (iter (while (not (= current previous)))
-            (progn
-              (setf polymer (cancel-pairs-iterative  polymer))
-              (setf previous current)
-              (setf current (length polymer))))
-      current))
+    (iter (with current = (length polymer))
+          (with previous = 0)
+          (when (= current previous) (return current))
+          (progn
+            (setf polymer (cancel-pairs-iterative polymer))
+            (setf previous current)
+            (setf current (length polymer)))))
 #+END_SRC
 
 #+RESULTS: cancel-pairs
@@ -94,18 +83,17 @@ thing to start with.
   (defun problem-a () (format t "Problem 5a: ~a~%" (cancel-pairs *input*)))
 #+END_SRC
 ** Part 2
-For this one, I have to remove all of one letter and see which produces the minimum. iterate will be helpful here.
+For this one, I have to remove all of one letter and see which
+produces the minimum. iterate will be helpful here.
 #+NAME: remove-block
 #+BEGIN_SRC lisp
   (defun remove-block (polymer)
-    (iter (for l in-string "abcdefghijklmnopqrstuvwxyz")
-          (for u in-string "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-          (minimizing (cancel-pairs (remove u (remove l polymer))))))
+    (iter (for c in-string "abcdefghijklmnopqrstuvwxyz")
+          (minimizing (cancel-pairs (remove c polymer :test #'char-equal)))))
 #+END_SRC
-
-#+RESULTS: remove-block
-: REMOVE-BLOCK
-
+Improvement: Single pass over the list to remove characters by
+changing the test to be more permissive. Doesn't match on exact char,
+but either case.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes
   (defun problem-b () (format t "Problem 5b: ~a~%" (remove-block *input*)))
