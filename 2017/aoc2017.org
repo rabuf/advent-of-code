@@ -9,7 +9,7 @@ split it into a list of individual numbers.
 #+NAME: day1-input
 #+BEGIN_SRC lisp
   (defvar *input-2017-1*
-    (with-open-file (s "input/2017/1.txt")
+    (with-open-file (s "input/1.txt")
       (let ((input (read-line s)))
         (loop for c across input
               collect (- (char-int c) 48)))))
@@ -76,7 +76,7 @@ using the lisp reader.
 #+NAME: day2-input
 #+BEGIN_SRC lisp
   (defvar *input-2017-2*
-    (with-open-file (s "input/2017/2.txt")
+    (with-open-file (s "input/2.txt")
       (loop for line = (read-line s nil :eof)
             until (eq line :eof)
             collect (with-input-from-string (l line)
@@ -135,3 +135,70 @@ results from all the rows.
 #+RESULTS: day2
 : Problem 2a: 45972
 : Problem 2b: 326
+** Day 3
+*** Input
+Today's input is a single number so no parsing.
+#+NAME: day3-input
+#+BEGIN_SRC lisp
+  (defvar *input-2017-3* 347991)
+#+END_SRC
+*** Data Structures
+#+NAME: point
+#+BEGIN_SRC lisp
+  (defstruct (point
+              (:conc-name pt-))
+    x
+    y)
+#+END_SRC
+*** Part 1
+This is an interesting problem. So the memory grows in a spiral. I
+have to determine the Cartesian coordinates for the memory cell
+identified by the input number, and then calculate it's distance to 1
+(the origin).
+#+NAME: manhattan-distance
+#+BEGIN_SRC lisp
+  (defun manhattan-distance (p1 p2)
+    (destructuring-bind ((x1 y1) (x2 y2)) (list p1 p2)
+      (+ (abs (- x1 x2)) (abs (- y1 y2)))))
+#+END_SRC
+
+#+RESULTS: manhattan-distance
+: MANHATTAN-DISTANCE
+
+Now we have to convert the input into a position. It's helpful to note
+that all *odd* perfect squares occur on a diagonal moving
+down-and-right from 1. All *even* perfect squares occor on a diagonal
+moving up-and-left from 4. If we know which two perfect squares are
+nearest the input then we can identify it's precise location by moving
+along the path from (lower square) to (upper square).
+
+Doing this one manually right now, we have:
+- lower :: 346921
+- upper :: 348100
+
+When examining the squares, the square for the nth odd number
+(starting at 1) is located at (n-1,-(n-1)). So 1 is at (0,0). 9 is the
+square of 3 (the 2nd odd number) is located at (1,-1), etc.
+
+A similar pattern exists for the squares of even numbers: (-n+1,n).
+
+So we need to determine the locations of *lower* and *upper*.
+
+*lower* is the square of the 294th odd number, and *upper* is the
+square of the 295th even number. So that puts our solution along the
+path from (294,-294) to (-294,295).
+
+Alright, so I can now convert *squares* to positions. And I can
+determine the distance between them. We also know how far from each
+our input is. In this case, we're only 109 from *upper*. That's over
+half the total distance between *upper* and *lower*, so we can find
+our position by moving horizontally right from *upper*.
+
+(-185,295)
+
+The manhattan distance is 480.
+
+*** Part 2
+*** Putting it all together
+#+NAME: day3
+*** Answer

@@ -1,0 +1,93 @@
+#+STARTUP: indent content
+#+OPTIONS: num:nil toc:nil
+* Day 7
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2018-07)=
+4. Typing =C-c C-c= in the block [[answers][answers]].
+** Initial stuffs
+*** Packages to load
+#+NAME: packages :results none
+#+BEGIN_SRC lisp :results none
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results none
+  <<packages>>
+  (defpackage :aoc-2018-07
+    (:use :common-lisp
+          :iterate)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2018-07)
+#+END_SRC
+** Input
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results none
+  (defun parse-line (line)
+    (identity line))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results none
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results none
+  <<parse-line>>
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/2018/6.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results none
+  (defun problem-a () (format t "Problem 7a: ~a~%" (identity *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes
+  (defun problem-b () (format t "Problem 7b: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes
+#+END_SRC
+
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.07.lisp
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 7a: (357, 59 312, 283 130, 47 89, 87 87, 58 158, 169 182, 183 300, 318
+             82, 257 200, 194 71, 259 112, 67 82, 163 107, 302 58, 194 40, 88
+             288, 339 64, 245 243, 302 41, 43 147, 276 143, 116 103, 178
+             262, 226 253, 157 313, 71 202, 236 353, 192 96, 74 167, 50
+             125, 132 90, 315 174, 232 185, 237 126, 134 152, 191 104, 315
+             283, 90 95, 193 252, 286 48, 166 69, 75 48, 349 59, 124 334, 95
+             263, 134 50, 314 196, 66 342, 221 60, 217)
+Problem 7b: (357, 59 312, 283 130, 47 89, 87 87, 58 158, 169 182, 183 300, 318
+             82, 257 200, 194 71, 259 112, 67 82, 163 107, 302 58, 194 40, 88
+             288, 339 64, 245 243, 302 41, 43 147, 276 143, 116 103, 178
+             262, 226 253, 157 313, 71 202, 236 353, 192 96, 74 167, 50
+             125, 132 90, 315 174, 232 185, 237 126, 134 152, 191 104, 315
+             283, 90 95, 193 252, 286 48, 166 69, 75 48, 349 59, 124 334, 95
+             263, 134 50, 314 196, 66 342, 221 60, 217)
+#+end_example
+
+** Thoughts
