@@ -41,7 +41,7 @@ The input is a single massive line of letters. So reading is easy.
 #+BEGIN_SRC lisp :noweb yes
   <<read-input>>
   (defvar *input*
-    (car (read-input "input/2018/5.txt")))
+    (car (read-input "input/5.txt")))
 #+END_SRC
 
 ** Part 1

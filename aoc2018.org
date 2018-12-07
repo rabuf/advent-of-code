@@ -18,7 +18,7 @@ then had it parse each line into an integer directly.
 #+NAME: day1-input
 #+BEGIN_SRC lisp
   (defvar *input-1*
-    (with-open-file (s "input/2018/1.txt")
+    (with-open-file (s "input/1.txt")
       (loop for line = (read-line s nil :eof)
             until (eq line :eof)
             collect (parse-integer line))))
@@ -76,7 +76,7 @@ of a box.
 #+NAME: day2-input
 #+BEGIN_SRC lisp
   (defvar *input-2*
-    (with-open-file (s "input/2018/2.txt")
+    (with-open-file (s "input/2.txt")
       (loop for line = (read-line s nil :eof)
             until (eq line :eof)
             collect line)))
@@ -173,7 +173,7 @@ thanks to CL's reader.
 #+NAME: day3-input
 #+BEGIN_SRC lisp
   (defvar *input-3*
-    (with-open-file (s "input/2018/3.txt")
+    (with-open-file (s "input/3.txt")
       (read s)))
 #+END_SRC
 *** Part 1

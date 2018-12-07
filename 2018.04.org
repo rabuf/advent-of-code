@@ -104,7 +104,7 @@ at which times without having to do much data juggling later.
   <<parse-input>>
   <<read-input>>
   (defparameter *input*
-    (parse-input (sort (read-input "input/2018/4.txt") #'string<)))
+    (parse-input (sort (read-input "input/4.txt") #'string<)))
 #+END_SRC
 ** Part 1
 Creating one the histograms is fairly straightforward. Create one
