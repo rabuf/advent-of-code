@@ -2,7 +2,7 @@
 #+OPTIONS: toc:nil num:nil
 * About
 This is my collection of solutions for
-[[http://adventofcode.com][Advent of Code] challenges. Most of these
+[[http://adventofcode.com][Advent of Code]] challenges. Most of these
 will be done in Common Lisp.
 * Organization
 How I organize and present this is constantly changing. Initially I
