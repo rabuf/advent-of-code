@@ -1,6 +1,6 @@
 #+STARTUP: indent
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2018 [5/25]
+* Advent of Code 2018 [6/25]
 This will be my attempt to solve the various Advent of Code 2018
 problems with Common Lisp.
 
@@ -286,7 +286,7 @@ the same =fabric= array, we could generate it once and pass it to each
 to use in their solutions. But I don't feel like making those changes.
 ** DONE [[file:2018.04.org][Day 4]]
 ** DONE [[file:2018.05.org][Day 5]]
-** TODO [[file:2018.06.org][Day 6]]
+** DONE [[file:2018.06.org][Day 6]]
 ** TODO Day 7
 ** TODO Day 8
 ** TODO Day 9
