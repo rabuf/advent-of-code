@@ -29,28 +29,127 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-07)
 #+END_SRC
 ** Input
+The input this time is a sequence of steps like:
+#+BEGIN_EXAMPLE
+  Step C must be finished before step A can begin.
+  Step C must be finished before step F can begin.
+  Step A must be finished before step B can begin.
+  Step A must be finished before step D can begin.
+  Step B must be finished before step E can begin.
+  Step D must be finished before step E can begin.
+  Step F must be finished before step E can begin.
+#+END_EXAMPLE
+Parsing this will actually be pretty easy. Each step is a single
+character. Each line contains a step followed by its successor step.
 #+NAME: parse-line
 #+BEGIN_SRC lisp :results none
   (defun parse-line (line)
-    (identity line))
+    (multiple-value-bind (_ steps)
+        (ppcre:scan-to-strings "Step ([A-Z]) must be finished before step ([A-Z]) can begin." line)
+      (map 'list #'identity steps))) ;; turn the array into a list
 #+END_SRC
+
 #+NAME: read-input
 #+BEGIN_SRC lisp :results none
   (defun read-input (file)
     (iter (for line in-file file using #'read-line)
           (collect (parse-line line))))
 #+END_SRC
+
+#+RESULTS: read-input
+: READ-INPUT
+
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results none
   <<parse-line>>
   <<read-input>>
   (defparameter *input*
-    (read-input "input/2018/6.txt"))
+    (read-input "input/7.txt"))
 #+END_SRC
+
+#+RESULTS: input
+: PARSE-LINE
+
 ** Part 1
+The problem is just a topological sort. Now, let's see if I can
+remember how to do this. If I'd chosen erlang, =topsort= is backed
+into the digraph library.
+
+I guess my first step will be to setup a better data structure than we
+have right now. I will create a hashtable of dependencies. The key is
+a step, the value is all steps that must happen first.
+#+NAME: dependency-table
+#+BEGIN_SRC lisp :results none
+  (defun dependency-table (edges)
+    (let ((dependencies (make-hash-table :test 'equal)))
+      ;; Ensure even things with no dependencies are in this table
+      (iter (for (val key) in edges)
+            (setf (gethash key dependencies) nil)
+            (setf (gethash val dependencies) nil))
+      (iter (for (val key) in edges)
+            (unless (member val (gethash key dependencies) :test 'equal)
+              (push val (gethash key dependencies))))
+      dependencies))
+#+END_SRC
+From our input, now, we can see that both B and Q can be started
+before anything else. If more than one is an option at a time we are
+supposed to do them alphabetically. So, in this case, B would be
+first.
+#+BEGIN_SRC lisp
+  (iter (for (key value) in-hashtable (dependency-table *input*))
+                     (format t "~A depends on ~A~%" key value))
+  ;; I depends on (F U P L H A T C Q)
+  ;; Q depends on NIL
+  ;; M depends on (B)
+  ;; B depends on NIL
+  ;; F depends on (W Q P A U E T D R)
+  ;; R depends on NIL
+  ;; S depends on (Q M G)
+  ;; G depends on (B)
+  ;; A depends on (C K T R D P M)
+  ;; W depends on (Z)
+  ;; Z depends on (G)
+  ;; C depends on (J)
+  ;; J depends on (M)
+  ;; O depends on (P T A E V Y X I F L K)
+  ;; K depends on (G)
+  ;; L depends on (E H U T J Y)
+  ;; Y depends on (Z M K)
+  ;; P depends on (D T U H W Y L N)
+  ;; N depends on (J)
+  ;; X depends on (R T L Z G P B Q A F I U W Y V S)
+  ;; U depends on (N E)
+  ;; E depends on (N)
+  ;; V depends on (N T M L C G F H U)
+  ;; D depends on (G B K)
+  ;; H depends on (Z R W)
+  ;; T depends on (S N D)
+#+END_SRC
+Now, I'm going to basically blast away the contents of this hash
+table. My algorithm is simple:
+
+Identify all keys that have nil dependencies. Take the first,
+alphabetically. Remove that entry from the table. Then remove that
+element from each entry left in the table. Repeat until the hashtable
+is empty. This may not be the best way, but it is a way and it'll work.
+#+NAME: topsort
+#+BEGIN_SRC lisp :results none
+  (defun topsort (graph)
+    (let ((table (dependency-table graph)))
+      (iter (until (= 0 (hash-table-count table)))
+            (let* ((options (iter (for (k v) in-hashtable table)
+                                 (when (null v) (collect k))))
+                   (sorted (sort options #'string<))
+                   (step (car sorted)))
+              (collect step)
+              (remhash step table)
+              (iter (for (k v) in-hashtable table)
+                    (when (member step v :test #'string=)
+                      (setf (gethash k table) (remove step v :test #'string=))))))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results none
-  (defun problem-a () (format t "Problem 7a: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 7a: ~{~a~}~%" (topsort *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
@@ -59,7 +158,9 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Putting it all together
 #+NAME: functions
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :noweb yes :results none
+  <<dependency-table>>
+  <<topsort>>
 #+END_SRC
 
 #+NAME: answers
@@ -74,20 +175,17 @@ support for lisp installed you can run this by:
 ** Answer
 #+RESULTS: answers
 #+begin_example
-Problem 7a: (357, 59 312, 283 130, 47 89, 87 87, 58 158, 169 182, 183 300, 318
-             82, 257 200, 194 71, 259 112, 67 82, 163 107, 302 58, 194 40, 88
-             288, 339 64, 245 243, 302 41, 43 147, 276 143, 116 103, 178
-             262, 226 253, 157 313, 71 202, 236 353, 192 96, 74 167, 50
-             125, 132 90, 315 174, 232 185, 237 126, 134 152, 191 104, 315
-             283, 90 95, 193 252, 286 48, 166 69, 75 48, 349 59, 124 334, 95
-             263, 134 50, 314 196, 66 342, 221 60, 217)
-Problem 7b: (357, 59 312, 283 130, 47 89, 87 87, 58 158, 169 182, 183 300, 318
-             82, 257 200, 194 71, 259 112, 67 82, 163 107, 302 58, 194 40, 88
-             288, 339 64, 245 243, 302 41, 43 147, 276 143, 116 103, 178
-             262, 226 253, 157 313, 71 202, 236 353, 192 96, 74 167, 50
-             125, 132 90, 315 174, 232 185, 237 126, 134 152, 191 104, 315
-             283, 90 95, 193 252, 286 48, 166 69, 75 48, 349 59, 124 334, 95
-             263, 134 50, 314 196, 66 342, 221 60, 217)
+Problem 7a: BGKDMJCNEQRSTUZWHYLPAFIVXO
+Problem 7b: ((Q I) (B M) (R F) (G S) (M A) (Z W) (J C) (K O) (C I) (Y L) (N P)
+             (S X) (E U) (U V) (D F) (W H) (T I) (H V) (L O) (P A) (A I) (F O)
+             (V X) (I O) (X O) (F V) (L P) (Y P) (Y X) (Y O) (D A) (T F) (W X)
+             (R A) (E F) (H I) (K Y) (W P) (V O) (N E) (L I) (B G) (D T) (J L)
+             (M Y) (T A) (K D) (H P) (P I) (T L) (J N) (U F) (U I) (A F) (U P)
+             (R H) (G V) (P F) (B D) (U X) (K A) (G D) (N U) (U L) (M J) (I X)
+             (H L) (M S) (E O) (Q F) (A O) (T P) (F X) (D P) (A X) (G Z) (W F)
+             (Q X) (C V) (L V) (E L) (B X) (M V) (F I) (P X) (C A) (Z H) (Q S)
+             (G X) (T O) (P O) (T V) (N V) (Z X) (L X) (Z Y) (N T) (S T) (G K)
+             (T X) (R X))
 #+end_example
 
 ** Thoughts
