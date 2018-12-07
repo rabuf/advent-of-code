@@ -1,6 +1,7 @@
 #+STARTUP: indent content
 #+OPTIONS: num:nil toc:nil
 * DONE Day 6
+** Executing this code
 If you have a lisp installation, emacs, org-mode, and org-babel
 support for lisp installed you can run this by:
 1. Starting slime (=M-x slime=)
@@ -9,7 +10,7 @@ support for lisp installed you can run this by:
 4. Typing =C-c C-c= in the block [[answers][answers]].
 ** Initial stuffs
 *** Packages to load
-#+NAME: packages
+#+NAME: packages :results none
 #+BEGIN_SRC lisp
   (unless (find-package :cl-ppcre)
     (ql:quickload "cl-ppcre"))
@@ -18,7 +19,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :noweb yes :results none
   <<packages>>
   (defpackage :aoc-2018-06
     (:use :common-lisp
@@ -28,32 +29,220 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-06)
 #+END_SRC
 ** Input
+Today's inputs are a series of points (all positive values today).
+
+So parsing a line is straightforward:
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results none
+  (defun parse-line (line)
+    (multiple-value-bind (_ values)
+        (ppcre:scan-to-strings "(\\d+),\\s*(\\d+)" line)
+      (map 'list #'parse-integer values)))
+#+END_SRC
+Each line can be processed independently, sorting doesn't matter.
 #+NAME: read-input
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :results none
   (defun read-input (file)
     (iter (for line in-file file using #'read-line)
-          (collect line)))
+          (collect (parse-line line))))
 #+END_SRC
 #+NAME: input
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :noweb yes :results none
+  <<parse-line>>
   <<read-input>>
   (defparameter *input*
     (read-input "input/2018/6.txt"))
 #+END_SRC
 ** Part 1
+From the problem description:
+#+BEGIN_QUOTE
+Using only the Manhattan distance, determine the area around each
+coordinate by counting the number of integer X,Y locations that are
+closest to that coordinate (and aren't tied in distance to any other
+coordinate).
+#+END_QUOTE
+So a useful function will be to calculate the Manhattan distance
+between two points. I'll be fancier than necessary and make this
+generalized (assumption: both points submitted have the same length):
+#+NAME: manhattan-distance
+#+BEGIN_SRC lisp :results none
+  (defun manhattan-distance (p1 p2)
+    "Return the Manhattan distance between two points. The inputs should
+     be of equal length to get a sensible value."
+    (iter (for x in p1)
+          (for y in p2)
+          (sum (abs (- x y)))))
+#+END_SRC
+A further element of the problem description is all this is happening
+on an infinite plane. So, for instance, the set of all points closest
+to an input of one point would be infinite in size. The good news, is
+we don't need to keep an infinite plane. I'm going to find the most
+extreme in each direction and I'll use them as the boundaries.
+#+NAME: bounding-box
+#+BEGIN_SRC lisp :results none
+  (defun bounding-box (points)
+    "Given a list of points, create a bounding box, (minx maxx miny maxy)"
+    (let ((horizontal (mapcar #'first points))
+          (vertical (mapcar #'second points)))
+      (list (apply #'min horizontal)
+            (apply #'max horizontal)
+            (apply  #'min vertical)
+            (apply #'max vertical))))
+#+END_SRC
+Cleaned up slightly for readability. Given a particular location and
+the list of points we compute the point that is closest to the
+provided coordinates. If more than one share that same minimum
+distance, we return nil.
+
+I ran into a problem because =sort= is destructive. So I generate a
+new list using =iter= and =collecting= consisting of the pairs (point
+x distance), and sort that. I initially used a lot of =cadadr= kind of
+stuff which is hard to read. A bit more verbose, but I've switched to
+=first=, =second=, =rest=, etc.
+#+NAME: closest-point
+#+BEGIN_SRC lisp :results none
+  (defun closest-point (coordinate points)
+    (let ((sorted (sort (iter (for p in points)
+                              (collecting (list p (manhattan-distance coordinate p))))
+                        #'<
+                        :key #'second)))
+      (if (= (second (first sorted))
+             (second (second sorted)))
+          nil
+          (first (first sorted)))))
+#+END_SRC
+I initially created an array with dimensions based on the bounding box
+and populated each cell in it with the closest point or nil. Then I
+tried to determine which regions were infinite/finite and return the
+max.
+
+Well, I had a bug because of a typo I didn't catch and completely
+rewrote it. In retrospect, the solution would've worked, except for
+this typo:
+#+BEGIN_SRC lisp
+  ;; reduced code to illustrate the typo
+  (iter (for i from minx to maxx)
+        (iter (for j from miny to maxy)
+              ;; some logic
+              (cond ((or (= i minx)
+                         (= i maxx)
+                         (= j miny)
+                         (= i maxy) ;; in the dense code I just couldn't
+                                    ;; see this `i`
+#+END_SRC
+So I rewrote the whole thing. I still iterate over the area, but based
+on what is the closest point I increase the size of the appropriate
+region. Something I did like, from Reddit user phil_g, was the idea of
+using the actual built-in =infinity= for the areas. He used positive
+infinity. What you can also do is use negative infinity. The benefit
+of either is that a case I have here:
+#+BEGIN_SRC lisp
+  ((= -1 (gethash closest areas)) nil)
+#+END_SRC
+Which exists only to do *nothing* when the given area is negative can
+go away. =(incf infinity)= or =(incf negative-infinity)= will evaluate
+to =infinity= and =negative-infinity=, respectively.
+
+Another thing that can be done is to move that whole condition for
+assigning infinity to an initial set of loops, and do something like:
+#+BEGIN_SRC lisp
+  (destructuring-bind (minx maxx miny maxy)
+      (bounding-box points)
+    (let ((areas (make-hash-table :test #'equal)))
+      (iter (for p in points)
+            (setf (gethash p areas) 0))
+      ;; Any region that includes a point along minx/maxx or miny/maxy
+      ;; will be infinite in size.
+      (iter (for y in (list miny maxy))
+            (iter (for x from minx to maxx)
+                  (for closest = (closest-point (list x y) points))
+                  (setf (gethash closest areas) *negative-infinity*)))
+      (iter (for x in (list minx maxx))
+            (iter (for y from miny to maxy)
+                  (for closest = (closest-point (list x y) points))
+                  (setf (gethash closest areas) *negative-infinity*)))
+      ;; Now we can increment any of the areas freely as long as
+      ;; closest-point isn't nil, no reason to check anything else since
+      ;; 1+infinity=infinity.
+      (iter (for x from minx to maxx)
+            (iter (for y from miny to maxy)
+                  (let ((closest (closest-point (list x y) points)))
+                    (unless (null closest)
+                      (incf (gethash (closest-point (list x y) points) areas))))))
+      ;; And since we used negative infinity the maximum has to be
+      ;; larger than that (or all regions are infinite in size).
+      (iter (for (point area) in-hashtable areas)
+            (maximizing area))))
+#+END_SRC
+(NB: The above is untested.)
+
+It's about as long as the solution I went with, but some elements are
+clearer. In particular, I should've used phil_g's infinity version.
 #+NAME: problem-a
-#+BEGIN_SRC lisp :noweb yes
-  (defun problem-a () (format t "Problem 6a: ~a~%" (identity *input*)))
+#+BEGIN_SRC lisp :noweb yes :results none
+  (defun solve-a (points)
+    (destructuring-bind (minx maxx miny maxy)
+        (bounding-box points)
+      (let ((areas (make-hash-table :test #'equal)))
+        (iter (for p in points)
+              (setf (gethash p areas) 0))
+        (iter (for x from minx to maxx)
+              (iter (for y from miny to maxy)
+                    (let ((closest (closest-point (list x y) points)))
+                      (cond ((null closest) nil)
+                            ((or (= x minx)
+                                 (= x maxx)
+                                 (= y miny)
+                                 (= y maxy))
+                             (setf (gethash closest areas) -1))
+                            ((= -1 (gethash closest areas)) nil)
+                            (t (incf (gethash closest areas)))))))
+        (iter (for (point area) in-hashtable areas)
+              (maximizing area)))))
+  (defun problem-a () (format t "Problem 6a: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
+We need to find the size of the region containing points whose *total*
+distance to all coordinates is < 10,000.
+
+This function will, given a coordinate, sum up the distance to all of
+the poitns.
+#+NAME: total-distance
+#+BEGIN_SRC lisp
+  (defun total-distance (coordinate points)
+    (iter (for p in points)
+          (sum (manhattan-distance coordinate p))))
+#+END_SRC
+Another optino may have been to use =reduce= and =mapcar=.
+#+BEGIN_SRC lisp
+  (reduce #'+ (mapcar (lambda (p) (manhattan-distance p coordinate)) points))
+#+END_SRC
+
+#+NAME: region-size-by-distance
+#+BEGIN_SRC lisp
+  (defun region-size-by-distance (points distance)
+    (destructuring-bind (minx maxx miny maxy) (bounding-box points)
+      (iter outer
+            (for x from minx to maxx)
+            (iter (for y from miny to maxy)
+                  (in outer
+                      (count (< (total-distance (list x y) points) distance)))))))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes
-  (defun problem-b () (format t "Problem 6b: ~a~%" (identity *input*)))
+  (defun solve-b (points)
+    (region-size-by-distance points 10000))
+  (defun problem-b () (format t "Problem 6b: ~a~%" (solve-b *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes
-
+  <<manhattan-distance>>
+  <<bounding-box>>
+  <<gift-wrapping>>
+  <<total-distance>>
+  <<region-size-by-distance>>
+  <<closest-point>>
 #+END_SRC
 
 #+NAME: answers
@@ -67,5 +256,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
+: Problem 6a: 4171
+: Problem 6b: 39545
 
 ** Thoughts
