@@ -59,6 +59,57 @@ bear to try to debug.
       (make-node :children children :metadata metadata)))
 #+END_SRC
 
+The problem I ran into is illustrated here:
+#+BEGIN_SRC lisp :results output
+  (defun do-something (list)
+    (format t "~a~%" list)
+    (pop list)
+    (format t "~a~%" list))
+  (let ((list (list 1 2 3)))
+    (format t "~a~%" list)
+    (do-something list)
+    (format t "~a~%" list))
+#+END_SRC
+
+#+RESULTS:
+: (1 2 3)
+: (1 2 3)
+: (2 3)
+: (1 2 3)
+So I originally had a recursive call like:
+#+BEGIN_SRC lisp :results silent
+  (defun make-tree-flawed (list)
+    (let* ((child-count (pop list))
+           (metadata-count (pop list))
+           (children (iter (repeat child-count)
+                           (collect (make-tree-flawed list))))
+           (metadata (iter (repeat metadata-count)
+                           (collect (pop list)))))
+      (make-node :children children :metadata metadata)))
+#+END_SRC
+(NB: The original was more complicated, but amounted to the same logic).
+
+The output of the above is garbage.
+
+To have the effect I wanted, I needed the same list variable to be in
+the scope of all the recursive calls. This required a local recursive
+function:
+#+BEGIN_SRC lisp :results silent
+  (defun make-tree-list (list)
+    (labels ((recurse ()
+               (let* ((child-count (pop list))
+                      (metadata-count (pop list))
+                      (children (iter (repeat child-count)
+                                      (collect (recurse))))
+                      (metadata (iter (repeat metadata-count)
+                                      (collect (pop list)))))
+                 (make-node :children children :metadata metadata))))
+      (recurse)))
+#+END_SRC
+
+Now that recursive version, converting lists to trees, works just
+fine. Though I'm not using it.
+
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
