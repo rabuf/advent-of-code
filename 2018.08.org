@@ -208,7 +208,7 @@ around with a parsing library called [[https://github.com/mrossini-ethz/parseq/]
     (defrule node () (and child-count metadata-count children metadata)
       (:let (nc 0))
       (:let (nm 0))
-      (:Lambda (cc mc c m)
+      (:lambda (cc mc c m)
         (make-node :children c :metadata m)))
     (defrule child-count () integer (:external nc)
              (:lambda (x)
