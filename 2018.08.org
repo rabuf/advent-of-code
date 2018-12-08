@@ -254,14 +254,18 @@ into a function.
 
 #+RESULTS:
 : LIST-TO-TREE
+
 Now we'll load up the test data from the problem page:
+
 #+BEGIN_SRC lisp
   (defvar *test-list* (list 2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2))
 #+END_SRC
 
 #+RESULTS:
 : *TEST-LIST*
+
 And let's test the parser:
+
 #+BEGIN_SRC lisp :exports both
   (list-to-tree *test-list*)
 #+END_SRC
