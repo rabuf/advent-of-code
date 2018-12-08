@@ -11,7 +11,7 @@ support for lisp installed you can run this by:
 ** Initial stuffs
 *** Packages to load
 #+NAME: packages
-#+BEGIN_SRC lisp :results none
+#+BEGIN_SRC lisp :results silent
   (unless (find-package :cl-ppcre)
     (ql:quickload "cl-ppcre"))
   (unless (find-package :iterate)
@@ -19,7 +19,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
-#+BEGIN_SRC lisp :noweb yes :results none
+#+BEGIN_SRC lisp :noweb yes :results silent
   <<packages>>
   (defpackage :aoc-2018-08
     (:use :common-lisp
@@ -29,84 +29,26 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-08)
 #+END_SRC
 ** Input
-Parsing is simple, it's one line with a large number of numbers. We
-read them all using =iterate='s =in-file= and =using= options with
-=read= from CL itself.
-#+NAME: read-input
-#+BEGIN_SRC lisp :results none
-  (defun read-input (file)
-    (iter (for i in-file file using #'read)
-          (collect i)))
-#+END_SRC
+Using the stream to help with parsing. I was really trying to do this
+a different way (read the whole file into a list and then convert that
+into a tree). But I kept getting tripped up. Ultimately, I was able to
+gather the metadata doing that but I couldn't quite restore the tree
+structure itself.
 
-#+NAME: input
-#+BEGIN_SRC lisp :noweb yes
-  <<read-input>>
-  (defparameter *input*
-    (read-input "input/8.txt"))
-#+END_SRC
-** Part 1
-The input itself is a description of a tree. The first two integers
-define parameters of the node: How many children, how much metadata.
-
-The children, if any, will appear *first* along with their own
-children and metadata, followed by the initial node's metadata.
-
-Task 1 is to sum up all the metadata from all the nodes.
-
-Let's create a function which takes a description of a tree as a list
-of numbers and returns the tree as a set of nested lists.
-
-The structure of the tree will be a series of lists (the children)
-followed by the data. The example input is:
-#+BEGIN_EXAMPLE
-2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2
-#+END_EXAMPLE
-Which parses out to a tree that would look like:
-#+BEGIN_EXAMPLE
-  (1 1 2) -> (10 11 12)
-          -> (2) -> (99) -> nil
-#+END_EXAMPLE
-
-This just gathers the metadata, it doesn't properly construct the tree
-yet. Collect children and metadata values. When the # children = 0,
-collect the appropriate metadata into a list and append it to =tree=.
-#+NAME: list-to-metadata-list
-#+BEGIN_SRC lisp
-  (defun list-to-metadata-list (list)
-    (let ((tree nil))
-      (iter (until (null list))
-            (with metadata = nil)
-            (with children = nil)
-            (push (pop list) children)
-            (push (pop list) metadata)
-            (iter (while (and (not (null children))
-                              (= (car children) 0)))
-                  (push (subseq list 0 (car metadata)) tree)
-                  (setf list (subseq list (car metadata)))
-                  (pop children)
-                  (pop metadata)
-                  (unless (null children)
-                    (decf (car children)))))
-      tree))
-#+END_SRC
-
-#+NAME: problem-a
-#+BEGIN_SRC lisp :noweb yes :results none
-  (defun problem-a () (format t "Problem 8a: ~a~%" (reduce #'+ (apply #'append (list-to-metadata-list *input*)))))
-#+END_SRC
-** Part 2
-I want to modify the function from above, but I'm leaving it alone
-since it works right now for solving the first part.
+The code got really ugly, so this version is better. The code I had
+was recursive like this, but had multiple value returns: the newly
+constructed child node and a list with all the data used in
+constructing that node removed. It wasn't very readable, and it was a
+bear to try to debug.
 #+NAME: node
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :results silent
   (defstruct node
     (children nil)
     (metadata nil))
 #+END_SRC
 
 #+NAME: make-tree
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :results silent
   (defun make-tree (stream)
     (let* ((child-count (read stream))
            (metadata-count (read stream))
@@ -116,8 +58,49 @@ since it works right now for solving the first part.
                            (collect (read stream)))))
       (make-node :children children :metadata metadata)))
 #+END_SRC
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (s file)
+      (make-tree s)))
+#+END_SRC
+
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/8.txt"))
+#+END_SRC
+** Part 1
+Part 1 wants the sum of the metadata of each node. This is a
+straightforward recursive solution.
+#+NAME: sum-tree
+#+BEGIN_SRC lisp :results silent
+  (defun sum-tree (node)
+    (+ (iter (for c in (node-children node))
+             (sum (sum-tree c)))
+       (reduce #'+ (node-metadata node))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 8a: ~a~%" (sum-tree *input*)))
+#+END_SRC
+** Part 2
+Node value is defined as either:
+
+If the node has no children, the sum of its metadata.
+
+If the node has children, the sum of the nodes referenced by the
+metadata. If the metadata refers to a non-existent node, its value is
+considered 0.
+
+Another recursive solution. The only other complexity is that the
+input assumes sequence access starts at 1, while lisp uses 0 as the
+first element. So we have to decrement 1 from the metadata values to
+get the index.
 #+NAME: node-value
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :results noen
   (defun node-value (node)
     (let ((children (node-children node))
           (metadata (node-metadata node)))
@@ -129,28 +112,25 @@ since it works right now for solving the first part.
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes
-    (defun solve-b ()
-      (with-input-from-string (s (format nil "~{~a ~}" *input*))
-        (node-value (make-tree s))))
-    (defun problem-b () (format t "Problem 8b: ~a~%" (solve-b)))
+    (defun problem-b () (format t "Problem 8b: ~a~%" (node-value *input*)))
 #+END_SRC
-
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes
   <<node>>
 #+END_SRC
 #+NAME: functions
-#+BEGIN_SRC lisp :noweb yes :results none
+#+BEGIN_SRC lisp :noweb yes :results silent
   <<list-to-metadata-list>>
   <<make-tree>>
   <<node-value>>
+  <<sum-tree>>
 #+END_SRC
 
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.08.lisp
-  <<input>>
   <<structs>>
+  <<input>>
   <<functions>>
   <<problem-a>>
   <<problem-b>>
