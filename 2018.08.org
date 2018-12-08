@@ -240,6 +240,7 @@ into a function.
         (:let (nc 0))
         (:let (nm 0))
         (:Lambda (cc mc c m)
+          (declare (ignore cc mc))
           (make-node :children c :metadata m)))
       (defrule child-count () integer (:external nc)
                (:lambda (x)
