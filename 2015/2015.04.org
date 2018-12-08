@@ -1,0 +1,96 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 04
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-04)=
+4. Typing =C-c C-c= in teh block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :sb-md5)
+    (require :sb-md5))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-04
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-04)
+#+END_SRC
+** Input
+Today's input is just a string so no need to do any parsing.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* "yzbqklnj")
+#+END_SRC
+** Part 1
+I need to find the lowest positive integer that can be appended to the
+input string which will generate an MD5 checksum for the string which
+starts with 5 0s.
+
+(iter (for c in-vector (sb-md5:md5sum-string "abcdef609043"))
+		   (collect (format nil "~2,'0x" c)))
+
+How do I get MD5 in common lisp? Phew, SBCL has it.
+#+NAME: adventcoin
+#+BEGIN_SRC lisp :results none
+  (defun find-suffix (prefix &optional (target 5))
+    (iter (for i from 1)
+          (until (let ((sum (sb-md5:md5sum-string (format nil "~A~A" prefix i))))
+                   (and (= 0 (aref sum 0))
+                        (= 0 (aref sum 1))
+                        (> 16 (aref sum 2)))))
+          (finally (return i))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (find-suffix *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<adventcoin>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.04.lisp
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 04 A: 282749
+: Problem 04 B: yzbqklnj
+** Thoughts
