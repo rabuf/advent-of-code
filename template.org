@@ -37,9 +37,9 @@ support for lisp installed you can run this by:
 ** Input
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
-    (defun read-input (file)
-      (iter (for line in-file file using #'read-line)
-            (collect line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
