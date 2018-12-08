@@ -10,7 +10,7 @@ support for lisp installed you can run this by:
 ** Initial stuffs
 *** Packages to load
 #+NAME: packages
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :results silent
   (unless (find-package :cl-ppcre)
     (ql:quickload "cl-ppcre"))
   (unless (find-package :iterate)
@@ -22,7 +22,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :noweb yes :results silent
   <<packages>>
   (defpackage :aoc-YEAR-DAY
     (:use :common-lisp
@@ -35,25 +35,25 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Input
 #+NAME: read-input
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :results silent
     (defun read-input (file)
       (iter (for line in-file file using #'read-line)
             (collect line)))
 #+END_SRC
 #+NAME: input
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
   (defparameter *input*
     (read-input "input/DAY.txt"))
 #+END_SRC
 ** Part 1
 #+NAME: problem-a
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem DAY A: ~a~%" (identity *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem DAY B: ~a~%" (identity *input*)))
 #+END_SRC
 ** Putting it all together
