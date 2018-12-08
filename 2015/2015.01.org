@@ -108,6 +108,35 @@ Santa to reach the basement *first*. A simple loop will give us this.
 #+RESULTS: answers
 : Problem 01 A: 74
 : Problem 01 B: 1795
+** Tests
+I added these after the fact to play with 5am a bit more.
+#+BEGIN_SRC lisp :export both :results output
+  (def-suite day01-tests :description "Test cases for Day 01")
+  (in-suite day01-tests)
+  (test floor-0
+    (is (= (apply #'+ (parse-line "(())")) 0))
+    (is (= (apply #'+ (parse-line "()()")) 0)))
+  (test floor-3
+    (is (= (apply #'+ (parse-line "(((")) 3))
+    (is (= (apply #'+ (parse-line "(()(()(")) 3))
+    (is (= (apply #'+ (parse-line "))(((((")) 3)))
+  (test basement
+    (is (= (first-basement-visit (parse-line ")")) 1))
+    (is (= (first-basement-visit (parse-line "()())")) 5)))
+  (run! 'day01-tests)
+#+END_SRC
+
+#+RESULTS:
+: 
+: Running test suite DAY01-TESTS
+:  Running test FLOOR-0 ..
+:  Running test FLOOR-3 ...
+:  Running test BASEMENT ..
+:  Did 7 checks.
+:     Pass: 7 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+
 ** Thoughts
 Parseq was overkill for this problem, but that was good practice. I
 didn't know how to convert a particular input into a specific value
