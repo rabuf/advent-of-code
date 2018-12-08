@@ -60,7 +60,7 @@ bear to try to debug.
 #+END_SRC
 
 The problem I ran into is illustrated here:
-#+BEGIN_SRC lisp :results output
+#+BEGIN_SRC lisp :results output export
   (defun do-something (list)
     (format t "~a~%" list)
     (pop list)
