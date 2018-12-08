@@ -1,19 +1,19 @@
 #+STARTUP: indent content
 #+OPTIONS: toc:nil num:nil
 * About
-This is my collection of solutions for
-[[http://adventofcode.com][Advent of Code]] challenges. Most of these
-will be done in Common Lisp.
+This is my collection of solutions for [[http://adventofcode.com][Advent of Code]] challenges. Most
+of these will be done in Common Lisp.
 * Organization
-How I organize and present this is constantly changing. Initially I
-wanted one org file per year, but the namespace for code blocks was
-getting crowded. My current method is one org file per day. The links
-below will take you to the primary org file for each year, and from
-there you can get to the org file for a specific challenge.
+Each year has its own org file (linked below). From there you can get
+to my code and write up for each of the problems I've solved for that
+year.
 
-NB: Not all challenges have been broken out into their own files yet.
+2018 is my first year doing this live. As I have time I'm going back
+to prior years to practice solving the problems and refine my org-file
+template and method of presentation.
 * Events
 My first year participating is 2018. But I've started going back to
 previous years to work through those problems.
 ** [[file:aoc2018.org][Advent of Code 2018]]
 ** [[file:2017/aoc2017.org][Advent of Code 2017]]
+** [[file:2015/aoc2015.org][Advent of Code 2015]]
