@@ -1,6 +1,6 @@
 #+STARTUP: indent
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2018 [6/25]
+* Advent of Code 2018 [7/25]
 This will be my attempt to solve the various Advent of Code 2018
 problems with Common Lisp.
 
@@ -287,8 +287,8 @@ to use in their solutions. But I don't feel like making those changes.
 ** DONE [[file:2018.04.org][Day 4]]
 ** DONE [[file:2018.05.org][Day 5]]
 ** DONE [[file:2018.06.org][Day 6]]
-** TODO [[file:2018.07.org][Day 7]]
-** TODO Day 8
+** DONE [[file:2018.07.org][Day 7]]
+** TODO [[file:2018.08.org][Day 8]]
 ** TODO Day 9
 ** TODO Day 10
 ** TODO Day 11

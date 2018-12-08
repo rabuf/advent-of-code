@@ -1,0 +1,165 @@
+#+STARTUP: indent content
+#+OPTIONS: num:nil toc:nil
+* Day 8
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2018-08)=
+4. Typing =C-c C-c= in the block [[answers][answers]].
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results none
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results none
+  <<packages>>
+  (defpackage :aoc-2018-08
+    (:use :common-lisp
+          :iterate)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2018-08)
+#+END_SRC
+** Input
+Parsing is simple, it's one line with a large number of numbers. We
+read them all using =iterate='s =in-file= and =using= options with
+=read= from CL itself.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results none
+  (defun read-input (file)
+    (iter (for i in-file file using #'read)
+          (collect i)))
+#+END_SRC
+
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/8.txt"))
+#+END_SRC
+** Part 1
+The input itself is a description of a tree. The first two integers
+define parameters of the node: How many children, how much metadata.
+
+The children, if any, will appear *first* along with their own
+children and metadata, followed by the initial node's metadata.
+
+Task 1 is to sum up all the metadata from all the nodes.
+
+Let's create a function which takes a description of a tree as a list
+of numbers and returns the tree as a set of nested lists.
+
+The structure of the tree will be a series of lists (the children)
+followed by the data. The example input is:
+#+BEGIN_EXAMPLE
+2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2
+#+END_EXAMPLE
+Which parses out to a tree that would look like:
+#+BEGIN_EXAMPLE
+  (1 1 2) -> (10 11 12)
+          -> (2) -> (99) -> nil
+#+END_EXAMPLE
+
+This just gathers the metadata, it doesn't properly construct the tree
+yet. Collect children and metadata values. When the # children = 0,
+collect the appropriate metadata into a list and append it to =tree=.
+#+NAME: list-to-metadata-list
+#+BEGIN_SRC lisp
+  (defun list-to-metadata-list (list)
+    (let ((tree nil))
+      (iter (until (null list))
+            (with metadata = nil)
+            (with children = nil)
+            (push (pop list) children)
+            (push (pop list) metadata)
+            (iter (while (and (not (null children))
+                              (= (car children) 0)))
+                  (push (subseq list 0 (car metadata)) tree)
+                  (setf list (subseq list (car metadata)))
+                  (pop children)
+                  (pop metadata)
+                  (unless (null children)
+                    (decf (car children)))))
+      tree))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results none
+  (defun problem-a () (format t "Problem 8a: ~a~%" (reduce #'+ (apply #'append (list-to-metadata-list *input*)))))
+#+END_SRC
+** Part 2
+I want to modify the function from above, but I'm leaving it alone
+since it works right now for solving the first part.
+#+NAME: node
+#+BEGIN_SRC lisp
+  (defstruct node
+    (children nil)
+    (metadata nil))
+#+END_SRC
+
+#+NAME: make-tree
+#+BEGIN_SRC lisp
+  (defun make-tree (stream)
+    (let* ((child-count (read stream))
+           (metadata-count (read stream))
+           (children (iter (repeat child-count)
+                           (collect (make-tree stream))))
+           (metadata (iter (repeat metadata-count)
+                           (collect (read stream)))))
+      (make-node :children children :metadata metadata)))
+#+END_SRC
+#+NAME: node-value
+#+BEGIN_SRC lisp
+  (defun node-value (node)
+    (let ((children (node-children node))
+          (metadata (node-metadata node)))
+      (cond ((null children) (reduce #'+ metadata))
+            (t (iter (for m in metadata)
+                     (unless (or (= 0 m) (> m (length children)))
+                       (sum (node-value (elt children (1- m))))))))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes
+    (defun solve-b ()
+      (with-input-from-string (s (format nil "~{~a ~}" *input*))
+        (node-value (make-tree s))))
+    (defun problem-b () (format t "Problem 8b: ~a~%" (solve-b)))
+#+END_SRC
+
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes
+  <<node>>
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results none
+  <<list-to-metadata-list>>
+  <<make-tree>>
+  <<node-value>>
+#+END_SRC
+
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.08.lisp
+  <<input>>
+  <<structs>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 8a: 37439
+: Problem 8b: 20815
+
+** Thoughts
