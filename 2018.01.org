@@ -1,0 +1,61 @@
+#+STARTUP: indent contents
+* Day 1
+[[https://adventofcode.com/2018/day/1][Problem Description]]
+** Input
+The input for this one is a file with a number per line in the format
+=(+|-)[0-9]+=. Common Lisp can read each line directly to a string. I
+then had it parse each line into an integer directly.
+#+NAME: day1-input
+#+BEGIN_SRC lisp
+  (defvar *input-1*
+    (with-open-file (s "input/1.txt")
+      (loop for line = (read-line s nil :eof)
+            until (eq line :eof)
+            collect (parse-integer line))))
+#+END_SRC
+** Part 1
+The first problem is trivial given how I parsed the data. I just need
+to sum the input.
+#+NAME: problem-1a
+#+BEGIN_SRC lisp
+  (defun problem-1a ()
+    (format t "Problem 1a: ~a~%" (reduce #'+ *input-1*)))
+#+END_SRC
+** Part 2
+This one was trickier, but mostly because I shouldn't code after
+midnight. I used a hash table to track whether a frequency had ever
+been seen. If the frequency has been seen before, return from the
+outer loop. Otherwise, add the new frequency to the hash table.
+#+NAME: find-first-duplicate
+#+BEGIN_SRC lisp
+  (defun find-first-duplicate (changes)
+    (let ((tracker (make-hash-table))
+          (frequency 0))
+      (loop named outer
+        do (loop for change in changes
+                 when (gethash frequency tracker)
+                   do (return-from outer frequency)
+                 else
+                   do (setf (gethash frequency tracker) t)
+                 do (incf frequency change)))))
+#+END_SRC
+
+#+NAME: problem-1b
+#+BEGIN_SRC lisp :noweb yes
+  <<find-first-duplicate>>
+  (defun problem-1b ()
+    (format t "Problem 1b: ~a~%" (find-first-duplicate *input-1*)))
+#+END_SRC
+** Putting it all together 
+#+NAME: day1
+#+BEGIN_SRC lisp :noweb no-export :results output :tangle day1.lisp :exports both
+  <<day1-input>>
+  <<problem-1a>>
+  <<problem-1b>>
+  (problem-1a)
+  (problem-1b)
+#+END_SRC
+** Answers
+#+RESULTS: day1
+: Problem 1a: 502
+: Problem 1b: 71961

@@ -1,0 +1,119 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 01
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-01)=
+4. Typing =C-c C-c= in the block [[answers][answers]].
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-01
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-01)
+#+END_SRC
+** Input
+Today's input is a file consisting of one line filled with
+parentheses. =(= represents going up one floor, =)= going down one
+floor. I'll just read the file directly into a string and turn it into
+a list of numbers (+1 or -1) based on what's seen.
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule down () #\) (:constant -1))
+      (defrule up () #\( (:constant 1))
+      (defrule ride () (* (or up down)))
+      (parseq 'ride line)))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (s file)
+      (parse-line (read-line s))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/01.txt"))
+#+END_SRC
+** Part 1
+Part 1 is to determine what floor Santa ends up on based no the ride
+who the input file tells him. Since =*input*= is a sequence of floor
+movement *numbers* all I need to do is sum the list.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes
+  (defun problem-a () (format t "Problem 01 A: ~a~%" (apply #'+ *input*)))
+#+END_SRC
+** Part 2
+Part 2 wants to know which floor change (starting count at 1) causes
+Santa to reach the basement *first*. A simple loop will give us this.
+#+NAME: first-basement-visit
+#+BEGIN_SRC lisp
+  (defun first-basement-visit (changes)
+    (iter (for i from 1)
+          (with floor = 0)
+          (incf floor (pop changes))
+          (when (= floor -1)
+            (return i))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes
+  (defun problem-b () (format t "Problem 01 B: ~a~%" (first-basement-visit *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<first-basement-visit>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.01.lisp
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 01 A: 74
+: Problem 01 B: 1795
+** Thoughts
+Parseq was overkill for this problem, but that was good practice. I
+didn't know how to convert a particular input into a specific value
+without using =:lambda= which seemed too heavy-handed.
+
+Remember to pay attention to operations within =iter=. I had an
+off-by-one because I tested for termination after I'd both changed
+floors and incremented =i=. Moving the =(when ... (return ...))= to
+the bottom fixed that bug.
