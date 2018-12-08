@@ -47,28 +47,34 @@ I need to find the lowest positive integer that can be appended to the
 input string which will generate an MD5 checksum for the string which
 starts with 5 0s.
 
-(iter (for c in-vector (sb-md5:md5sum-string "abcdef609043"))
-		   (collect (format nil "~2,'0x" c)))
-
 How do I get MD5 in common lisp? Phew, SBCL has it.
 #+NAME: adventcoin
 #+BEGIN_SRC lisp :results none
-  (defun find-suffix (prefix &optional (target 5))
+  (defun find-suffix-5 (prefix &optional (target 5))
     (iter (for i from 1)
           (until (let ((sum (sb-md5:md5sum-string (format nil "~A~A" prefix i))))
                    (and (= 0 (aref sum 0))
                         (= 0 (aref sum 1))
                         (> 16 (aref sum 2)))))
           (finally (return i))))
+  (defun find-suffix-6 (prefix &optional (target 5))
+    (iter (for i from 1)
+          (until (let ((sum (sb-md5:md5sum-string (format nil "~A~A" prefix i))))
+                   (and (= 0 (aref sum 0))
+                        (= 0 (aref sum 1))
+                        (= 0 (aref sum 2)))))
+          (finally (return i))))
+
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 04 A: ~a~%" (find-suffix *input*)))
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (find-suffix-5 *input*)))
 #+END_SRC
 ** Part 2
+Now we have to find a solution with the first 6 values as 0.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 04 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (find-suffix-6 *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -92,5 +98,5 @@ How do I get MD5 in common lisp? Phew, SBCL has it.
 ** Answer
 #+RESULTS: answers
 : Problem 04 A: 282749
-: Problem 04 B: yzbqklnj
+: Problem 04 B: 9962624
 ** Thoughts
