@@ -16,17 +16,25 @@ support for lisp installed you can run this by:
     (ql:quickload "cl-ppcre"))
   (unless (find-package :iterate)
     (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<packages>>
-  (defpackage :aoc-2018-08
-    (:use :common-lisp
-          :iterate)
-    (:export :problem-a
-             :problem-b))
-  (in-package :aoc-2018-08)
+    <<packages>>
+    (defpackage :aoc-2018-08
+      (:use
+       :common-lisp
+       :iterate
+       :parseq
+       :fiveam)
+      (:export
+       :problem-a
+       :problem-b))
+    (in-package :aoc-2018-08)
 #+END_SRC
 ** Input
 Using the stream to help with parsing. I was really trying to do this
@@ -60,7 +68,7 @@ bear to try to debug.
 #+END_SRC
 
 The problem I ran into is illustrated here:
-#+BEGIN_SRC lisp :results output export
+#+BEGIN_SRC lisp :results output :exports both
   (defun do-something (list)
     (format t "~a~%" list)
     (pop list)
@@ -151,7 +159,7 @@ input assumes sequence access starts at 1, while lisp uses 0 as the
 first element. So we have to decrement 1 from the metadata values to
 get the index.
 #+NAME: node-value
-#+BEGIN_SRC lisp :results noen
+#+BEGIN_SRC lisp :results silent
   (defun node-value (node)
     (let ((children (node-children node))
           (metadata (node-metadata node)))
@@ -172,7 +180,6 @@ get the index.
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<list-to-metadata-list>>
   <<make-tree>>
   <<node-value>>
   <<sum-tree>>
@@ -194,3 +201,98 @@ get the index.
 : Problem 8b: 20815
 
 ** Thoughts
+I had too much trouble on parsing this one. So I started playing
+around with a parsing library called [[https://github.com/mrossini-ethz/parseq/][parseq]].
+#+BEGIN_SRC lisp
+  (with-local-rules
+    (defrule node () (and child-count metadata-count children metadata)
+      (:let (nc 0))
+      (:let (nm 0))
+      (:Lambda (cc mc c m)
+        (make-node :children c :metadata m)))
+    (defrule child-count () integer (:external nc)
+             (:lambda (x)
+               (setf nc x)))
+    (defrule metadata-count () integer (:external nm)
+             (:lambda (x)
+               (setf nm x)))
+    (defrule children () (rep nc node) (:external nc))
+    (defrule metadata () (rep nm integer) (:external nm))
+    (parseq 'node (list 2  2 0 1 100 0 1 1000 1 3)))
+  ;; => (2 2 ((0 1 NIL (100)) (0 1 NIL (1000))) (1 3))
+  ;; => T
+#+END_SRC
+
+#+RESULTS:
+: #S(NODE
+:    :CHILDREN (#S(NODE :CHILDREN NIL :METADATA (100))
+:               #S(NODE :CHILDREN NIL :METADATA (1000)))
+:    :METADATA (1 3))
+: T
+
+The above will parse the list (rather than the stream) of data as I
+was wanting it to do from the start. I'll now take that and make it
+into a function.
+#+BEGIN_SRC lisp
+  (defun list-to-tree (list)
+    (with-local-rules
+      (defrule node () (and child-count metadata-count children metadata)
+        (:let (nc 0))
+        (:let (nm 0))
+        (:Lambda (cc mc c m)
+          (make-node :children c :metadata m)))
+      (defrule child-count () integer (:external nc)
+               (:lambda (x)
+                 (setf nc x)))
+      (defrule metadata-count () integer (:external nm)
+               (:lambda (x)
+                 (setf nm x)))
+      (defrule children () (rep nc node) (:external nc))
+      (defrule metadata () (rep nm integer) (:external nm))
+      (parseq 'node list)))
+#+END_SRC
+
+#+RESULTS:
+: LIST-TO-TREE
+Now we'll load up the test data from the problem page:
+#+BEGIN_SRC lisp
+  (defvar *test-list* (list 2 3 0 3 10 11 12 1 1 0 1 99 2 1 1 2))
+#+END_SRC
+
+#+RESULTS:
+: *TEST-LIST*
+And let's test the parser:
+#+BEGIN_SRC lisp :exports both
+  (list-to-tree *test-list*)
+#+END_SRC
+
+#+RESULTS:
+: #S(NODE
+:    :CHILDREN (#S(NODE :CHILDREN NIL :METADATA (10 11 12))
+:               #S(NODE
+:                  :CHILDREN (#S(NODE :CHILDREN NIL :METADATA (99)))
+:                  :METADATA (2)))
+:    :METADATA (1 1 2))
+: T
+That looks right, so now let's test it against the expected results.
+#+BEGIN_SRC lisp :exports both :results output
+  (def-suite day8-suite :description "Test cases for Day 8")
+  (in-suite day8-suite)
+  (test sum-tree-test
+    (is (= (sum-tree (list-to-tree *test-list*)) 138)))
+  (test node-value-test
+    (is (= (node-value (list-to-tree *test-list*)) 66)))
+  (run! 'day8-suite)
+#+END_SRC
+
+#+RESULTS:
+: 
+: Running test suite DAY8-SUITE
+:  Running test SUM-TREE-TEST .
+:  Running test NODE-VALUE-TEST .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+I'll attempt to use both 5am and parseq from the start on the next
+problem to cover testing and parsing.
