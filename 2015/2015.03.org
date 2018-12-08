@@ -1,0 +1,151 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 03
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-03)=
+4. Typing =C-c C-c= in teh block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-03
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-03)
+#+END_SRC
+** Input
+The input is, again, one line. Each character represents a direction
+(north, south, east, west). I'll go ahead and parse the line into a
+list of directions. Each direction will be a complex number
+representing how Santa moves.
+
+NB: I've chosen complex numbers as a representation because they're
+baked into CL. This helps quite a bit because they can be directly
+compared and added to each other. So determining how he moves is
+literally just an addition of current position and movement direction.
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (directions)
+    (with-local-rules
+      (defrule north () #\^ (:constant (complex 0 1)))
+      (defrule south () #\v (:constant (complex 0 -1)))
+      (defrule east () #\> (:constant (complex 1 0)))
+      (defrule west () #\< (:constant (complex -1 0)))
+      (defrule directions ()
+          (* (or north south east west)))
+      (parseq 'directions directions)))
+#+END_SRC
+Since the input is a single line I'll read and parse one line of the
+file.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent :noweb yes
+  <<parse-line>>
+  (defun read-input (file)
+    (with-open-file (s file) (parse-line (read-line s))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/03.txt"))
+#+END_SRC
+** Part 1
+The drunk elf has sent Santa on a wild path. The question is, how many
+homes get *at least* one present. This may not be the most efficient
+solution, but I'll keep track of where he's been with a hash-table. At
+the end, I'll count the number of keys, which are the uniquely visited
+homes.
+#+NAME: travel
+#+BEGIN_SRC lisp :results silent
+  (defun travel (directions)
+    (let ((visited (make-hash-table))
+          (location (complex 0 0)))
+      (setf (gethash location visited) 1)
+      (iter (for d in directions)
+            (incf location d)
+            (if (gethash location visited)
+                (incf (gethash location visited))
+                (setf (gethash location visited) 0)))
+      visited))
+  (defun at-least-1-present (visited)
+    (hash-table-count visited))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 03 A: ~a~%" (at-least-1-present (travel *input*))))
+#+END_SRC
+** Part 2
+Santa and Robo-Santa take turns receiving directions this time. Each
+starting at location (0,0).
+#+NAME: with-robot
+#+BEGIN_SRC lisp :results silent
+  (defun visit (location tracker)
+    (if (gethash location tracker)
+        (incf (gethash location tracker))
+        (setf (gethash location tracker) 0)))
+  (defun travel-with-pal (directions)
+    (let ((visited (make-hash-table))
+          (santa (complex 0 0))
+          (robo (complex 0 0)))
+      (visit santa visited)
+      (visit robo visited)
+      (iter (for d in directions)
+            (for i from 0)
+            (when (evenp i)
+              (incf santa d)
+              (visit santa visited))
+            (when (oddp i)
+              (incf robo d)
+              (visit robo visited)))
+      visited))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 03 B: ~a~%" (at-least-1-present (travel-with-pal *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<travel>>
+  <<with-robot>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.03.lisp
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 03 A: 2565
+: Problem 03 B: 2639
+** Thoughts
