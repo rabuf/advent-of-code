@@ -83,45 +83,85 @@ marble. And then insert all the marbles.
 #+NAME: play-game
 #+BEGIN_SRC lisp :results none
   (defun play-game (player-count marble-count)
-    (let ((marbles (make-marbles marble-count))
-          (field (list 0))
-          (scores (make-array player-count :initial-element 0))
-          (position 0))
-      (iter (while marbles)
-            (with current-player = 0)
-            (for m = (pop marbles))
+    (let ((scores (make-array player-count :initial-element 0)))
+      (iter (with current-player = 1)
+            (for m from 2 to marble-count)
+            (with field = (list 0 1))
+            (with len = 2)
+            (with position = 1)
             ;; normal play
             (unless (= 0 (mod m 23))
-              (setf field (insert-marble m field (mod (1+ position) (length field))))
-              (setf position (position m field)))
+              (setf field (insert-marble m field (mod (1+ position) len)))
+              (setf position (1+ (mod (1+ position) len)));(position m field))
+              (incf len))
             ;; someone gets points
             (when (= 0 (mod m 23))
               (incf (aref scores current-player) m)
               ;; remove marble 7 spaces CCW from position
-              (setf position (mod (- position 7) (length field)))
+              (setf position (mod (- position 7) len))
               (incf (aref scores current-player) (nth position field))
-              (setf field (remove-marble field position)))
+              (setf field (remove-marble field position))
+              (decf len))
             (setf current-player (mod (1+ current-player) player-count)))
       (iter (for score in-vector scores)
             (maximize score))))
 #+END_SRC
-This is not very efficient, and I imagine all the inserting and
-removing is not helping. One thing I want to do is create a rotate
-function which will make insert-marble simply a push.
-#+NAME: rotate-clockwise
-#+BEGIN_SRC lisp :results silent
-  (defun rotate-clockwise (list)
-    (append (cdr list) (list (car list))))
-#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 9a: ~a~%" (play-game 441 71032)))
+  (defun problem-a () (format t "Problem 9a: ~a~%" (play-game-fast 441 71032)))
 #+END_SRC
 ** Part 2
-100x more marbles, takes forever.*DO NOT RUN*
+This is not very efficient, and I imagine all the inserting and
+removing is not helping.
+
+So to improve things I have an idea, I'll work on this while the above
+code executes for the x100 case.
+
+Rather than putting stuff into the list, we'll keep a front and
+back. Position no longer needs to be tracked. WHenever any movement
+causes us to move beyond the front or back we just reverse the other
+and swap them.
+#+NAME: play-game-fast
+#+BEGIN_SRC lisp :results none
+  (defun play-game-fast (player-count marble-count)
+    (let ((scores (make-array player-count :initial-element 0)))
+      (iter (with current-player = 0)
+            (for m from 1 to marble-count)
+            (with left = nil)
+            (with right =  nil)
+            (with position = 0)
+            ;; normal play
+;            (format t "~2,'0d: ~{~A ~}(~A) ~{~A ~}~%" m (reverse left) position right)
+            (unless (= 0 (mod m 23))
+              (push position left)
+              (when (null right)
+                (setf right (reverse left))
+                (setf left nil))
+              (push (pop right) left)
+              (setf position m))
+            ;; someone gets points
+            (when (= 0 (mod m 23))
+              (iter (repeat 7)
+                    (when (null left)
+                      (setf left (reverse right))
+                      (setf right nil))
+                    (push position right)
+                    (setf position (pop left)))
+              (incf (aref scores current-player) m)
+              (incf (aref scores current-player) position)
+              (cond ((null right)
+                     (setf right (reverse left))
+                     (setf position (pop right)))
+                    (t
+                     (setf position (pop right)))))
+            (setf current-player (mod (1+ current-player) player-count)))
+      (iter (for score in-vector scores)
+            (maximize score))))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes
-  (defun problem-a () (format t "Problem 9a: ~a~%" (play-game 441 (* 100 71032))))
+  (defun problem-b () (format t "Problem 9b: ~a~%" (play-game-fast 441 (* 100 71032))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -133,7 +173,9 @@ function which will make insert-marble simply a push.
   <<make-marbles>>
   <<insert-marble>>
   <<remove-marble>>
+  <<rotate-clockwise>>
   <<play-game>>
+  <<play-game-fast>>
 #+END_SRC
 
 #+NAME: answers
@@ -149,7 +191,113 @@ function which will make insert-marble simply a push.
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 9a: input/9.txt
-: Problem 9b: input/9.txt
+: Problem 9a: 393229
+: Problem 9b: 3273405195
+** Test cases
+#+BEGIN_QUOTE
+- 7 players; last marble is worth 25 points: high score is 32
+- 10 players; last marble is worth 1618 points: high score is 8317
+- 13 players; last marble is worth 7999 points: high score is 146373
+- 17 players; last marble is worth 1104 points: high score is 2764
+- 21 players; last marble is worth 6111 points: high score is 54718
+- 30 players; last marble is worth 5807 points: high score is 37305
+#+END_QUOTE
+#+BEGIN_SRC lisp :results output :export both
+  (def-suite game-tests)
+  (in-suite game-tests)
+  (test game
+    (is (= (play-game 9 25) 32))
+    (is (= (play-game 10 1618) 8317))
+    (is (= (play-game 13 7999) 146373))
+    (is (= (play-game 17 1104) 2764))
+    (is (= (play-game 21 6111) 54718))
+    (is (= (play-game 30 5807) 37305)))
+  (test game-fast
+    (is (= (play-game-fast 9 25) 32))
+    (is (= (play-game-fast 10 1618) 8317))
+    (is (= (play-game-fast 13 7999) 146373))
+    (is (= (play-game-fast 17 1104) 2764))
+    (is (= (play-game-fast 21 6111) 54718))
+    (is (= (play-game-fast 30 5807) 37305)))
+  (run! 'game-tests)
+#+END_SRC
+
+#+RESULTS:
+: 
+: Running test suite GAME-TESTS
+:  Running test GAME ......
+:  Running test GAME-FAST ......
+:  Did 12 checks.
+:     Pass: 12 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 
 ** Thoughts
+The first version wasn't wrong, it produced correct answers. But it
+was incredibly slow. I optimized it as much as I could, but it still
+required too many list operations and traversals.
+
+For the curious, here is the result of timing the two programs:
+#+BEGIN_EXAMPLE
+AOC-2018-09> (time (play-game-fast 441 71032))
+Evaluation took:
+  0.016 seconds of real time
+  0.016905 seconds of total run time (0.015776 user, 0.001129 system)
+  [ Run times consist of 0.008 seconds GC time, and 0.009 seconds non-GC time. ]
+  106.25% CPU
+  50,534,674 processor cycles
+  3,643,664 bytes consed
+  
+393229
+AOC-2018-09> (time (play-game 441 71032))
+Evaluation took:
+  2.893 seconds of real time
+  2.899166 seconds of total run time (2.815097 user, 0.084069 system)
+  [ Run times consist of 0.176 seconds GC time, and 2.724 seconds non-GC time. ]
+  100.21% CPU
+  8,955,466,067 processor cycles
+  1,603,681,968 bytes consed
+  
+393229
+#+END_EXAMPLE
+The final fast version runs in 0.5% of the time of the first, or 180x
+faster.
+
+For grins, here are both running with *twice* as many marbles:
+#+BEGIN_EXAMPLE
+AOC-2018-09> (time (play-game-fast 441 (* 2 71032)))
+Evaluation took:
+  0.014 seconds of real time
+  0.014085 seconds of total run time (0.014010 user, 0.000075 system)
+  100.00% CPU
+  43,898,623 processor cycles
+  7,304,192 bytes consed
+  
+1459374
+AOC-2018-09> (time (play-game 441 (* 2 71032)))
+Evaluation took:
+  10.862 seconds of real time
+  10.897570 seconds of total run time (10.501822 user, 0.395748 system)
+  [ Run times consist of 0.843 seconds GC time, and 10.055 seconds non-GC time. ]
+  100.33% CPU
+  33,628,531,918 processor cycles
+  6,411,307,200 bytes consed
+  
+1459374
+#+END_EXAMPLE
+So the slow version took 5x as long for 2x the marbles, while the fast
+version ran in about the same time.
+
+Here's the output of timing the fast version with 100x the marbles (Part B):
+#+BEGIN_EXAMPLE
+AOC-2018-09> (time (play-game-fast 441 (* 100 71032)))
+Evaluation took:
+  1.351 seconds of real time
+  1.354386 seconds of total run time (1.153401 user, 0.200985 system)
+  [ Run times consist of 0.801 seconds GC time, and 0.554 seconds non-GC time. ]
+  100.22% CPU
+  4,184,227,408 processor cycles
+  600,833,168 bytes consed
+  
+3273405195
+#+END_EXAMPLE
