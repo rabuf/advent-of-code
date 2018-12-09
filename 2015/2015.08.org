@@ -35,6 +35,7 @@ support for lisp installed you can run this by:
   (in-package :aoc-2015-08)
 #+END_SRC
 ** Input
+The input is a list of string literals. This will be easy to handle.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -48,14 +49,63 @@ support for lisp installed you can run this by:
     (read-input "input/08.txt"))
 #+END_SRC
 ** Part 1
+I need two functions: =literal-length= and =memory-length=
+
+The first is easy, I'll just use length.
+#+NAME: literal-length
+#+BEGIN_SRC lisp :results none
+  (defun literal-length (line) (length line))
+#+END_SRC
+
+#+NAME: memory-length
+#+BEGIN_SRC lisp :results none
+  (defun memory-length (line)
+    (iter (with input =
+                (iter (for s in (ppcre:split "" line))
+                      (collect (elt s 0))))
+          (while input)
+          (with stack = nil)
+          (cond ((char= (car input) #\")
+                 (pop input))
+                ((char= (car input) #\\)
+                 (pop input)
+                 (cond ((char= (car input) #\\)
+                        (push (pop input) stack))
+                       ((char= (car input) #\")
+                        (push (pop input) stack))
+                       ((char= (car input) #\x)
+                        (pop input)
+                        (pop input)
+                        (pop input)
+                        (push :hex-code stack))))
+                (t
+                 (push (pop input) stack)))
+          (finally (return (length stack)))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 08 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 08 A: ~a~%"
+                              (iter (for s in *input*)
+                                    (sum (- (literal-length s) (memory-length s))))))
 #+END_SRC
 ** Part 2
+Part 2 wants to know how many characters would be added if we took the
+input (literal) strings and encoded them so they'd again appear that
+way. Fortunately the only encoding needed is to add \ in front of each
+\ and an extra \ in front of each ".
+#+NAME: encode-string
+#+BEGIN_SRC lisp :results none
+  (defun encode-string-length (line)
+    (+ 2
+       (iter (for c in-string line)
+             (sum (cond ((char= c #\\) 2)
+                        ((char= c #\") 2)
+                        (t 1))))))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 08 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 08 B: ~a~%" (iter (for s in *input*)
+                                                           (sum (- (encode-string-length s) (literal-length s))))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -64,7 +114,8 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  <<literal-length>>
+  <<memory-length>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.08.lisp
@@ -78,6 +129,6 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 08 A: 1342
+: Problem 08 B: 2074
 ** Thoughts
