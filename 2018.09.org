@@ -123,6 +123,7 @@ causes us to move beyond the front or back we just reverse the other
 and swap them.
 #+NAME: play-game-fast
 #+BEGIN_SRC lisp :results none
+  (defparameter *debug* t)
   (defun play-game-fast (player-count marble-count)
     (let ((scores (make-array player-count :initial-element 0)))
       (iter (with current-player = 0)
@@ -130,6 +131,8 @@ and swap them.
             (with left = nil)
             (with right =  nil)
             (with position = 0)
+            (when *debug*
+              (format t "~{~A ~}(~A) o~{~A ~}~%" (reverse left) position right))
             (unless (= 0 (mod m 23))
               (push position left)
               (when (null right)
