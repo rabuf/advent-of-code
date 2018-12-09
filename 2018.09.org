@@ -202,7 +202,7 @@ and swap them.
 - 21 players; last marble is worth 6111 points: high score is 54718
 - 30 players; last marble is worth 5807 points: high score is 37305
 #+END_QUOTE
-#+BEGIN_SRC lisp :results output :export both
+#+BEGIN_SRC lisp :results output :exports both
   (def-suite game-tests)
   (in-suite game-tests)
   (test game
