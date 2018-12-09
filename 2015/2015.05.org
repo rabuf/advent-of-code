@@ -57,9 +57,9 @@ A nice string is one with all of the following properties:
 - It contains at least one letter that appears twice in a row, like xx, abcdde (dd), or aabbccdd (aa, bb, cc, or dd).
 - It does not contain the strings ab, cd, pq, or xy, even if they are part of one of the other requirements.
 #+END_QUOTE
-#+NAME: nice-stringp
+#+NAME: nice1
 #+BEGIN_SRC lisp :results silent
-  (defun nice-stringp (string)
+  (defun nice1  (string)
     ;; 3rd condition:
     ;; Can't contain ab, cd, pq, or xy. So we discard them right away.
     (unless (ppcre:all-matches-as-strings "(ab|cd|pq|xy)" string)
@@ -70,10 +70,7 @@ A nice string is one with all of the following properties:
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun solve-a (strings)
-    (iter (for s in strings)
-          (counting (nice-stringp s))))
-  (defun problem-a () (format t "Problem 05 A: ~a~%" (solve-a *input*)))
+  (defun problem-a () (format t "Problem 05 A: ~a~%" (count-if #'nice1 *input*)))
 #+END_SRC
 ** Part 2
 Santa has changed his rules:
@@ -95,10 +92,7 @@ Now, a nice string is one with all of the following properties:
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun solve-b (strings)
-    (iter (for s in strings)
-          (counting (nice2 s))))
-  (defun problem-b () (format t "Problem 05 B: ~a~%" (solve-b *input*)))
+  (defun problem-b () (format t "Problem 05 B: ~a~%" (count-if #'nice2 *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -107,7 +101,7 @@ Now, a nice string is one with all of the following properties:
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<nice-stringp>>
+  <<nice1>>
   <<nice2>>
 #+END_SRC
 #+NAME: answers
@@ -125,3 +119,7 @@ Now, a nice string is one with all of the following properties:
 : Problem 05 A: 255
 : Problem 05 B: 55
 ** Thoughts
+=iter= has been very handy for solving lots of problems, but sometimes
+it's overkill (or longwinded) compared to using built-ins like
+=count-if=. I need to start trying to use those functions for a while
+to relearn them.
