@@ -34,7 +34,7 @@ support for lisp installed you can run this by:
              :problem-b))
   (in-package :aoc-2015-06)
 #+END_SRC
-** TODO Input
+** Input
 The input is a series of lines, each containing a pair of coordinates.
 #+BEGIN_EXAMPLE
 turn on 0,0 through 999,999

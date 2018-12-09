@@ -7,7 +7,7 @@ support for lisp installed you can run this by:
 1. Starting slime (=M-x slime=)
 2. Typing =C-c C-c= in the block [[initialize][initialize]].
 3. In the repl type =(in-package :aoc-2015-04)=
-4. Typing =C-c C-c= in teh block [[answers][answers]]
+4. Typing =C-c C-c= in the block [[answers][answers]]
 ** Initial stuffs
 *** Packages to load
 #+NAME: packages
