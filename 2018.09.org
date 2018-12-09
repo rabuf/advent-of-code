@@ -37,26 +37,91 @@ support for lisp installed you can run this by:
     (in-package :aoc-2018-09)
 #+END_SRC
 ** Input
-#+NAME: read-input
-#+BEGIN_SRC lisp :results silent
-  (defun read-input (file) (identity file))
-#+END_SRC
+The input was a file with a single string. I'll skip parsing it today.
+#+BEGIN_EXAMPLE
+  441 players; last marble is worth 71032 points
+#+END_EXAMPLE
 
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<read-input>>
-  (defparameter *input*
-    (read-input "input/9.txt"))
+  (defparameter *input* (list 441 71032))
 #+END_SRC
 ** Part 1
+The objective is to simulate an Elven game. The good thing is that
+it's fully deterministic. The bad thing is that it's tedious to
+understand.
+
+There are =n= players and =m+1= marbles. Each marble is numbered in
+ascending order from 0 to =m=
+#+NAME: make-marbles
+#+BEGIN_SRC lisp :results silent
+  (defun make-marbles (m)
+    (iter (for i from 1 to m)
+          (collect i)))
+#+END_SRC
+The game begins with marble =0= placed in the circle. Then each player
+takes turns adding a marble two spaces *right* from the current
+position. I'll use the fact that lisp lists are linked lists and
+implement =insert-marble=.
+#+NAME: insert-marble
+#+BEGIN_SRC lisp :results silent
+  (defun insert-marble (marble-number marbles position)
+    (push marble-number (cdr (nthcdr position marbles)))
+    marbles)
+#+END_SRC
+#+NAME: remove-marble
+#+BEGIN_SRC lisp :results silent
+  (defun remove-marble (marbles position)
+    (iter (for m in marbles)
+          (for i from 0)
+          (unless (= i position) (collect m))))
+#+END_SRC
+
+Ok, so to play the game we need to track which elf's turn it is (to
+track their score). Track the current position of the last placed
+marble. And then insert all the marbles.
+#+NAME: play-game
+#+BEGIN_SRC lisp :results none
+  (defun play-game (player-count marble-count)
+    (let ((marbles (make-marbles marble-count))
+          (field (list 0))
+          (scores (make-array player-count :initial-element 0))
+          (position 0))
+      (iter (while marbles)
+            (with current-player = 0)
+            (for m = (pop marbles))
+            ;; normal play
+            (unless (= 0 (mod m 23))
+              (setf field (insert-marble m field (mod (1+ position) (length field))))
+              (setf position (position m field)))
+            ;; someone gets points
+            (when (= 0 (mod m 23))
+              (incf (aref scores current-player) m)
+              ;; remove marble 7 spaces CCW from position
+              (setf position (mod (- position 7) (length field)))
+              (incf (aref scores current-player) (nth position field))
+              (setf field (remove-marble field position)))
+            (setf current-player (mod (1+ current-player) player-count)))
+      (iter (for score in-vector scores)
+            (maximize score))))
+#+END_SRC
+This is not very efficient, and I imagine all the inserting and
+removing is not helping. One thing I want to do is create a rotate
+function which will make insert-marble simply a push.
+#+NAME: rotate-clockwise
+#+BEGIN_SRC lisp :results silent
+  (defun rotate-clockwise (list)
+    (append (cdr list) (list (car list))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 9a: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 9a: ~a~%" (play-game 441 71032)))
 #+END_SRC
 ** Part 2
+100x more marbles, takes forever.*DO NOT RUN*
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes
-    (defun problem-b () (format t "Problem 9b: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 9a: ~a~%" (play-game 441 (* 100 71032))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -65,11 +130,14 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  <<make-marbles>>
+  <<insert-marble>>
+  <<remove-marble>>
+  <<play-game>>
 #+END_SRC
 
 #+NAME: answers
-#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.08.lisp
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.09.lisp
   <<initialize>>
   <<structs>>
   <<input>>
