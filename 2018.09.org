@@ -123,7 +123,7 @@ causes us to move beyond the front or back we just reverse the other
 and swap them.
 #+NAME: play-game-fast
 #+BEGIN_SRC lisp :results none
-  (defparameter *debug* t)
+  (defparameter *debug* nil)
   (defun play-game-fast (player-count marble-count)
     (let ((scores (make-array player-count :initial-element 0)))
       (iter (with current-player = 0)
@@ -300,3 +300,123 @@ Evaluation took:
   
 3273405195
 #+END_EXAMPLE
+** Improvements
+Taking [[play-game-fast][play-game-fast]] as the basis, I'm going to try to make some
+improvement sand refactor.
+#+BEGIN_SRC lisp :results none
+  (defun play-game (player-count marble-count)
+    (let ((scores (make-array player-count :initial-element 0)))
+      (iter (with current-player = 0)
+            (for m from 1 to marble-count)
+            (with left = nil)
+            (with right =  nil)
+            (with position = 0)
+            (unless (= 0 (mod m 23))
+              (push position left)
+              (when (null right)
+                (setf right (reverse left))
+                (setf left nil))
+              (push (pop right) left)
+              (setf position m))
+            (when (= 0 (mod m 23))
+              (iter (repeat 7)
+                    (when (null left)
+                      (setf left (reverse right))
+                      (setf right nil))
+                    (push position right)
+                    (setf position (pop left)))
+              (incf (aref scores current-player) m)
+              (incf (aref scores current-player) position)
+              (when (null right)
+                (setf right (reverse left))
+                (setf left nil))
+              (setf position (pop right)))
+            (setf current-player (mod (1+ current-player) player-count)))
+      (iter (for score in-vector scores)
+            (maximize score))))
+#+END_SRC
+First, I'm going to revamp how I treat "position". From here on,
+position is the top of the left stack.
+#+BEGIN_SRC lisp :results none
+  (defun play-game (player-count marble-count)
+    (let ((scores (make-array player-count :initial-element 0)))
+      (iter (with current-player = 0)
+            (for m from 1 to marble-count)
+            (with left = (list 0))
+            (with right =  nil)
+            (when *debug*
+              (format t "~{~A ~}(~A) ~{~A ~}~%" (reverse (cdr left)) (car left) right))
+            (unless (= 0 (mod m 23))
+              (when (null right)
+                (setf right (reverse left))
+                (setf left nil))
+              (push (pop right) left)
+              (push m left))
+            (when (= 0 (mod m 23))
+              (iter (repeat 7)
+                    (when (null left)
+                      (setf left (reverse right))
+                      (setf right nil))
+                    (push (pop left) right))
+              (incf (aref scores current-player) m)
+              (incf (aref scores current-player) (pop left))
+              (when (null right)
+                (setf right (reverse left))
+                (setf left nil))
+              (push (pop right) left))
+            (setf current-player (mod (1+ current-player) player-count)))
+      (iter (for score in-vector scores)
+            (maximize score))))
+#+END_SRC
+The reason for removing position is that now everything is just an
+operation on the two stacks. This can make refactoring a little bit
+easier. Let's create a struct to hold everything.
+#+BEGIN_SRC lisp :results none
+   (defstruct (clist (:conc-name cl-))
+     (left nil)
+     (right nil))
+   (defun cl-insert (clist value)
+     (push value (cl-left clist)))
+   (defun cl-remove (clist)
+     (pop (cl-left clist)))
+   (defun cl-position (clist)
+     (car (cl-left clist)))
+   (defun cl-print (clist)
+     (format nil "~{~A ~}(~A) ~{~A ~}"
+             (reverse (cdr (cl-left clist)))
+             (cl-position clist)
+             (cl-right clist)))
+   (defun cl-rotate-clockwise (clist)
+     (when (null (cl-right clist))
+       (setf (cl-right clist) (nreverse (cl-left clist)))
+       (setf (cl-left clist) nil))
+     (push (pop (cl-right clist)) (cl-left clist)))
+   (defun cl-rotate-counterclockwise (clist)
+     (when (null (cl-left clist))
+       (setf (cl-left clist) (nreverse (cl-right clist)))
+       (setf (cl-right clist) nil))
+     (push (pop (cl-left clist)) (cl-right clist)))
+#+END_SRC
+Using the above circular list implementation, =play-game= becomes a
+bit clearer.
+#+BEGIN_SRC lisp :results none
+  (defun play-game (player-count marble-count)
+    (let ((scores (make-array player-count :initial-element 0)))
+      (iter (with current-player = 0)
+            (for m from 1 to marble-count)
+            (with field = (make-clist :left (list 0)))
+            (when *debug*
+              (format t "~A~%" (cl-print field)))
+            (unless (= 0 (mod m 23))
+              (cl-rotate-clockwise field)
+              (cl-insert field m))
+            (when (= 0 (mod m 23))
+              (iter (repeat 7)
+                    (cl-rotate-counterclockwise field))
+              (incf (aref scores current-player) m)
+              (incf (aref scores current-player) (cl-remove field))
+              (cl-rotate-clockwise field))
+            (setf current-player (mod (1+ current-player) player-count)))
+      (iter (for score in-vector scores)
+            (maximize score))))
+#+END_SRC
