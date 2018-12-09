@@ -1,0 +1,337 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 06
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-06)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-06
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-06)
+#+END_SRC
+** TODO Input
+The input is a series of lines, each containing a pair of coordinates.
+#+BEGIN_EXAMPLE
+turn on 0,0 through 999,999
+turn off 1,1 through 998,998
+#+END_EXAMPLE
+I'll use parseq for this one though it's a little bit of
+overkill. PPCRE would've handled this nicely.
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule coord () (+ digit) (:string) (:function #'parse-integer))
+      (defrule coordinates () (and coord "," coord) (:choose 0 2))
+      (defrule on () "on" (:constant :on))
+      (defrule off () "off" (:constant :off))
+      (defrule command () (and "turn " (or on off) " " coordinates " through " coordinates)
+        (:choose 1 3 5))
+      (parseq 'command line)))
+#+END_SRC
+
+There's a toggle command I didn't notice when I first read the
+directions. I'll rework the parser in a bit.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/06.txt"))
+#+END_SRC
+** Part 1
+There will be a 1000x1000 grid of lights to be turned on or off per
+the supplied commands. To handle this I'll create an array and use
+nil/t to represent on and off. This function will return the array
+itself.
+#+NAME: execute-commands
+#+BEGIN_SRC lisp :results silent
+  (defun execute-commands (commands &optional (dimensions '(1000 1000)))
+    (let ((lights (make-array dimensions :initial-element nil)))
+      (iter (for (command (minx miny) (maxx maxy)) in commands)
+            (iter (for x from minx to maxx)
+                  (iter (for y from miny to maxy)
+                        (setf (aref lights x y) (eql command :on)))))
+      lights))
+#+END_SRC
+The actual problem is to count the number of lights which are *on*
+after all the commands have been executed.
+#+NAME: count-lights
+#+BEGIN_SRC lisp :results silent
+  (defun count-lights (lights)
+    (destructuring-bind (maxx maxy) (array-dimensions lights)
+      (iter outer
+            (for x from 0 to maxx)
+            (iter (for y from 0 to maxy)
+                  (count (when (aref lights x y)))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 06 A: ~a~%" (count-lights (execute-commands *input*))))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 06 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<execute-commands>>
+  <<count-lights>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.06.lisp
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 06 A: ((ON (887 9) (959 629)) (ON (454 398) (844 448))
+               (OFF (539 243) (559 965)) (OFF (370 819) (676 868))
+               (OFF (145 40) (370 997)) (OFF (301 3) (808 453))
+               (ON (351 678) (951 908)) NIL NIL NIL (OFF (150 300) (213 740))
+               (ON (141 242) (932 871)) NIL NIL NIL (OFF (6 964) (411 976))
+               (OFF (33 572) (978 590)) (ON (579 693) (650 978))
+               (ON (150 20) (652 719)) (OFF (782 143) (808 802))
+               (OFF (240 377) (761 468)) (OFF (899 828) (958 967))
+               (ON (613 565) (952 659)) (ON (295 36) (964 978)) NIL
+               (OFF (211 254) (529 491)) (OFF (231 594) (406 794))
+               (OFF (169 791) (758 942)) (ON (955 440) (980 477)) NIL
+               (ON (519 391) (605 718)) NIL (OFF (524 349) (694 791)) NIL NIL
+               (OFF (68 358) (857 453)) NIL (OFF (666 61) (768 87))
+               (ON (27 501) (921 952)) (ON (953 102) (983 471))
+               (ON (277 552) (451 723)) (OFF (64 253) (655 960))
+               (ON (47 485) (734 977)) (OFF (59 119) (699 734)) NIL NIL
+               (ON (479 990) (895 990)) NIL NIL NIL (OFF (649 410) (652 875))
+               (ON (629 834) (712 895)) NIL NIL (ON (268 448) (743 777))
+               (OFF (512 123) (625 874)) (OFF (498 262) (930 811))
+               (OFF (835 158) (886 242)) NIL (ON (501 505) (896 909))
+               (OFF (666 796) (817 924)) NIL NIL NIL (ON (826 174) (924 883))
+               (ON (239 228) (843 993)) (ON (205 613) (891 667)) NIL
+               (ON (628 251) (677 681)) NIL (ON (78 358) (974 713))
+               (ON (521 360) (773 597)) (OFF (963 52) (979 502))
+               (ON (117 151) (934 622)) NIL (ON (944 269) (975 453)) NIL
+               (OFF (440 254) (681 507)) NIL (OFF (329 592) (369 985))
+               (ON (931 960) (979 985)) NIL NIL (OFF (186 605) (914 709))
+               (OFF (921 725) (979 956)) NIL (ON (726 781) (987 936)) NIL
+               (ON (171 630) (656 769)) (OFF (417 276) (751 500)) NIL
+               (ON (568 629) (690 873)) NIL NIL (OFF (800 108) (834 618))
+               (OFF (967 439) (986 869)) (ON (842 209) (955 529))
+               (ON (132 653) (357 696)) (ON (817 38) (973 662))
+               (OFF (569 816) (721 861)) (ON (568 429) (945 724))
+               (ON (77 458) (844 685)) (OFF (138 78) (498 851))
+               (ON (136 21) (252 986)) (OFF (2 460) (863 472))
+               (ON (172 81) (839 332)) (ON (123 216) (703 384))
+               (OFF (879 644) (944 887)) NIL NIL NIL NIL
+               (OFF (557 768) (950 927)) (OFF (615 617) (955 864))
+               (ON (859 886) (923 919)) (ON (391 330) (499 971)) NIL
+               (ON (822 787) (989 847)) (ON (192 142) (357 846))
+               (OFF (564 945) (985 945)) (OFF (479 361) (703 799)) NIL
+               (OFF (632 991) (774 998)) NIL (ON (344 149) (441 640)) NIL
+               (ON (621 784) (970 788)) NIL NIL NIL NIL
+               (OFF (395 883) (554 929)) (ON (340 309) (637 561))
+               (OFF (875 147) (946 481)) (OFF (945 837) (957 922))
+               (OFF (429 982) (691 991)) NIL NIL (OFF (545 146) (756 943))
+               (ON (763 863) (937 994)) (ON (232 94) (404 502))
+               (OFF (742 254) (930 512)) (ON (91 931) (101 942)) NIL
+               (ON (506 700) (567 960)) (OFF (548 44) (718 352))
+               (OFF (194 827) (673 859)) (OFF (6 645) (509 764))
+               (OFF (13 230) (821 361)) (ON (734 629) (919 631)) NIL NIL
+               (OFF (162 553) (276 887)) (OFF (569 577) (587 604))
+               (OFF (799 482) (854 956)) (ON (744 535) (909 802)) NIL
+               (OFF (927 458) (966 564)) NIL NIL (ON (984 977) (989 986)) NIL
+               (ON (17 509) (947 718)) (ON (413 783) (631 903))
+               (ON (482 370) (493 688)) (ON (433 859) (628 938))
+               (OFF (769 549) (945 810)) (ON (178 853) (539 941))
+               (OFF (203 251) (692 433)) (OFF (525 638) (955 794))
+               (ON (169 70) (764 939)) NIL NIL (OFF (103 35) (160 949)) NIL
+               (OFF (581 847) (847 903)) (ON (689 153) (733 562))
+               (ON (821 487) (839 699)) (ON (837 627) (978 723)) NIL NIL
+               (ON (731 193) (756 509)) (OFF (622 55) (813 365))
+               (ON (456 490) (576 548)) (ON (48 421) (163 674))
+               (OFF (853 861) (924 964)) (OFF (59 963) (556 987))
+               (ON (458 710) (688 847)) NIL (OFF (241 964) (799 983))
+               (OFF (434 299) (845 772)) NIL (ON (740 289) (784 345))
+               (OFF (395 840) (822 845)) (ON (955 224) (996 953))
+               (OFF (710 186) (957 722)) (OFF (485 949) (869 985))
+               (ON (848 209) (975 376)) NIL (ON (588 49) (927 496))
+               (ON (273 332) (735 725)) (ON (505 962) (895 962)) NIL
+               (ON (919 792) (978 982)) NIL (OFF (202 642) (638 940))
+               (OFF (708 953) (970 960)) NIL (ON (409 358) (837 479))
+               (OFF (756 279) (870 943)) (OFF (154 657) (375 703))
+               (OFF (524 622) (995 779)) NIL NIL NIL NIL
+               (OFF (326 37) (631 69)) (OFF (590 570) (926 656))
+               (OFF (881 913) (911 998)) (ON (996 102) (998 616))
+               (OFF (677 503) (828 563)) (ON (860 251) (877 441))
+               (OFF (964 100) (982 377)) NIL (OFF (632 240) (938 968)) NIL
+               (ON (5 498) (203 835)) (ON (819 352) (929 855)) NIL NIL
+               (ON (968 950) (969 983)) (OFF (152 628) (582 896))
+               (OFF (165 844) (459 935)) (OFF (882 741) (974 786))
+               (OFF (283 179) (731 899)) NIL (ON (106 309) (120 813)) NIL
+               (OFF (274 603) (383 759)) (OFF (155 665) (284 787)) NIL
+               (OFF (30 826) (598 892)) NIL (ON (938 180) (994 997)) NIL NIL
+               (ON (685 311) (872 521)) (ON (124 934) (530 962))
+               (ON (606 379) (961 867)) (OFF (792 735) (946 783))
+               (ON (417 480) (860 598)) NIL (OFF (23 935) (833 962)) NIL
+               (ON (986 89) (999 613)) (OFF (359 201) (560 554))
+               (OFF (729 494) (942 626)) (ON (204 143) (876 610)) NIL
+               (OFF (902 924) (976 973)) (OFF (389 442) (824 638))
+               (OFF (622 863) (798 863)) (ON (840 622) (978 920)) NIL
+               (OFF (643 319) (935 662)) NIL (ON (47 124) (598 880)) NIL
+               (OFF (174 272) (280 311)) (OFF (540 50) (880 212))
+               (ON (141 994) (221 998)) (ON (476 695) (483 901))
+               (ON (960 216) (972 502)) NIL (OFF (419 713) (537 998)) NIL
+               (ON (881 159) (902 312)) (OFF (537 651) (641 816)) NIL
+               (ON (368 458) (437 612)) (ON (290 149) (705 919))
+               (ON (711 918) (974 945)) NIL NIL (ON (432 897) (440 954))
+               (OFF (132 169) (775 380)) NIL NIL (OFF (838 342) (938 444))
+               (ON (144 431) (260 951)) NIL (OFF (185 412) (796 541))
+               (ON (879 548) (892 860)) (ON (294 132) (460 338))
+               (ON (823 500) (899 529)) (OFF (225 603) (483 920)) NIL NIL
+               (ON (522 730) (968 950)) (OFF (102 229) (674 529)))
+Problem 06 B: ((ON (887 9) (959 629)) (ON (454 398) (844 448))
+               (OFF (539 243) (559 965)) (OFF (370 819) (676 868))
+               (OFF (145 40) (370 997)) (OFF (301 3) (808 453))
+               (ON (351 678) (951 908)) NIL NIL NIL (OFF (150 300) (213 740))
+               (ON (141 242) (932 871)) NIL NIL NIL (OFF (6 964) (411 976))
+               (OFF (33 572) (978 590)) (ON (579 693) (650 978))
+               (ON (150 20) (652 719)) (OFF (782 143) (808 802))
+               (OFF (240 377) (761 468)) (OFF (899 828) (958 967))
+               (ON (613 565) (952 659)) (ON (295 36) (964 978)) NIL
+               (OFF (211 254) (529 491)) (OFF (231 594) (406 794))
+               (OFF (169 791) (758 942)) (ON (955 440) (980 477)) NIL
+               (ON (519 391) (605 718)) NIL (OFF (524 349) (694 791)) NIL NIL
+               (OFF (68 358) (857 453)) NIL (OFF (666 61) (768 87))
+               (ON (27 501) (921 952)) (ON (953 102) (983 471))
+               (ON (277 552) (451 723)) (OFF (64 253) (655 960))
+               (ON (47 485) (734 977)) (OFF (59 119) (699 734)) NIL NIL
+               (ON (479 990) (895 990)) NIL NIL NIL (OFF (649 410) (652 875))
+               (ON (629 834) (712 895)) NIL NIL (ON (268 448) (743 777))
+               (OFF (512 123) (625 874)) (OFF (498 262) (930 811))
+               (OFF (835 158) (886 242)) NIL (ON (501 505) (896 909))
+               (OFF (666 796) (817 924)) NIL NIL NIL (ON (826 174) (924 883))
+               (ON (239 228) (843 993)) (ON (205 613) (891 667)) NIL
+               (ON (628 251) (677 681)) NIL (ON (78 358) (974 713))
+               (ON (521 360) (773 597)) (OFF (963 52) (979 502))
+               (ON (117 151) (934 622)) NIL (ON (944 269) (975 453)) NIL
+               (OFF (440 254) (681 507)) NIL (OFF (329 592) (369 985))
+               (ON (931 960) (979 985)) NIL NIL (OFF (186 605) (914 709))
+               (OFF (921 725) (979 956)) NIL (ON (726 781) (987 936)) NIL
+               (ON (171 630) (656 769)) (OFF (417 276) (751 500)) NIL
+               (ON (568 629) (690 873)) NIL NIL (OFF (800 108) (834 618))
+               (OFF (967 439) (986 869)) (ON (842 209) (955 529))
+               (ON (132 653) (357 696)) (ON (817 38) (973 662))
+               (OFF (569 816) (721 861)) (ON (568 429) (945 724))
+               (ON (77 458) (844 685)) (OFF (138 78) (498 851))
+               (ON (136 21) (252 986)) (OFF (2 460) (863 472))
+               (ON (172 81) (839 332)) (ON (123 216) (703 384))
+               (OFF (879 644) (944 887)) NIL NIL NIL NIL
+               (OFF (557 768) (950 927)) (OFF (615 617) (955 864))
+               (ON (859 886) (923 919)) (ON (391 330) (499 971)) NIL
+               (ON (822 787) (989 847)) (ON (192 142) (357 846))
+               (OFF (564 945) (985 945)) (OFF (479 361) (703 799)) NIL
+               (OFF (632 991) (774 998)) NIL (ON (344 149) (441 640)) NIL
+               (ON (621 784) (970 788)) NIL NIL NIL NIL
+               (OFF (395 883) (554 929)) (ON (340 309) (637 561))
+               (OFF (875 147) (946 481)) (OFF (945 837) (957 922))
+               (OFF (429 982) (691 991)) NIL NIL (OFF (545 146) (756 943))
+               (ON (763 863) (937 994)) (ON (232 94) (404 502))
+               (OFF (742 254) (930 512)) (ON (91 931) (101 942)) NIL
+               (ON (506 700) (567 960)) (OFF (548 44) (718 352))
+               (OFF (194 827) (673 859)) (OFF (6 645) (509 764))
+               (OFF (13 230) (821 361)) (ON (734 629) (919 631)) NIL NIL
+               (OFF (162 553) (276 887)) (OFF (569 577) (587 604))
+               (OFF (799 482) (854 956)) (ON (744 535) (909 802)) NIL
+               (OFF (927 458) (966 564)) NIL NIL (ON (984 977) (989 986)) NIL
+               (ON (17 509) (947 718)) (ON (413 783) (631 903))
+               (ON (482 370) (493 688)) (ON (433 859) (628 938))
+               (OFF (769 549) (945 810)) (ON (178 853) (539 941))
+               (OFF (203 251) (692 433)) (OFF (525 638) (955 794))
+               (ON (169 70) (764 939)) NIL NIL (OFF (103 35) (160 949)) NIL
+               (OFF (581 847) (847 903)) (ON (689 153) (733 562))
+               (ON (821 487) (839 699)) (ON (837 627) (978 723)) NIL NIL
+               (ON (731 193) (756 509)) (OFF (622 55) (813 365))
+               (ON (456 490) (576 548)) (ON (48 421) (163 674))
+               (OFF (853 861) (924 964)) (OFF (59 963) (556 987))
+               (ON (458 710) (688 847)) NIL (OFF (241 964) (799 983))
+               (OFF (434 299) (845 772)) NIL (ON (740 289) (784 345))
+               (OFF (395 840) (822 845)) (ON (955 224) (996 953))
+               (OFF (710 186) (957 722)) (OFF (485 949) (869 985))
+               (ON (848 209) (975 376)) NIL (ON (588 49) (927 496))
+               (ON (273 332) (735 725)) (ON (505 962) (895 962)) NIL
+               (ON (919 792) (978 982)) NIL (OFF (202 642) (638 940))
+               (OFF (708 953) (970 960)) NIL (ON (409 358) (837 479))
+               (OFF (756 279) (870 943)) (OFF (154 657) (375 703))
+               (OFF (524 622) (995 779)) NIL NIL NIL NIL
+               (OFF (326 37) (631 69)) (OFF (590 570) (926 656))
+               (OFF (881 913) (911 998)) (ON (996 102) (998 616))
+               (OFF (677 503) (828 563)) (ON (860 251) (877 441))
+               (OFF (964 100) (982 377)) NIL (OFF (632 240) (938 968)) NIL
+               (ON (5 498) (203 835)) (ON (819 352) (929 855)) NIL NIL
+               (ON (968 950) (969 983)) (OFF (152 628) (582 896))
+               (OFF (165 844) (459 935)) (OFF (882 741) (974 786))
+               (OFF (283 179) (731 899)) NIL (ON (106 309) (120 813)) NIL
+               (OFF (274 603) (383 759)) (OFF (155 665) (284 787)) NIL
+               (OFF (30 826) (598 892)) NIL (ON (938 180) (994 997)) NIL NIL
+               (ON (685 311) (872 521)) (ON (124 934) (530 962))
+               (ON (606 379) (961 867)) (OFF (792 735) (946 783))
+               (ON (417 480) (860 598)) NIL (OFF (23 935) (833 962)) NIL
+               (ON (986 89) (999 613)) (OFF (359 201) (560 554))
+               (OFF (729 494) (942 626)) (ON (204 143) (876 610)) NIL
+               (OFF (902 924) (976 973)) (OFF (389 442) (824 638))
+               (OFF (622 863) (798 863)) (ON (840 622) (978 920)) NIL
+               (OFF (643 319) (935 662)) NIL (ON (47 124) (598 880)) NIL
+               (OFF (174 272) (280 311)) (OFF (540 50) (880 212))
+               (ON (141 994) (221 998)) (ON (476 695) (483 901))
+               (ON (960 216) (972 502)) NIL (OFF (419 713) (537 998)) NIL
+               (ON (881 159) (902 312)) (OFF (537 651) (641 816)) NIL
+               (ON (368 458) (437 612)) (ON (290 149) (705 919))
+               (ON (711 918) (974 945)) NIL NIL (ON (432 897) (440 954))
+               (OFF (132 169) (775 380)) NIL NIL (OFF (838 342) (938 444))
+               (ON (144 431) (260 951)) NIL (OFF (185 412) (796 541))
+               (ON (879 548) (892 860)) (ON (294 132) (460 338))
+               (ON (823 500) (899 529)) (OFF (225 603) (483 920)) NIL NIL
+               (ON (522 730) (968 950)) (OFF (102 229) (674 529)))
+#+end_example
+** Thoughts
