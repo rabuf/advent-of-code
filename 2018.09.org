@@ -130,8 +130,6 @@ and swap them.
             (with left = nil)
             (with right =  nil)
             (with position = 0)
-            ;; normal play
-;            (format t "~2,'0d: ~{~A ~}(~A) ~{~A ~}~%" m (reverse left) position right)
             (unless (= 0 (mod m 23))
               (push position left)
               (when (null right)
@@ -139,7 +137,6 @@ and swap them.
                 (setf left nil))
               (push (pop right) left)
               (setf position m))
-            ;; someone gets points
             (when (= 0 (mod m 23))
               (iter (repeat 7)
                     (when (null left)
@@ -149,11 +146,10 @@ and swap them.
                     (setf position (pop left)))
               (incf (aref scores current-player) m)
               (incf (aref scores current-player) position)
-              (cond ((null right)
-                     (setf right (reverse left))
-                     (setf position (pop right)))
-                    (t
-                     (setf position (pop right)))))
+              (when (null right)
+                (setf right (reverse left))
+                (setf left nil))
+              (setf position (pop right)))
             (setf current-player (mod (1+ current-player) player-count)))
       (iter (for score in-vector scores)
             (maximize score))))
