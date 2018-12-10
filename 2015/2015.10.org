@@ -1,0 +1,141 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 10
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-10)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-10
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-10)
+#+END_SRC
+** Input
+Today's input is just a string.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* "1321131112")
+#+END_SRC
+** Part 1
+The task is to implement the look-and-say sequence. Given a number,
+count how many of them there are, say the count and then the number.
+
+First let's implement a single round of the game.
+#+NAME: look-and-say
+#+BEGIN_SRC lisp :results none
+  (defun look-and-say (s)
+    (let ((numbers (mapcar #'parse-integer (ppcre:split "" s)))
+          (result nil))
+      (iter (for n in numbers)
+            (with current = (first numbers))
+            (with count = 0)
+            (cond ((= current n) (incf count))
+                  (t (push (list count current) result)
+                     (setf current n)
+                     (setf count 1)))
+            (finally (push (list count current) result)))
+      (format nil "~{~{~a~}~}" (reverse result))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-a (string times)
+    (iter (repeat times)
+          (setf string (look-and-say string))
+          (finally (return (length string)))))
+  (defun problem-a () (format t "Problem 10 A: ~a~%" (solve-a *input* 40)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (string times)
+    (iter (repeat times)
+          (setf string (look-and-say string))
+          (finally (return (length string)))))
+  (defun problem-b () (format t "Problem 10 B: ~a~%" (solve-b *input* 50)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<look-and-say>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.10.lisp
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 10 A: 492982
+: Problem 10 B: 6989950
+** Tests
+#+BEGIN_QUOTE
+For example:
+- 1 becomes 11 (1 copy of digit 1).
+- 11 becomes 21 (2 copies of digit 1).
+- 21 becomes 1211 (one 2 followed by one 1).
+- 1211 becomes 111221 (one 1, one 2, and two 1s).
+- 111221 becomes 312211 (three 1s, two 2s, and one 1).
+#+END_QUOTE
+#+NAME: tests
+#+BEGIN_SRC lisp :exports results :results output
+  (def-suite look-and-say-suite)
+  (in-suite look-and-say-suite)
+  (test las-length
+    (is (= 2 (length (look-and-say "1"))))
+    (is (= 2 (length (look-and-say "11"))))
+    (is (= 4 (length (look-and-say "21"))))
+    (is (= 6 (length (look-and-say "1211"))))
+    (is (= 6 (length (look-and-say "111221")))))
+  (test las-strings
+    (is (string= "11" (look-and-say "1")))
+    (is (string= "21" (look-and-say "11")))
+    (is (string= "1211" (look-and-say "21")))
+    (is (string= "111221" (look-and-say "1211")))
+    (is (string= "312211" (look-and-say "111221"))))
+  (run! 'look-and-say-suite)
+#+END_SRC
+
+#+RESULTS: tests
+: 
+: Running test suite LOOK-AND-SAY-SUITE
+:  Running test LAS-LENGTH .....
+:  Running test LAS-STRINGS .....
+:  Did 10 checks.
+:     Pass: 10 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+
+** Thoughts

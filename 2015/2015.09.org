@@ -1,0 +1,141 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 09
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-09)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-09
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-09)
+#+END_SRC
+** Input
+The input is a list of pairs and the distances between them. I'll go
+ahead and use parseq for this for some practice.
+#+BEGIN_EXAMPLE
+London to Dublin = 464
+London to Belfast = 518
+Dublin to Belfast = 141
+#+END_EXAMPLE
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule distance () string (:function #'parse-integer))
+      (defrule location () string)
+      (defrule line () (and location "to" location "=" distance)
+        (:choose 0 2 4))
+      (parseq 'line (ppcre:split "\\s+" line))))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/09.txt"))
+#+END_SRC
+** Part 1
+The problem is to find the shortest path traveling through all the
+locations *exactly* once. This is also known as a Hamiltonian path.
+
+The input is an undirected graph, so it can be traversed in any
+direction.
+#+NAME: make-graph
+#+BEGIN_SRC lisp :results silent
+  (defun make-graph (edges)
+    (let ((graph (make-hash-table :test 'equal)))
+      (iter (for (n0 n1 w) in edges)
+            (setf (gethash (list n0 n1) graph) w)
+            (setf (gethash (list n1 n0) graph) w))
+      graph))
+#+END_SRC
+#+BEGIN_SRC lisp :results none
+  (defun path (starting graph)
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 09 A: ~a~%" (identity *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 09 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.09.lisp
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 09 A: ((Faerun Tristram 65) (Faerun Tambi 129) (Faerun Norrath 144)
+               (Faerun Snowdin 71) (Faerun Straylight 137)
+               (Faerun AlphaCentauri 3) (Faerun Arbre 149) (Tristram Tambi 63)
+               (Tristram Norrath 4) (Tristram Snowdin 105)
+               (Tristram Straylight 125) (Tristram AlphaCentauri 55)
+               (Tristram Arbre 14) (Tambi Norrath 68) (Tambi Snowdin 52)
+               (Tambi Straylight 65) (Tambi AlphaCentauri 22) (Tambi Arbre 143)
+               (Norrath Snowdin 8) (Norrath Straylight 23)
+               (Norrath AlphaCentauri 136) (Norrath Arbre 115)
+               (Snowdin Straylight 101) (Snowdin AlphaCentauri 84)
+               (Snowdin Arbre 96) (Straylight AlphaCentauri 107)
+               (Straylight Arbre 14) (AlphaCentauri Arbre 46))
+Problem 09 B: ((Faerun Tristram 65) (Faerun Tambi 129) (Faerun Norrath 144)
+               (Faerun Snowdin 71) (Faerun Straylight 137)
+               (Faerun AlphaCentauri 3) (Faerun Arbre 149) (Tristram Tambi 63)
+               (Tristram Norrath 4) (Tristram Snowdin 105)
+               (Tristram Straylight 125) (Tristram AlphaCentauri 55)
+               (Tristram Arbre 14) (Tambi Norrath 68) (Tambi Snowdin 52)
+               (Tambi Straylight 65) (Tambi AlphaCentauri 22) (Tambi Arbre 143)
+               (Norrath Snowdin 8) (Norrath Straylight 23)
+               (Norrath AlphaCentauri 136) (Norrath Arbre 115)
+               (Snowdin Straylight 101) (Snowdin AlphaCentauri 84)
+               (Snowdin Arbre 96) (Straylight AlphaCentauri 107)
+               (Straylight Arbre 14) (AlphaCentauri Arbre 46))
+#+end_example
+** Thoughts
