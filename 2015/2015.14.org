@@ -1,0 +1,148 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 14
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-14)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-14
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-14)
+#+END_SRC
+** Input
+#+BEGIN_EXAMPLE
+  Vixen can fly 19 km/s for 7 seconds, but then must rest for 124 seconds.
+#+END_EXAMPLE
+Each line is a reindeer, their flight speed, how long they can fly,
+and how long they need to rest. A simple regex to match the parts (who
+flies doesn't matter today).
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (mapcar #'parse-integer (ppcre:all-matches-as-strings "(\\d+)" line)))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/14.txt"))
+#+END_SRC
+** Part 1
+Now we have a list of reindeer with speed, endurance, and rest
+times. I need a function that can tell where the reindeer will be at
+some time t.
+#+NAME: race
+#+BEGIN_SRC lisp :results silent
+  (defun race (reindeer time)
+    (destructuring-bind (speed endurance rest) reindeer
+      (iter (for i from 0 to time)
+            (with flying = t)
+            (with countdown = endurance)
+            (when flying
+              (sum speed))
+            (decf countdown)
+            (when (= 0 countdown)
+              (when flying
+                (setf countdown rest))
+              (unless flying
+                (setf countdown endurance))
+              (setf flying (not flying))))))
+  (defun run-race (reindeers time-limit)
+    (iter (for deer in reindeers)
+          (maximize (race deer time-limit))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 14 A: ~a~%" (run-race *input* 2503)))
+#+END_SRC
+** Part 2
+Now each second the reindeer in the lead gets a point. We again just
+need the maximum score.
+
+I'm going to change the raec from above to collect positions instead of summing the speed.
+#+NAME: improved-race
+#+BEGIN_SRC lisp :results silent
+  (defun race-by-second (reindeer time-limit)
+    (destructuring-bind (speed endurance rest) reindeer
+      (iter (for time from 0 to time-limit)
+            (with flying = t)
+            (with countdown = endurance)
+            (with distance = 0)
+            (when flying
+              (incf distance speed))
+            (decf countdown)
+            (when (= 0 countdown)
+              (when flying
+                (setf countdown rest))
+              (unless flying
+                (setf countdown endurance))
+              (setf flying (not flying)))
+            (collect distance))))
+  (defun improved-race (reindeers time-limit)
+    (let ((score (make-array (length reindeers) :initial-element 0))
+          (results (iter (for deer in reindeers)
+                         (collect (race-by-second deer time-limit)))))
+      (iter (
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
+  <<read-input>>
+  <<race>>
+  <<improved-race>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.14.lisp
+  <<initialize>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 14 A: 2660
+: Problem 14 B: ((19 7 124) (3 15 28) (19 9 164) (19 9 158) (13 7 82) (25 6 145)
+:                (14 3 38) (3 16 37) (25 6 143))
+** Thoughts
