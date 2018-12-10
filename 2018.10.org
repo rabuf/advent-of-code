@@ -88,9 +88,9 @@ The problem was in the parser, I searched on "(\\d+)" which wouldn't,
 naturally, find negative numbers. Brilliant.
 #+NAME: increment-lights
 #+BEGIN_SRC lisp :results silent
-  (defun increment-lights (lights)
+  (defun increment-lights (lights &optional (multiplier 1))
     (iter (for (p v) in lights)
-          (collect (list (+ p v) v))))
+          (collect (list (+ p (* multiplier v)) v))))
 #+END_SRC
 I still don't want to print out each option. Instead, I'm going to do
 an execution (through 100,000 steps) and find the minimum
@@ -121,16 +121,11 @@ So the minimum height happens at t = 10391.
 
 #+BEGIN_SRC lisp :results output :exports both
   (let ((lights *input*))
-    (iter (for i from 0 to 10392)
-          (when (= i 10391)
-            (format t "Iteration ~A:~%" i)
-            (print-lights lights))
-          (setf lights (increment-lights lights))))
+    (print-lights (increment-lights lights 10391)))
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
-Iteration 10391:
 #####...######..######..######...####...#....#..#....#..######
 #....#..#.......#............#..#....#..##...#..#....#..#.....
 #....#..#.......#............#..#.......##...#...#..#...#.....
@@ -220,18 +215,29 @@ one once I got the parsing issues out of the way.
     (iter (for i from 0 to 2)
           (setf lights (increment-lights lights)))
     (print-lights lights))
-
+  (let ((lights *test-case*))
+    (print-lights (increment-lights lights 3)))
 #+END_SRC
 
 #+RESULTS:
-: #...#..###
-: #...#...#.
-: #...#...#.
-: #####...#.
-: #...#...#.
-: #...#...#.
-: #...#...#.
-: #...#..###
+#+begin_example
+#...#..###
+#...#...#.
+#...#...#.
+#####...#.
+#...#...#.
+#...#...#.
+#...#...#.
+#...#..###
+#...#..###
+#...#...#.
+#...#...#.
+#####...#.
+#...#...#.
+#...#...#.
+#...#...#.
+#...#..###
+#+end_example
 
 #+NAME: tests
 #+BEGIN_SRC lisp :results output
@@ -241,3 +247,7 @@ one once I got the parsing issues out of the way.
   (run! 'suite-2018.10)
 #+END_SRC
 ** Thoughts
+A couple things come to mind. I should add an optional parameter to my
+increment-light sfunction to let it fast-forward to a specific time
+(multiplier). No reason to loop 10k times when one series of
+multiplies can accomplish the same thing.
