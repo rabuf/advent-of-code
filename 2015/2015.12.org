@@ -1,0 +1,112 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 12
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-12)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :cl-json)
+    (ql:quickload "cl-json"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-12
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-12)
+#+END_SRC
+** Input
+The input file is a JSON file. I've downloaded cl-json and added it to
+the environment to handle the input part.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* (with-open-file (s "input/12.txt") (json:decode-json s)))
+#+END_SRC
+** Part 1
+Sum up all the numbers in the input file.
+#+NAME: sum-tree
+#+BEGIN_SRC lisp :results silent
+  (defun sum-tree (tree)
+    (cond ((numberp tree) tree)
+          ((consp tree) (+ (sum-tree (car tree))
+                           (sum-tree (cdr tree))))
+          (t 0)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 12 A: ~a~%" (sum-tree *input*)))
+#+END_SRC
+** Part 2
+I need to strip out all dictionaries that contain "RED".
+#+NAME: remove-red
+#+BEGIN_SRC lisp :results silent
+  (defun remove-dict-containing (json element)
+    (if (and (listp json)
+             (mapcar (lambda (e)
+                       (and (not (listp e))
+#+END_SRC
+Well, this is an ugly solution.
+#+NAME: sum-tree-ignore-red
+#+BEGIN_SRC lisp :results silent
+  (defun sum-tree-ignore-red (tree)
+    (if (and (listp tree)
+             (iter (for e in tree)
+                   (always (and (consp e)
+                                (symbolp (car e)))))
+             (find "red" tree :key #'cdr :test #'equal))
+        0
+        (cond ((numberp tree) tree)
+              ((consp tree) (+ (sum-tree-ignore-red (car tree))
+                               (sum-tree-ignore-red (cdr tree))))
+              (t 0))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 12 B: ~a~%" (sum-tree-ignore-red *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<sum-tree>>
+  <<sum-tree-ignore-red>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.12.lisp
+  <<initialize>>
+  <<input>>
+  <<functions>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 12 A: 119433
+: Problem 12 B: 68466
+** Thoughts
