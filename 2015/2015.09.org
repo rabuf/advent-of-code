@@ -98,13 +98,14 @@ direction.
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<make-graph>>
   <<parse-line>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.09.lisp
   <<initialize>>
-  <<input>>
   <<functions>>
+  <<input>>
   <<problem-a>>
   <<problem-b>>
   (problem-a)

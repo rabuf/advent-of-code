@@ -16,7 +16,7 @@ list below.
 ** DONE [[file:2015.08.org][Day 8]]
 ** TODO [[file:2015.09.org][Day 9]]
 ** DONE [[file:2015.10.org][Day 10]]
-** TODO Day 11
+** TODO [[file:2015.11.org][Day 11]]
 ** TODO Day 12
 ** TODO Day 13
 ** TODO Day 14

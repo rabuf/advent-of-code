@@ -1,12 +1,12 @@
 #+STARTUP: indent contents
 #+OPTIONS: num:nil toc:nil
-* Day 10
+* Day 11
 ** Executing this code
 If you have a lisp installation, emacs, org-mode, and org-babel
 support for lisp installed you can run this by:
 1. Starting slime (=M-x slime=)
 2. Typing =C-c C-c= in the block [[initialize][initialize]].
-3. In the repl type =(in-package :aoc-2018-10)=
+3. In the repl type =(in-package :aoc-2015-11)=
 4. Typing =C-c C-c= in the block [[answers][answers]]
 ** Initial stuffs
 *** Packages to load
@@ -25,37 +25,31 @@ support for lisp installed you can run this by:
 #+NAME: initialize
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<packages>>
-  (defpackage :aoc-2018-10
+  (defpackage :aoc-2015-11
     (:use :common-lisp
           :iterate
           :parseq
           :fiveam)
     (:export :problem-a
              :problem-b))
-  (in-package :aoc-2018-10)
+  (in-package :aoc-2015-11)
 #+END_SRC
 ** Input
-#+NAME: read-input
-#+BEGIN_SRC lisp :results silent
-  (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
-#+END_SRC
+The input is a single string again.
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<read-input>>
-  (defparameter *input*
-    (read-input "input/10.txt"))
+  (defparameter *input* "hxbxwxba")
 #+END_SRC
 ** Part 1
+We need to determine what Santa's next password will be.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 10 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 11 A: ~a~%" (identity *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 10 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (identity *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -67,7 +61,7 @@ support for lisp installed you can run this by:
 
 #+END_SRC
 #+NAME: answers
-#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.10.lisp
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.11.lisp
   <<initialize>>
   <<input>>
   <<functions>>
@@ -78,14 +72,6 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
-** Tests
-#+NAME: tests
-#+BEGIN_SRC lisp :results output
-  (def-suite suite-2018.10)
-  (in-suite suite-2018.10)
-
-  (run! 'suite-2018.10)
-#+END_SRC
+: Problem 11 A: hxbxwxba
+: Problem 11 B: hxbxwxba
 ** Thoughts

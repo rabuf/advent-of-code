@@ -18,7 +18,7 @@ qualified.
 ** DONE [[file:2018.07.org][Day 7]]
 ** DONE [[file:2018.08.org][Day 8]]
 ** DONE [[file:2018.09.org][Day 9]]
-** TODO Day 10
+** TODO [[file:2018.10.org][Day 10]]
 ** TODO Day 11
 ** TODO Day 12
 ** TODO Day 13
