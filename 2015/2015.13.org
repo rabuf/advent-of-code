@@ -1,0 +1,155 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 13
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-13)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-13
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-13)
+#+END_SRC
+** Input
+#+BEGIN_EXAMPLE
+  Alice would gain 54 happiness units by sitting next to Bob.
+  Alice would lose 79 happiness units by sitting next to Carol.
+  Alice would lose 2 happiness units by sitting next to David.
+  Bob would gain 83 happiness units by sitting next to Alice.
+  Bob would lose 7 happiness units by sitting next to Carol.
+  Bob would lose 63 happiness units by sitting next to David.
+  Carol would lose 62 happiness units by sitting next to Alice.
+  Carol would gain 60 happiness units by sitting next to Bob.
+  Carol would gain 55 happiness units by sitting next to David.
+  David would gain 46 happiness units by sitting next to Alice.
+  David would lose 7 happiness units by sitting next to Bob.
+
+#+END_EXAMPLE
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (multiple-value-bind (_ matches)
+        (ppcre:scan-to-strings "(\\w+) would (\\w+) (\\d+) happiness units by sitting next to (\\w+)\\." line)
+      (declare (ignore _))
+      (destructuring-bind (p0 d a p1) (iter (for m in-vector matches) (collect m))
+        (cons (list p0 p1) (if (string= d "gain")
+                               (parse-integer a)
+                               (* -1 (parse-integer a)))))))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  (defparameter *input*
+    (read-input "input/13.txt"))
+#+END_SRC
+** Part 1
+Every pair has an associated happiness madifiers. In my input, Alice
+goes up in happiness if she's next to Bob (by 2) but down if she's
+next to Eric (by -75).
+
+I need to know all the attendees.
+#+NAME: all-names
+#+BEGIN_SRC lisp :results silent
+  (defun all-names (preferences)
+    (let ((table (make-hash-table :test #'equal)))
+      (iter (for ((a b) . p) in preferences)
+            (setf (gethash a table) t)
+            (setf (gethash b table) t))
+      (iter (for (k v) in-hashtable table)
+            (collect k))))
+#+END_SRC
+That was overkill.
+
+Now we need to make every permutation of these.
+#+NAME: all-permutations
+#+BEGIN_SRC lisp :results silent
+  (defun all-permutations (list)
+    (cond ((null list) nil)
+          ((null (cdr list)) (list list))
+          (t (loop for element in list
+               append (mapcar (lambda (l) (cons element l))
+                              (all-permutations (remove element list)))))))
+#+END_SRC
+Ok, so now we can iterate over those and calculate the best order for
+maximum happiness.
+#+NAME: maximum-happiness
+#+BEGIN_SRC lisp :results silent
+  (defun happiness (order preferences)
+    (iter (while (> (length order) 1))
+          (sum (+ (cdr (assoc (list (car order) (cadr order)) preferences :test #'equal))
+                  (cdr (assoc (list (cadr order) (car order)) preferences :test #'equal))))
+          (pop order)))
+  (defun maximum-happiness (preferences)
+    (iter (for order in (all-permutations (all-names preferences)))
+          (maximize (happiness (append order (list (car order))) preferences))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 13 A: ~a~%" (maximum-happiness *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun maximum-happiness-linear (preferences)
+    (iter (for order in (all-permutations (all-names preferences)))
+          (maximize (happiness order preferences))))
+  (defun problem-b () (format t "Problem 13 B: ~a~%" (maximum-happiness-linear *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
+  <<all-names>>
+  <<all-permutations>>
+  <<maximum-happiness>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.13.lisp
+  <<initialize>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 13 A: 733
+: Problem 13 B: 725
+** Thoughts
