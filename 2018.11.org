@@ -176,7 +176,7 @@ Here are some more example power levels:
 - Fuel cell at 101,153, grid serial number 71: power level  4.
 #+END_QUOTE
 #+NAME: test-cases
-#+BEGIN_SRC lisp :results output
+#+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2018.11)
   (in-suite aoc.2018.11)
 
