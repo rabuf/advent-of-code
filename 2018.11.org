@@ -35,42 +35,119 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-11)
 #+END_SRC
 ** Input
-#+NAME: read-input
-#+BEGIN_SRC lisp :results silent
-  (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
-#+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<read-input>>
-  (defparameter *input*
-    (read-input "input/11.txt"))
+  (defparameter *input* 1133)
 #+END_SRC
 ** Part 1
+There's a 300x300 grid of fuel cells. Can select any 3x3 region. Want
+the region with the largest total power. The region is identified by
+its topleft coordinate (NB: top left of grid is (1,1)).
+
+#+BEGIN_QUOTE
+The power level in a given fuel cell can be found through the
+following process:
+
+- Find the fuel cell's rack ID, which is its X coordinate plus 10.
+- Begin with a power level of the rack ID times the Y coordinate.
+- Increase the power level by the value of the grid serial number
+  (your puzzle input).
+- Set the power level to itself multiplied by the rack ID.
+- Keep only the hundreds digit of the power level (so 12345 becomes 3;
+  numbers with no hundreds digit become 0).
+- Subtract 5 from the power level.
+#+END_QUOTE
+
+#+NAME: power-level
+#+BEGIN_SRC lisp :results silent
+  (defun power-level (x y grid-id)
+    (let* ((rack-id (+ x 10))
+           (power-level (+ (* rack-id y) grid-id)))
+      (setf power-level (* power-level rack-id))
+      (- (mod (floor (/ power-level 100)) 10) 5)))
+#+END_SRC
+
+Alright, so now we need the coordinates for the maximal region.
+#+NAME: max-square
+#+BEGIN_SRC lisp :results silent
+  (defun sum-square (x y grid &optional (size 3))
+    (iter outer
+          (for i from x to (+ x (1- size)))
+          (iter (for j from y to (+ y (1- size)))
+                (in outer
+                    (sum (aref grid i j))))))
+  (defun max-square (grid &optional (size 3))
+    (iter outer
+          (for x from 1 to (- 300 (1- size))) ;; stop short so we don't
+                                              ;; go out of bounds
+          (iter (for y from 1 to (- 300 (1- size)))
+                (let ((power (sum-square x y grid size)))
+                  (in outer
+                      (finding (list x y size power) maximizing power))))))
+#+END_SRC
+
+#+NAME: make-power-grid
+#+BEGIN_SRC lisp :results silent
+  (defun make-power-grid (grid-id)
+    (let ((grid (make-array '(301 301))))
+      (iter (for x from 1 to 300)
+            (iter (for y from 1 to 300)
+                  (setf (aref grid x y) (power-level x y grid-id))))
+      grid))
+#+END_SRC
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 11 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 11 A: ~a~%" (max-square (make-power-grid *input*))))
 #+END_SRC
 ** Part 2
+Same basic code, but we can now adjust the size of the grid. This time
+we want to return all 3 parameters: x,y,size.
+
+I've extended the code above to take an optional size parameter,
+defaulting to 3 so I didn't have to adjust my main test functions
+below.
+
+#+NAME: best-size
+#+BEGIN_SRC lisp :results silent
+  (defun best-size (grid)
+    (iter (for size from 1 to 14)
+          (let ((best (max-square grid size)))
+            (finding best maximizing (fourth best)))))
+#+END_SRC
+
+The above is a cheat. It was taking too long so I printed out each
+potential best as they were found. The best was negative by size 25,
+at which point it wasn't going to improve again. I saw that 14 was the
+max and just used it above to get the printout below. I should revisit
+this and figure out how to make it run faster. I believe that I can
+reduce the total grid size by creating partial sums along the way (so
+that at size 300 it's just adding the 300th rows and colums to
+location (1,1)). But I'm not sure how to code that up right now.
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 11 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (best-size (make-power-grid *input*))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
 
 #+END_SRC
+
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  <<power-level>>
+  <<max-square>>
+  <<best-size>>
+  <<make-power-grid>>
 #+END_SRC
+
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.11.lisp
   <<initialize>>
-  <<input>>
   <<functions>>
+  <<input>>
   <<problem-a>>
   <<problem-b>>
   (problem-a)
@@ -78,6 +155,46 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 11 A: (235 14 3 31)
+: Problem 11 B: (237 227 14 108)
+** Tests
+#+BEGIN_QUOTE
+For example, to find the power level of the fuel cell at 3,5 in a grid with serial number 8:
+
+- The rack ID is 3 + 10 = 13.
+- The power level starts at 13 * 5 = 65.
+- Adding the serial number produces 65 + 8 = 73.
+- Multiplying by the rack ID produces 73 * 13 = 949.
+- The hundreds digit of 949 is 9.
+- Subtracting 5 produces 9 - 5 = 4.
+- So, the power level of this fuel cell is 4.
+
+Here are some more example power levels:
+
+- Fuel cell at  122,79, grid serial number 57: power level -5.
+- Fuel cell at 217,196, grid serial number 39: power level  0.
+- Fuel cell at 101,153, grid serial number 71: power level  4.
+#+END_QUOTE
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output
+  (def-suite aoc.2018.11)
+  (in-suite aoc.2018.11)
+
+  (test power-level-test
+    (is (= 4 (power-level 3 5 8)))
+    (is (= -5 (power-level 122 79 57)))
+    (is (= 0 (power-level 217 196 39)))
+    (is (= 4 (power-level 101 153 71))))
+
+  (run! 'aoc.2018.11)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2018.11
+:  Running test POWER-LEVEL-TEST ....
+:  Did 4 checks.
+:     Pass: 4 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
