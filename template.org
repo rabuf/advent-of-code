@@ -43,7 +43,6 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<read-input>>
   (defparameter *input*
     (read-input "input/DAY.txt"))
 #+END_SRC
@@ -64,13 +63,13 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  <<read-input>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle YEAR.DAY.lisp
   <<initialize>>
-  <<input>>
   <<functions>>
+  <<input>>
   <<problem-a>>
   <<problem-b>>
   (problem-a)
@@ -80,4 +79,14 @@ support for lisp installed you can run this by:
 #+RESULTS: answers
 : Problem 4a: 101194
 : Problem 4b: 102095
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output
+  (def-suite aoc.YEAR.DAY)
+  (in-suite aoc.YEAR.DAY)
+
+  (run! 'oc.YEAR.DAY)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
 ** Thoughts
