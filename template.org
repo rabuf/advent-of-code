@@ -81,7 +81,7 @@ support for lisp installed you can run this by:
 : Problem 4b: 102095
 ** Test Cases
 #+NAME: test-cases
-#+BEGIN_SRC lisp :results output
+#+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.YEAR.DAY)
   (in-suite aoc.YEAR.DAY)
 
