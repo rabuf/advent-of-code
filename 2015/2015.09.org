@@ -79,17 +79,57 @@ direction.
             (setf (gethash (list n1 n0) graph) w))
       graph))
 #+END_SRC
+
+#+NAME: all-permutations
+#+BEGIN_SRC lisp :results silent
+  (defun all-permutations (list)
+    (cond ((null list) nil)
+          ((null (cdr list)) (list list))
+          (t (loop for element in list
+               append (mapcar (lambda (l) (cons element l))
+                              (all-permutations (remove element list)))))))
+#+END_SRC
+
+I'm cheating a bit. When I examined the description, it's a complete
+graph. This means that we can test all possible permutations of the
+nodes since that's guaranteed to be a Hamiltonian path in our
+graph. There are 7 inputs so this will generate and test 5040
+paths. That shouldn't take too long.
+
+#+NAME: shortest-path
 #+BEGIN_SRC lisp :results none
-  (defun path (starting graph)
+  (defun path-length (path graph)
+    (iter (for from in path)
+          (for to in (cdr path))
+          (sum (gethash (list from to) graph))))
+  (defun shortest-path (graph)
+    (let* ((names (remove-duplicates (iter (for (k v) in-hashtable graph)
+                                           (collect (car k)))
+                                     :test #'equal))
+           (paths (all-permutations names)))
+      (iter (for path in paths)
+            (minimize (path-length path graph)))))
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 09 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 09 A: ~a~%" (shortest-path (make-graph *input*))))
 #+END_SRC
 ** Part 2
+Now Santa wants the longest path.
+#+NAME: longest-path
+#+BEGIN_SRC lisp :results silent
+  (defun longest-path (graph)
+    (let* ((names (remove-duplicates (iter (for (k v) in-hashtable graph)
+                                           (collect (car k)))
+                                     :test #'equal))
+           (paths (all-permutations names)))
+      (iter (for path in paths)
+            (maximize (path-length path graph)))))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 09 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 09 B: ~a~%" (longest-path (make-graph *input*))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -99,6 +139,9 @@ direction.
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<make-graph>>
+  <<all-permutations>>
+  <<shortest-path>>
+  <<longest-path>>
   <<parse-line>>
 #+END_SRC
 #+NAME: answers
@@ -113,30 +156,10 @@ direction.
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-#+begin_example
-Problem 09 A: ((Faerun Tristram 65) (Faerun Tambi 129) (Faerun Norrath 144)
-               (Faerun Snowdin 71) (Faerun Straylight 137)
-               (Faerun AlphaCentauri 3) (Faerun Arbre 149) (Tristram Tambi 63)
-               (Tristram Norrath 4) (Tristram Snowdin 105)
-               (Tristram Straylight 125) (Tristram AlphaCentauri 55)
-               (Tristram Arbre 14) (Tambi Norrath 68) (Tambi Snowdin 52)
-               (Tambi Straylight 65) (Tambi AlphaCentauri 22) (Tambi Arbre 143)
-               (Norrath Snowdin 8) (Norrath Straylight 23)
-               (Norrath AlphaCentauri 136) (Norrath Arbre 115)
-               (Snowdin Straylight 101) (Snowdin AlphaCentauri 84)
-               (Snowdin Arbre 96) (Straylight AlphaCentauri 107)
-               (Straylight Arbre 14) (AlphaCentauri Arbre 46))
-Problem 09 B: ((Faerun Tristram 65) (Faerun Tambi 129) (Faerun Norrath 144)
-               (Faerun Snowdin 71) (Faerun Straylight 137)
-               (Faerun AlphaCentauri 3) (Faerun Arbre 149) (Tristram Tambi 63)
-               (Tristram Norrath 4) (Tristram Snowdin 105)
-               (Tristram Straylight 125) (Tristram AlphaCentauri 55)
-               (Tristram Arbre 14) (Tambi Norrath 68) (Tambi Snowdin 52)
-               (Tambi Straylight 65) (Tambi AlphaCentauri 22) (Tambi Arbre 143)
-               (Norrath Snowdin 8) (Norrath Straylight 23)
-               (Norrath AlphaCentauri 136) (Norrath Arbre 115)
-               (Snowdin Straylight 101) (Snowdin AlphaCentauri 84)
-               (Snowdin Arbre 96) (Straylight AlphaCentauri 107)
-               (Straylight Arbre 14) (AlphaCentauri Arbre 46))
-#+end_example
+: Problem 09 A: 117
+: Problem 09 B: 909
 ** Thoughts
+I'm satisfied in that I answered the question, but this required an
+assumption (validated by examining my input) that the graph was a
+complete graph. If there were any missing edges I'd need code to
+generate paths properly.
