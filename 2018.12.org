@@ -47,6 +47,14 @@ support for lisp installed you can run this by:
     (read-input "input/12.txt"))
 #+END_SRC
 ** Part 1
+This is a simple rules-based simulator like the game of life. For each
+pot (cell) determine whether it lives or dies per the list of rules
+(they are complete).
+
+There are an infinite number of pots so the rules may cause plants to
+appear outside the span of the input itself.
+
+The question is how many plants are alive after generation 20.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem 12 A: ~a~%" (identity *input*)))
@@ -77,8 +85,24 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+#+begin_example
+Problem 12 A: (initial state: .##..#.#..##..##..##...#####.#.....#..#..##.###.#.####......#.......#..###.#.#.##.#.#.###...##.###.#
+                .##.# => # ##.#. => # ##... => # #.... => . .#..# => .
+               #.##. => . .##.. => . .#.## => . ###.. => . ..##. => #
+               ##### => # #...# => # .#... => # ###.# => # #.### => #
+               ##..# => . .###. => # ...## => . ..#.# => . ##.## => #
+               ....# => . #.#.# => # #.#.. => . .#### => . ...#. => #
+               ..### => . ..#.. => # ..... => . ####. => . #..## => #
+               .#.#. => . #..#. => #)
+Problem 12 B: (initial state: .##..#.#..##..##..##...#####.#.....#..#..##.###.#.####......#.......#..###.#.#.##.#.#.###...##.###.#
+                .##.# => # ##.#. => # ##... => # #.... => . .#..# => .
+               #.##. => . .##.. => . .#.## => . ###.. => . ..##. => #
+               ##### => # #...# => # .#... => # ###.# => # #.### => #
+               ##..# => . .###. => # ...## => . ..#.# => . ##.## => #
+               ....# => . #.#.# => # #.#.. => . .#### => . ...#. => #
+               ..### => . ..#.. => # ..... => . ####. => . #..## => #
+               .#.#. => . #..#. => #)
+#+end_example
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
