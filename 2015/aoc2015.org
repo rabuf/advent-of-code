@@ -1,6 +1,6 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* TODO Advent of Code 2015 [9/25]
+* TODO Advent of Code 2015 [15/25]
 This will be my attempt to solve the various Advent of Code 2015
 problems with Common Lisp.
 
@@ -14,13 +14,13 @@ list below.
 ** DONE [[file:2015.06.org][Day 6]]
 ** DONE [[file:2015.07.org][Day 7]]
 ** DONE [[file:2015.08.org][Day 8]]
-** TODO [[file:2015.09.org][Day 9]]
+** DONE [[file:2015.09.org][Day 9]]
 ** DONE [[file:2015.10.org][Day 10]]
-** TODO [[file:2015.11.org][Day 11]]
-** TODO Day 12
-** TODO Day 13
-** TODO Day 14
-** TODO Day 15
+** DONE [[file:2015.11.org][Day 11]]
+** DONE [[file:2015.12.org][Day 12]]
+** DONE [[file:2015.13.org][Day 13]]
+** DONE [[file:2015.14.org][Day 14]]
+** DONE [[file:2015.15.org][Day 15]]
 ** TODO Day 16
 ** TODO Day 17
 ** TODO Day 18
