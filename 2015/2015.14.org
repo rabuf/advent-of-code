@@ -89,34 +89,49 @@ some time t.
 Now each second the reindeer in the lead gets a point. We again just
 need the maximum score.
 
-I'm going to change the raec from above to collect positions instead of summing the speed.
+I'm going to change the race from above to collect positions instead
+of summing the speed.
+
+I'll make a =tick= function which takes a reindeer, time, and state
+and gives the next state.
+#+NAME: tick
+#+BEGIN_SRC lisp :results silent
+  (defun tick (reindeer state)
+    (destructuring-bind (speed endurance rest) reindeer
+      (destructuring-bind (condition countdown distance)
+          state
+        (if (= 1 countdown)
+            (if condition
+                (list nil rest (+ speed distance))
+                (list t endurance distance))
+            (if condition
+                (list condition (1- countdown) (+ distance speed))
+                (list condition (1- countdown) distance))))))
+#+END_SRC
 #+NAME: improved-race
 #+BEGIN_SRC lisp :results silent
   (defun race-by-second (reindeer time-limit)
-    (destructuring-bind (speed endurance rest) reindeer
-      (iter (for time from 0 to time-limit)
-            (with flying = t)
-            (with countdown = endurance)
-            (with distance = 0)
-            (when flying
-              (incf distance speed))
-            (decf countdown)
-            (when (= 0 countdown)
-              (when flying
-                (setf countdown rest))
-              (unless flying
-                (setf countdown endurance))
-              (setf flying (not flying)))
-            (collect distance))))
-  (defun improved-race (reindeers time-limit)
-    (let ((score (make-array (length reindeers) :initial-element 0))
-          (results (iter (for deer in reindeers)
-                         (collect (race-by-second deer time-limit)))))
-      (iter (
+    (let ((scores (make-array (length reindeer) :initial-element 0))
+          (states (make-array (length reindeer)
+                              :initial-contents (iter (for (speed endurance rest) in reindeer)
+                                                      (collect (list t endurance 0))))))
+      (iter (for time from 1 to time-limit)
+            (let ((max-distance
+                    (iter (for s in-vector states with-index i)
+                          (for r in reindeer)
+                          (setf (aref states i) (tick r s))
+                          (maximizing (third (aref states i))))))
+              (iter (for s in-vector states with-index i)
+                    (if (= max-distance (third s))
+                        (incf (aref scores i))))))
+      (format t "~A~%" scores)
+      (iter (for i from 0 below (length reindeer))
+            (maximizing (aref scores i)))))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 14 B: ~a~%" (identity *input*)))
+  ;; (defun problem-b () (format t "Problem 14 B: ~a~%" (race-by-second (list (list 14 10 127) (list 16 11 162)) 1000)))
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (race-by-second *input* 2503)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -128,6 +143,7 @@ I'm going to change the raec from above to collect positions instead of summing 
   <<parse-line>>
   <<read-input>>
   <<race>>
+  <<tick>>
   <<improved-race>>
 #+END_SRC
 #+NAME: answers
@@ -143,6 +159,5 @@ I'm going to change the raec from above to collect positions instead of summing 
 ** Answer
 #+RESULTS: answers
 : Problem 14 A: 2660
-: Problem 14 B: ((19 7 124) (3 15 28) (19 9 164) (19 9 158) (13 7 82) (25 6 145)
-:                (14 3 38) (3 16 37) (25 6 143))
-** Thoughts
+: #(469 188 589 1256 158 307 9 0 504)
+: Problem 14 B: 1256
