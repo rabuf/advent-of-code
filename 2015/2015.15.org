@@ -35,6 +35,17 @@ support for lisp installed you can run this by:
   (in-package :aoc-2015-15)
 #+END_SRC
 ** Input
+Input is a list of ingredients with qualities. All will be in the same
+order. So parsing can be a simple REGEX collecting the numbers from each line.x
+#+BEGIN_EXAMPLE
+Butterscotch: capacity -1, durability -2, flavor 6, texture 3, calories 8
+Cinnamon: capacity 2, durability 3, flavor -2, texture -1, calories 3
+#+END_EXAMPLE
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (mapcar #'parse-integer (ppcre:all-matches-as-strings "-?\\d" line)))
+#+END_SRC
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -47,14 +58,62 @@ support for lisp installed you can run this by:
     (read-input "input/15.txt"))
 #+END_SRC
 ** Part 1
+This is a fairly straightforward optimization problem. I'm going to
+take advantage of the fact that my ingredient list is fixed.
+
+#+BEGIN_EXAMPLE
+  Frosting: capacity 4, durability -2, flavor 0, texture 0, calories 5
+  Candy: capacity 0, durability 5, flavor -1, texture 0, calories 8
+  Butterscotch: capacity -1, durability 0, flavor 5, texture 0, calories 6
+  Sugar: capacity 0, durability 0, flavor -2, texture 2, calories 1
+#+END_EXAMPLE
+
+#+NAME: solve-a
+#+BEGIN_SRC lisp :results output
+  (defun score (ingredients)
+    (reduce #'*
+            (list
+             (reduce #'+
+                     (mapcar #'* ingredients (list 4 0 -1 0)))
+             (reduce #'+
+                     (mapcar #'* ingredients (list -2 5 0 0)))
+             (reduce #'+
+                     (mapcar #'* ingredients (list 0 -1 5 -2)))
+             (reduce #'+
+                     (mapcar #'* ingredients (list 0 0 0 2))))))
+  (defun solve-a ()
+    (iter outer
+          (for frosting from 0 to 100)
+          (iter (for candy from frosting to (- 100 frosting))
+                (iter (for butterscotch from candy to (- 100 frosting candy))
+                      (for sugar = (- 100 frosting candy butterscotch))
+                      (in outer
+                          (maximizing (score (list frosting candy butterscotch sugar))))))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 15 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 15 A: ~a~%" (solve-a)))
 #+END_SRC
 ** Part 2
+Now we need the calories to sum up to exactly 500 for a valid recipe.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :results silent
+  (defun calories (ingredients)
+    (reduce #'+ (mapcar #'* ingredients (list 5 8 6 1))))
+  (defun solve-b ()
+    (iter outer
+          (for frosting from 0 to 100)
+          (iter (for candy from frosting to (- 100 frosting))
+                (iter (for butterscotch from candy to (- 100 frosting candy))
+                      (for sugar = (- 100 frosting candy butterscotch))
+                      (if (= 500 (calories (list frosting candy butterscotch sugar)))
+                          (in outer
+                              (maximizing (score (list frosting candy butterscotch sugar)))))))))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 15 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 15 B: ~a~%" (solve-b)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -63,7 +122,9 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
   <<read-input>>
+  <<solve-a>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.15.lisp
@@ -77,8 +138,8 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 15 A: 18965440
+: Problem 15 B: 15862900
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
