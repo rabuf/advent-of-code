@@ -42,7 +42,7 @@ support for lisp installed you can run this by:
 ** Part 1
 There's a 300x300 grid of fuel cells. Can select any 3x3 region. Want
 the region with the largest total power. The region is identified by
-its topleft coordinate (NB: top left of grid is (1,1)).
+its top left coordinate (NB: top left of grid is (1,1)).
 
 #+BEGIN_QUOTE
 The power level in a given fuel cell can be found through the
@@ -111,7 +111,7 @@ below.
 #+NAME: best-size
 #+BEGIN_SRC lisp :results silent
   (defun best-size (grid)
-    (iter (for size from 1 to 14)
+    (iter (for size from 1 to 20)
           (let ((best (max-square grid size)))
             (finding best maximizing (fourth best)))))
 #+END_SRC
@@ -127,7 +127,7 @@ location (1,1)). But I'm not sure how to code that up right now.
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 11 B: ~a~%" (best-size (make-power-grid *input*))))
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (best-size-fast (summed-area-table (make-power-grid *input*)))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -141,6 +141,10 @@ location (1,1)). But I'm not sure how to code that up right now.
   <<max-square>>
   <<best-size>>
   <<make-power-grid>>
+  <<summed-area-table>>
+  <<area-sum>>
+  <<max-square-fast>>
+  <<best-size-fast>>
 #+END_SRC
 
 #+NAME: answers
@@ -198,3 +202,114 @@ Here are some more example power levels:
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
+Ok, so there's an algorithm out there called [[https://en.wikipedia.org/wiki/Summed-area_table][Summed-area table]] which
+is pretty much exactly what I was trying to think of last night.
+
+#+NAME: summed-area-table
+#+BEGIN_SRC lisp :results silent
+  (defun summed-area-table (table)
+    (let ((result (make-array (array-dimensions table) :initial-element 0)))
+      (setf (aref result 0 0) (aref table 0 0))
+      (iter (for x from 1 below (first (array-dimensions result)))
+            (setf (aref result x 0)
+                  (+ (aref result x 0) (aref table (1- x) 0))))
+      (iter (for y from 1 below (second (array-dimensions result)))
+            (setf (aref result 0 y)
+                  (+ (aref result 0 y) (aref table 0 (1- y)))))
+      (iter (for x from 1 below (first (array-dimensions result)))
+            (iter (for y from 1 below (second (array-dimensions result)))
+                  (setf (aref result x y)
+                        (+ (aref result (1- x) y)
+                           (aref result x (1- y))
+                           (- (aref result (1- x) (1- y)))
+                           (aref table x y)))))
+      result))
+  (defun print-array (array)
+    (iter (for x from 0 below (first (array-dimensions array)))
+          (iter (for y from 0 below (second (array-dimensions array)))
+                (format t "~A " (aref array x y)))
+          (format t "~%")))
+#+END_SRC
+
+The next thing we need is the sum of a region. The table generated
+above gives us a relatively fast way of doing that.
+
+Pass in the same kind of coordinates that we want for the answer
+(specify the upper left corrner of the range). This function will
+convert properly but does *no* bounds checking. Give it bad
+coordinates and size and it'll bring you to the debugger.
+#+NAME: area-sum
+#+BEGIN_SRC lisp :results silent
+  (defun area-sum (table x y size)
+    (let* ((lr (complex (+ x size -1) (+ y size -1)))
+           (ur (- lr (complex 0 size)))
+           (ll (- lr size))
+           (ul (- lr (complex size size))))
+      (- (+ (aref table (realpart lr) (imagpart lr))
+            (aref table (realpart ul) (imagpart ul)))
+         (+ (aref table (realpart ur) (imagpart ur))
+            (aref table (realpart ll) (imagpart ll))))))
+#+END_SRC
+
+NB: From now on I'm following phil_g's lead and using complex numbers
+to represent all 2D coordinates. It's just so much more convenient.
+
+#+NAME: max-square-fast
+#+BEGIN_SRC lisp :results silent
+  (defun max-square-fast (grid &optional (size 3))
+    "Unlike the original, this one requries a summed-area table version of the battery grid."
+    (iter outer
+          (for x from 1 to (- 300 (1- size))) ;; stop short so we don't
+                                              ;; go out of bounds
+          (iter (for y from 1 to (- 300 (1- size)))
+                (let ((power (area-sum grid x y size)))
+                  (in outer
+                      (finding (list x y size power) maximizing power))))))
+#+END_SRC
+
+#+BEGIN_SRC lisp :exports both
+  (let ((grid (summed-area-table (make-power-grid 1133))))
+    (max-square-fast grid 3))
+#+END_SRC
+
+#+RESULTS:
+| 235 | 14 | 3 | 31 |
+
+#+BEGIN_SRC lisp :exports both
+  (let ((grid (summed-area-table (make-power-grid 1133))))
+    (max-square-fast grid 14))
+#+END_SRC
+
+#+RESULTS:
+| 237 | 227 | 14 | 108 |
+
+Now that we know that the max-square-fast works, lets try making the
+actual search function.
+
+#+NAME: best-size-fast
+#+BEGIN_SRC lisp :results output
+  (defun best-size-fast (grid)
+    (iter (for size from 1 to 300)
+          (let ((best (max-square-fast grid size)))
+            (finding best maximizing (fourth best)))))
+#+END_SRC
+
+I've updated Problem B above to use this function so it can now
+actually run through all 300 sizes without testing my patience. For
+fun, here's the timing output for it.
+
+#+BEGIN_SRC lisp :exports both :results output
+  (let ((*trace-output* *standard-output*))
+    (time (problem-b)))
+#+END_SRC
+
+#+RESULTS:
+: Problem 11 B: (237 227 14 108)
+: Evaluation took:
+:   1.687 seconds of real time
+:   1.696096 seconds of total run time (1.673423 user, 0.022673 system)
+:   [ Run times consist of 0.103 seconds GC time, and 1.594 seconds non-GC time. ]
+:   100.53% CPU
+:   5,222,992,208 processor cycles
+:   1,741,533,200 bytes consed
+:   
