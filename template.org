@@ -67,6 +67,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle YEAR.DAY.lisp
+  <<structs>>
   <<initialize>>
   <<functions>>
   <<input>>
