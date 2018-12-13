@@ -1,0 +1,147 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 17
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-17)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-17
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-17)
+#+END_SRC
+** Input
+The input is a list of numbers, so parsing is easy enough. I'll change
+=read-line= to =read= in the =read-input= function.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/17.txt"))
+#+END_SRC
+** Part 1
+The task is to fit 150 liters of egg nog into the containers in the
+input (their sizes are the numbers from the input file). The task is
+to count all the ways to store 150 liters in the provided containers.
+
+The key hint in the puzzle description is that we need all
+*combinations* of these inputs. From 1 of them to all of them, but
+order doesn't matter.
+
+#+NAME: solve-a
+#+BEGIN_SRC lisp :results silent
+  (defun make-counter ()
+    (let ((count 0))
+      (lambda (list)
+        (if (null list)
+            count
+            (if (valid list)
+                (incf count))))))
+
+  (defun valid (combination)
+    (= 150 (reduce #'+ combination)))
+  (defun comb (m list fn)
+    (labels ((comb1 (l c m)
+                    (when (>= (length l) m)
+                      (if (zerop m) (return-from comb1 (funcall fn c)))
+                      (comb1 (cdr l) c m)
+                      (comb1 (cdr l) (cons (first l) c) (1- m)))))
+      (comb1 list nil m)))
+  (defun solve-a (jugs)
+    (let ((counter (make-counter)))
+      (iter (for i from 0 to (length jugs))
+            (comb i jugs counter))
+      (funcall counter nil)))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 17 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Now we need minimum number of jugs needed, and the number of ways to
+fill just that many. I'll use the above code still looping from the
+smallest number of combinations to the largest and break as soon as
+counter is not zero.
+
+#+NAME: solve-b
+#+BEGIN_SRC lisp :results silent
+  (defun solve-b (jugs)
+    (let ((counter (make-counter)))
+      (iter (for i from 0 to (length jugs))
+            (comb i jugs counter)
+            (when (> (funcall counter nil) 0)
+              (return (list i (funcall counter nil)))))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 17 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<store-the-nog>>
+  <<solve-a>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.17.lisp
+  <<structs>>
+  <<initialize>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 17 A: 1304
+: Problem 17 B: (4 18)
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2015.17)
+  (in-suite aoc.2015.17)
+
+  (run! 'aoc.2015.17)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
