@@ -35,11 +35,43 @@ support for lisp installed you can run this by:
   (in-package :aoc-2015-16)
 #+END_SRC
 ** Input
+We need to take a bit more care in parsing this one. It's a list of
+500 Aunt Sue's and known facts about them (how many goldfish or cars
+or other things they may have). We also have a separate list of the
+qualities of a Sue that needs to be identified (by number).
+
+#+BEGIN_EXAMPLE
+  Sue 1: goldfish: 9, cars: 0, samoyeds: 9
+  Sue 2: perfumes: 5, trees: 8, goldfish: 8
+  Sue 3: pomeranians: 2, akitas: 1, trees: 5
+#+END_EXAMPLE
+
+For parsing, I'll grab the Sue # and then split the rest of the line
+on ',' and then ":". Each Sue will be a struct consisting of an ID and
+properties (int x hash table).
+
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun parse-id (line)
+    (parse-integer (ppcre:scan-to-strings "\\d+" line)))
+  (defun parse-properties (line)
+    (let ((properties (mapcar (lambda (s) (ppcre:split ": " s)) (ppcre:all-matches-as-strings "\\w+: \\d+" line)))
+          (table (make-hash-table :test #'equal)))
+      (mapcar (lambda (p)
+                (setf (gethash (car p) table) (parse-integer (cadr p))))
+              properties)
+      table))
+  (defun parse-line (line)
+      (let ((id (parse-id line))
+            (properties (parse-properties line)))
+        (make-sue :id id :properties properties)))
+#+END_SRC
+
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
     (iter (for line in-file file using #'read-line)
-          (collect line)))
+          (collect (parse-line line))))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -47,23 +79,100 @@ support for lisp installed you can run this by:
     (read-input "input/16.txt"))
 #+END_SRC
 ** Part 1
+Every sue is now entered into the Sue database. The challenge is to
+identify which Sue gave the gift based on these known qualities:
+#+BEGIN_EXAMPLE
+  children: 3
+  cats: 7
+  samoyeds: 2
+  pomeranians: 3
+  akitas: 0
+  vizslas: 0
+  goldfish: 5
+  trees: 3
+  cars: 2
+  perfumes: 1
+#+END_EXAMPLE
+
+The Sue database is not comprehensive. If a Sue does not have a
+property listed above she shouldn't be discarded. A sue should be
+filtered out *if and only if* she has one of the above listed
+properties with a different value.
+
+#+NAME: filter-sues
+#+BEGIN_SRC lisp :results silent
+  (defun filter-sues (sues property value &optional (test #'=))
+    (remove-if (lambda (sue)
+                 (let ((props (sue-properties sue)))
+                   (and (gethash property props)
+                        (not (funcall test (gethash property props) value)))))
+               sues))
+#+END_SRC
+
+Now we need to iterate over all properties and then print out whatever
+Sues are remaining.
+#+NAME: solve-a
+#+BEGIN_SRC lisp :results silent
+  (defun solve-a (sues)
+    (let ((properties '(("children" 3)
+                        ("cats" 7)
+                        ("samoyeds" 2)
+                        ("pomeranians" 3)
+                        ("akitas" 0)
+                        ("vizslas" 0)
+                        ("goldfish" 5)
+                        ("trees" 3)
+                        ("cars" 2))))
+      (iter (for (prop val) in properties)
+            (setf sues (filter-sues sues prop val)))
+      sues))
+#+END_SRC
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 16 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 16 A: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
+The detector is less than accurate. So we we need to change some of
+the constraints. Rather than precise equalities, some are
+inequalities. I'm taking advantage of lisp's functional nature. I
+modified the filter function to take a test. It defaults to =. This
+will be a third parameter in the properties list.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :results silent
+  (defun solve-b (sues)
+    (let ((properties '(("children" 3 =)
+                        ("cats" 7 >)
+                        ("samoyeds" 2 =)
+                        ("pomeranians" 3 <)
+                        ("akitas" 0 =)
+                        ("vizslas" 0 =)
+                        ("goldfish" 5 <)
+                        ("trees" 3 >)
+                        ("cars" 2 =))))
+      (iter (for (prop val test) in properties)
+            (setf sues (filter-sues sues prop val test)))
+      sues))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 16 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 16 B: ~a~%" (solve-b *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  (defstruct sue
+    id
+    properties)
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
   <<read-input>>
+  <<filter-sues>>
+  <<solve-a>>
+  <<solve-b>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.16.lisp
@@ -78,8 +187,12 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 16 A: (#S(SUE
+:                   :ID 40
+:                   :PROPERTIES #<HASH-TABLE :TEST EQUAL :COUNT 3 {1003BA4D23}>))
+: Problem 16 B: (#S(SUE
+:                   :ID 241
+:                   :PROPERTIES #<HASH-TABLE :TEST EQUAL :COUNT 3 {1003C1C4A3}>))
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
@@ -91,3 +204,10 @@ support for lisp installed you can run this by:
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
+Thanks to the ease of passing around functions Part 2 was actually
+really easy to solve. I changed the =filter-sues= function to take an
+optional test parameter with a default of equality testing, so Part 1
+was completely unimpacted by the update. If I'd done this in C or some
+other language without easy passing of functions (and where
+inequalities and such aren't functions, but operators) I imagine this
+would've required more rework.
