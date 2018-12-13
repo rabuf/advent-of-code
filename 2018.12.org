@@ -35,6 +35,27 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-12)
 #+END_SRC
 ** Input
+I've created structs below to contain the game and its
+rules. Each rule looks something like:
+#+BEGIN_EXAMPLE
+  #..#. => #
+#+END_EXAMPLE
+So I split on the =' => '= with the left becoming the pattern to match
+against and the right being the result.
+#+NAME: parse-input
+#+BEGIN_SRC lisp :results silent
+  (defun get-initial (line)
+    (ppcre:regex-replace-all "\\s+" (cadr (ppcre:split ":" line)) ""))
+  (defun get-rule (line)
+    (let ((rule (ppcre:split " => " line)))
+      (make-rule :pattern (car rule) :result (elt (cadr rule) 0))))
+  (defun get-rules (lines)
+    (mapcar #'get-rule lines))
+  (defun parse-input (lines)
+    (make-game :initial (get-initial (car lines))
+               :rules (get-rules (cddr lines))
+               :default #\.))
+#+END_SRC
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -44,38 +65,119 @@ support for lisp installed you can run this by:
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/12.txt"))
+    (parse-input (read-input "input/12.txt")))
 #+END_SRC
 ** Part 1
-This is a simple rules-based simulator like the game of life. For each
-pot (cell) determine whether it lives or dies per the list of rules
-(they are complete).
+This is a simple 1d cellular automata. For each pot (cell) determine
+whether it lives or dies per the list of rules (they are complete).
 
-There are an infinite number of pots so the rules may cause plants to
-appear outside the span of the input itself.
+There are an infinite number of pots, each uniquely numbered. But the
+first element of the input is 0. Since I can't access things at a
+negative position, I'm going to create a padded state variable with
+100 '.' characters on either side of the initial state and use an
+offset when computing the score later.
 
-The question is how many plants are alive after generation 20.
+The question is what is the sum of the number of each pot with a plant
+in it at the end of generation 20. So if pot's 0, 2, 10 have plants in
+them the score is 12.
+#+NAME: print-state
+#+BEGIN_SRC lisp :results silent
+  (defun print-state (state generation offset)
+    (format t "~d: ~a => ~d~%" generation state (score-game state offset)))
+#+END_SRC
+#+NAME: score-game
+#+BEGIN_SRC lisp :results silent
+  (defun score-game (state offset)
+    (iter (for i from (- offset))
+          (for c in-string state)
+          (when (char= #\# c)
+            (sum i))))
+#+END_SRC
+#+NAME: next-state
+#+BEGIN_SRC lisp :results silent
+  (defun apply-rules (string rules)
+    (iter (for r in rules)
+          (when (string= string (rule-pattern r))
+            (return (rule-result r)))))
+  (defun next-state (state game)
+    (let ((next (make-string (length state) :initial-element #\.)))
+      (iter (for i from 2 below (- (length state) 2))
+            (setf (elt next i)
+                  (apply-rules (subseq state (- i 2) (+ i 3)) (game-rules game))))
+      next))
+#+END_SRC
+#+NAME: run-game-print
+#+BEGIN_SRC lisp :results silent
+  (defun run-game-print (game generations)
+    (let* ((offset (length (game-initial game)))
+           (state (make-string (* 3 offset) :initial-element #\.)))
+      (setf (subseq state 100) (game-initial game))
+      (iter (for generation from 0 to generations)
+            (print-state state generation offset)
+            (setf state (next-state state game)))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 12 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 12 A:~%") (run-game-print *input* 20))
 #+END_SRC
 ** Part 2
+Now we need the score after 50,000,000,000 generations. That's a lot
+of generations and I don't have the patience for it. I have an idea
+though. Iterate until a steady state exists. That is, I'll create the
+next generation and see if the same series of potted plants exist (but
+shifted). The score difference between the two generations can be
+multiplied by the number of generations remaninig to hit
+50,000,000,000.
+
+Simpler, let's just keep track of the score differences. Once it's
+increasing by the same rate over 3 generation then we have our answer.
+#+NAME: run-game
+#+BEGIN_SRC lisp :results silent
+  (defun run-game (game generations target-generation)
+    (let* ((offset (length (game-initial game)))
+           (state (make-string (* 2 offset generations) :initial-element #\.))
+           (s0 (score-game state offset))
+           (s1 (score-game state offset))
+           (s2 (score-game state offset)))
+      (setf (subseq state 100) (game-initial game))
+      (iter (for generation from 0 below generations)
+            (setf state (next-state state game))
+            (setf s0 s1)
+            (setf s1 s2)
+            (setf s2 (score-game state offset))
+            (when (= (- s2 s1) (- s1 s0))
+                   (return (+ s2 (* (- s2 s1) (- target-generation generation 1))))))))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 12 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 12 B: ~a~%" (run-game *input* 200 50000000000)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
+  (defstruct game
+    initial
+    rules
+    default)
 
+  (defstruct rule
+    pattern
+    result)
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-input>>
   <<read-input>>
+  <<print-state>>
+  <<score-game>>
+  <<next-state>>
+  <<run-game-print>>
+  <<run-game>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.12.lisp
   <<initialize>>
+  <<structs>>
   <<functions>>
   <<input>>
   <<problem-a>>
@@ -86,22 +188,29 @@ The question is how many plants are alive after generation 20.
 ** Answer
 #+RESULTS: answers
 #+begin_example
-Problem 12 A: (initial state: .##..#.#..##..##..##...#####.#.....#..#..##.###.#.####......#.......#..###.#.#.##.#.#.###...##.###.#
-                .##.# => # ##.#. => # ##... => # #.... => . .#..# => .
-               #.##. => . .##.. => . .#.## => . ###.. => . ..##. => #
-               ##### => # #...# => # .#... => # ###.# => # #.### => #
-               ##..# => . .###. => # ...## => . ..#.# => . ##.## => #
-               ....# => . #.#.# => # #.#.. => . .#### => . ...#. => #
-               ..### => . ..#.. => # ..... => . ####. => . #..## => #
-               .#.#. => . #..#. => #)
-Problem 12 B: (initial state: .##..#.#..##..##..##...#####.#.....#..#..##.###.#.####......#.......#..###.#.#.##.#.#.###...##.###.#
-                .##.# => # ##.#. => # ##... => # #.... => . .#..# => .
-               #.##. => . .##.. => . .#.## => . ###.. => . ..##. => #
-               ##### => # #...# => # .#... => # ###.# => # #.### => #
-               ##..# => . .###. => # ...## => . ..#.# => . ##.## => #
-               ....# => . #.#.# => # #.#.. => . .#### => . ...#. => #
-               ..### => . ..#.. => # ..... => . ####. => . #..## => #
-               .#.#. => . #..#. => #)
+Problem 12 A:
+0: .....................................................................................................##..#.#..##..##..##...#####.#.....#..#..##.###.#.####......#.......#..###.#.#.##.#.#.###...##.###.#.................................................................................................... => 2455
+1: .....................................................................................................#..#....##..##..##.##...#.##.#...##.##.#########.#...#....###.....##.#.####.#..###.#.##.##.#######.#................................................................................................... => 3081
+2: ....................................................................................................##.###...#..##..####..###...##.##.###.###.#####.##.#####....#.#....####.#..##..#.####..##.###.###.##.#.................................................................................................. => 3169
+3: ....................................................................................................#####.####.##..#.....#.#.##.###.###########.#.##.###.#..#..#...#......##..##..#..#....############.##.#................................................................................................. => 3033
+4: ......................................................................................................#.###..##...###...#..#..#######.#######.###..######..##.#######.....#..##..##.###.....########.##.##.#................................................................................................ => 3396
+5: .....................................................................................................#..##..##.##..#.####.##.#..###.###.###.####..#..##...#####.###..#...##.##..######.#......####.##.##.##.#............................................................................................... => 3244
+6: ....................................................................................................##.##..####...#..#..##.##..#.############....##.##.##...#.####..####.###...#..##.##.#........##.##.##.##.#.............................................................................................. => 3027
+7: ....................................................................................................###...#....####.##.####...#..#.########..#...###.##..###..#....#...####.####.####.##.#.......###.##.##.##.#............................................................................................. => 3189
+8: .....................................................................................................#.#####......##.###...####.#..#.####...####..###...#.#..###..####....###..###..##.##.#.......###.##.##.##.#............................................................................................ => 3101
+9: ....................................................................................................#..#.#..#.....#####.##....##..#..#...##......#.#.###....#.#..#....#....#..#.#..####.##.#.......###.##.##.##.#........................................................................................... => 2621
+10: ...................................................................................................##.#....###......#.##..#...#..##.####.#.#....#..#.##.#..#....###..###..##.#....#...##.##.#.......###.##.##.##.#.......................................................................................... => 2810
+11: ...................................................................................................###.#....#.#....#.....######.#####..###..#..##.#...##..###....#..#.#..####.#..####.###.##.#.......###.##.##.##.#......................................................................................... => 3277
+12: ....................................................................................................###.#..#...#..###......##.###.#...#.#..##.####.##.#..#.#.#..##.#....#...##..#...######.##.#.......###.##.##.##.#........................................................................................ => 3135
+13: .....................................................................................................###..######.#.#.#.....#######.###....#####..##.##..#..#...####.#..####.#..####...##.##.##.#.......###.##.##.##.#....................................................................................... => 3488
+14: ......................................................................................................#..#..##.###.#..#......###.####.#.....#...####...##.####....##..#...##..#....##.###.##.##.#.......###.##.##.##.#...................................................................................... => 3193
+15: .....................................................................................................##.##.########..###......####..##.#...####.....##.####...#...#..####.#..###...#######.##.##.#.......###.##.##.##.#..................................................................................... => 3601
+16: .....................................................................................................###.###.####...#.#.#..........####.##.....#....####...########.#...##..#.#.##...###.##.##.##.#.......###.##.##.##.#.................................................................................... => 3484
+17: ......................................................................................................########...###..#..#............##..#...###.......##...####.##.##.#..#..#...##..###.##.##.##.#.......###.##.##.##.#................................................................................... => 3298
+18: ........................................................................................................####..##..#..##.###...........#..####..#.#......#.##....##.##.##..##.####.#..#.###.##.##.##.#.......###.##.##.##.#.................................................................................. => 3563
+19: .............................................................................................................##..##.######.#.........##.#.....#...#....#....#...###.##...#####..##..#..####.##.##.##.#.......###.##.##.##.#................................................................................. => 3473
+20: .............................................................................................................#..#####.##.##.#........###.#...#######..###..####..###..##...#...##..##.#...##.##.##.##.#.......###.##.##.##.#................................................................................ => 3738
+Problem 12 B: 3900000002467
 #+end_example
 ** Test Cases
 #+NAME: test-cases
