@@ -35,26 +35,142 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-14)
 #+END_SRC
 ** Input
+The input is a string of digits to be interpreted in one of two ways:
+An integer count, or a list of numbers.
 #+NAME: read-input
-#+BEGIN_SRC lisp :results silent
-  (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
-#+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defparameter *input*
-    (read-input "input/14.txt"))
+  (defparameter *input* (list 286051 (list 2 8 6 0 5 1)))
 #+END_SRC
 ** Part 1
+I wrote this in emacs lisp while at the office today. Took about 5
+minutes to write the first version (with lists) and then abandon
+it. About 10 more minutes throughout the day to learn enough about
+using vectors in emacs lisp to get this working right.
+#+NAME: next-state
+#+BEGIN_SRC elisp
+  (require 'cl)
+  (defun next-recipes-vector (recipes positions)
+    (let* ((p1 (car positions))
+           (p2 (cadr positions))
+           (next (+ (aref recipes p1) (aref recipes p2)))
+           (next-1 (floor (/ next 10)))
+           (next-2 (mod next 10)))
+      (when (not (= 0 next-1))
+        (setf (aref recipes n) next-1)
+        (incf n))
+      (incf n)
+      (setf (aref recipes (1- n)) next-2)
+      recipes))
+  (defun next-positions-vector (recipes positions)
+    (let* ((p1 (car positions))
+           (p2 (cadr positions)))
+      (list (mod (+ p1 1 (aref recipes p1)) n)
+            (mod (+ p2 1 (aref recipes p2)) n))))
+#+END_SRC
+#+BEGIN_SRC elisp :results output :exports both :noweb yes
+  <<next-state>>
+  (defun solve-a (target)
+    (let ((recipes (make-vector (+ target 12) 0))
+          (positions '(0 1))
+          (n 2))
+      (setf (aref recipes 0) 3)
+      (setf (aref recipes 1) 7)
+      (print (current-time-string))
+      (loop while (< n (+ target 11))
+            for i from 0
+            do (progn
+                 (setq recipes (next-recipes-vector recipes positions))
+                 (setq positions (next-positions-vector recipes positions))))
+      (print (current-time-string))
+      (subseq recipes target (+ target 10))))
+  (print (solve-a 286051))
+#+END_SRC
+
+#+RESULTS:
+: 
+: "Fri Dec 14 17:12:07 2018"
+: 
+: "Fri Dec 14 17:12:11 2018"
+: 
+: [2 1 1 1 1 1 3 6 7 8]
+
+
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem 14 A: ~a~%" (identity *input*)))
 #+END_SRC
 ** Part 2
+Now we have to find at what index the sequence interpretation of the input occurs.
+#+BEGIN_SRC elisp :results output :exports both :noweb yes
+  <<next-state>>
+  (defun solve-b (target iterations)
+    (let ((recipes (make-vector (+ iterations 10) 0))
+          (positions '(0 1))
+          (n 2))
+      (setf (aref recipes 0) 3)
+      (setf (aref recipes 1) 7)
+      (loop while (< n iterations)
+            do (progn
+                 (setq recipes (next-recipes-vector recipes positions))
+                 (setq positions (next-positions-vector recipes positions)))
+            do (when (>= n (length target))
+                 (if (search target (subseq recipes (- n (length target)) n))
+                     (return (search target recipes)))))))
+  (print (solve-b [5 1 5 8 9] 10000)) ;; 9
+  (print (solve-b [0 1 2 4 5] 10000)) ;; 5
+  (print (solve-b [9 2 5 1 0] 10000)) ;; 18
+  (print (solve-b [5 9 4 1 4] 10000)) ;; 2018
+
+  ;; (print (solve-b [2 8 6 0 5 1] 10000000)) ;; never found it even with a serach of 10 million and it's slow.
+#+END_SRC
+
+#+RESULTS:
+: 
+: 9
+: 
+: 5
+: 
+: 18
+: 
+: 2018
+
+Alright, so I'm going to reimplement everything in Common Lisp now.
+
+#+NAME: solve-b
+#+BEGIN_SRC lisp :results silent
+  (defun next-recipes (recipes positions)
+    (let* ((p1 (car positions))
+           (p2 (cadr positions))
+           (next (+ (aref recipes p1) (aref recipes p2)))
+           (next-1 (floor (/ next 10)))
+           (next-2 (mod next 10)))
+      (when (not (= 0 next-1))
+        (vector-push-extend next-1 recipes))
+      (vector-push-extend next-2 recipes)
+      recipes))
+  (defun next-positions (recipes positions)
+    (let* ((p1 (car positions))
+           (p2 (cadr positions)))
+      (list (mod (+ p1 1 (aref recipes p1)) (length recipes))
+            (mod (+ p2 1 (aref recipes p2)) (length recipes)))))
+  (defun solve-b (target iterations)
+    (let ((recipes (make-array (+ iterations 10) :adjustable t :fill-pointer 0))
+          (positions '(0 1)))
+      (vector-push-extend 3 recipes)
+      (vector-push-extend 7 recipes)
+      (iter (repeat iterations)
+            (setf recipes (next-recipes recipes positions))
+            (setf positions (next-positions recipes positions))
+            (when (>= (length recipes) (length target))
+              (if (search target (subseq recipes (- (length recipes) (length target))))
+                  (return (search target recipes)))))))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 14 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (solve-b (cadr *input*) 100000000)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -63,7 +179,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
-  <<read-input>>
+  <<solve-b>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.14.lisp
@@ -78,16 +194,28 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 14 A: (286051 (2 8 6 0 5 1))
+: Problem 14 B: 20195114
 ** Test Cases
 #+NAME: test-cases
-#+BEGIN_SRC lisp :results output :exports both
+#+BEGIN_SRC lisp :results output :exports both :noweb yes
+  <<solve-b>>
   (def-suite aoc.2018.14)
   (in-suite aoc.2018.14)
-
+  (test part-2
+    (is (= 9 (solve-b (list 5 1 5 8 9) 1000)))
+    (is (= 5 (solve-b (list 0 1 2 4 5) 1000)))
+    (is (= 18 (solve-b (list 9 2 5 1 0) 1000)))
+    (is (= 2018 (solve-b (list 5 9 4 1 4) 3000))))
   (run! 'aoc.2018.14)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2018.14
+:  Running test PART-2 ....
+:  Did 4 checks.
+:     Pass: 4 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
