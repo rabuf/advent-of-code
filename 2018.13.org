@@ -60,10 +60,6 @@ Two loops with intersections.
 Also in the input are carts whose positions are given as <, >, v, or ^
 (the arrow pointing in their direction of movement).
 
-I really don't know where to start on this particular problem. I
-suppose a grid represening the tracks and a vector or list of the
-carts and their positions and headings.
-
 The only positions on the map that actually matter are the curves and
 the intersections. Those are stored as the keys in a hash table. The
 value of the hash table entries will be a function which can be passed
@@ -150,11 +146,14 @@ Carts move 1 at a time starting at the top left, moving left to right
 and top to bottom. A time tick occurs after every cart has moved.
 
 When a cart encounters an intersection it cycles through: left,
-stragiht, right, repeat.
+straight, right, repeat.
 
-This means a cart's state consists of: position, heading, turn-state.
+A cart's state consists of: position, heading, turn-state.
 
-At the start of each tick, I need to sort all the carts.
+Before a tick can begin evaluating the movements and collisions the
+list needs to be sorted. Below is a simple sorting function that
+ensures carts are in order from upper-left first to lower-right
+last.
 #+NAME: sort-carts
 #+BEGIN_SRC lisp :results silent
   (defun sort-carts (carts)
@@ -166,13 +165,13 @@ At the start of each tick, I need to sort all the carts.
           :key #'first))
 #+END_SRC
 
-Alright, so that works. Now I need to do a tick, where I update every
-cart position.
-
+The carts don't move simultaneously, instead they move one at a time
+based on the sorted order. Each cart gets popped off the sorted list
+one at a time. If there is no collision, it is kept in the result. If
+there is a collision (on either side) all carts in that position are
+removed from both the result and the sored list.
 #+NAME: tick
 #+BEGIN_SRC lisp :results silent
-  ;; Below is a simple test, using the first element as the key, no
-  ;; carts should be removed by this test.
   (defun has-collision (carts)
     (not (= (length carts)
             (length (remove-duplicates carts :key #'first)))))
@@ -192,17 +191,39 @@ cart position.
               (cond ((or (has-collision (cons cart result))
                          (has-collision (cons cart sorted)))
                      (format t "Collision at ~A~%" (first cart))
-                     (setf result (remove (car cart) result :key #'first))
-                     (setf sorted (remove (car cart) sorted :key #'first)))
+                     (setf result (remove (first cart) result :key #'first))
+                     (setf sorted (remove (first cart) sorted :key #'first)))
                     (t (push cart result)))))
       result))
 #+END_SRC
 
-#+NAME: solve-a
+NB: =remove= with the =:key= parameter doesn't work quite like I'd
+thought. From using =remove-duplicates= I had expected that the object
+and contents of the sequence could share the same type, and the
+function passed to =:key= would apply to them both. That's wrong. For
+=remove=, the type of the object should match the type of the sequence
+contents *after* =:key= has been applied.
+
+#+BEGIN_SRC lisp
+  (remove-duplicates '((1 2) (3 2)) :key #'second)
+  ;; => ((3 2))
+  (remove '(3 2) '((1 2) (3 2)) :key #'second)
+  ;; => ((1 2) (3 2))
+  (remove 2 '((1 2) (3 2)) :key #'second)
+  ;; => nil
+#+END_SRC
+
+I don't know where I got that confusion, but it meant my program was
+wrong. I was still reducing the total number of carts, but not by
+*all* the carts that should've been removed (only the one that had
+initiated the collision). So my program terminated, and I thought I
+had answers, but I didn't.
+
+#+NAME: solve
 #+BEGIN_SRC lisp :results silent
-  (defun solve-a (scenario &optional (limit 1000))
-    (let ((grid (car scenario))
-          (carts (cadr scenario)))
+  (defun solve (scenario &optional (limit 1000))
+    (let ((grid (first scenario))
+          (carts (second scenario)))
       (when *debug*
         (format t "~A~%" carts))
       (iter (for i from 0 to limit)
@@ -215,16 +236,11 @@ cart position.
               (return nil)))))
 #+END_SRC
 ** Part 2
-Now we need to know at what point the last cart will be located. I'm
-going to just modify the above code and change some things
-below. Since I'm already printing out each collision, I'll change my
-=tick= function to remove all collisions and return the remaining
-carts. When there's just one left, [[solve]] will return it.
+Initially I had the [[solve]] stop with the first collision or it reached
+a time limit. Now I have it continue until there are 0 or 1 carts
+remaining or the time limit is reached. I modified [[tick]] so that it
+would remove the colliding carts and return the now reduced list.
 ** Putting it all together
-#+NAME: structs
-#+BEGIN_SRC lisp :noweb yes :results silent
-
-#+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<turning-and-intersection-handling>>
@@ -232,17 +248,16 @@ carts. When there's just one left, [[solve]] will return it.
   <<read-input>>
   <<sort-carts>>
   <<tick>>
-  <<solve-a>>
+  <<solve>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.13.lisp
   (defparameter *debug* nil)
-  <<structs>>
   <<initialize>>
   <<functions>>
   <<input>>
   (format t "How many carts? ~A~%" (length (second *input*)))
-  (format t "~A~%" (solve-a *input* 12000))
+  (format t "~A~%" (solve *input* 12000))
 #+END_SRC
 ** Answer
 #+RESULTS: answers
@@ -292,7 +307,7 @@ The above is the test case for Part 2, its result is =6,4=
            "  \\------/   "))
         (*debug* nil))
     (format t "~{~A~%~}" test-case)
-    (format t "~A~%" (solve-a (parse-input test-case) 20)))
+    (format t "~A~%" (solve (parse-input test-case) 20)))
   (let ((test-case 
          '("/>-<\\  "
            "|   |  "
@@ -302,8 +317,7 @@ The above is the test case for Part 2, its result is =6,4=
            "  |   ^"
            "  \\<->/")))
     (format t "~{~A~%~}" test-case)
-    (format t "~A~%" (solve-a (parse-input test-case) 20)))
-
+    (format t "~A~%" (solve (parse-input test-case) 20)))
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
