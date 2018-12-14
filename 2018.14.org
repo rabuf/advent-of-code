@@ -95,8 +95,6 @@ using vectors in emacs lisp to get this working right.
 : 
 : [2 1 1 1 1 1 3 6 7 8]
 
-
-
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem 14 A: ~a~%" (identity *input*)))
@@ -122,19 +120,23 @@ Now we have to find at what index the sequence interpretation of the input occur
   (print (solve-b [0 1 2 4 5] 10000)) ;; 5
   (print (solve-b [9 2 5 1 0] 10000)) ;; 18
   (print (solve-b [5 9 4 1 4] 10000)) ;; 2018
-
-  ;; (print (solve-b [2 8 6 0 5 1] 10000000)) ;; never found it even with a serach of 10 million and it's slow.
+  (print (current-time-string))
+  (print (solve-b [2 8 6 0 5 1] 21000000))
+  (print (current-time-string))
 #+END_SRC
 
+That took a while and totally locked up Emacs for over 5 minutes.
+
 #+RESULTS:
-: 
-: 9
-: 
-: 5
-: 
-: 18
-: 
-: 2018
+#+begin_example
+9
+5
+18
+2018
+"Fri Dec 14 18:01:58 2018"
+20195114
+"Fri Dec 14 18:07:07 2018"
+#+end_example
 
 Alright, so I'm going to reimplement everything in Common Lisp now.
 
@@ -155,8 +157,8 @@ Alright, so I'm going to reimplement everything in Common Lisp now.
            (p2 (cadr positions)))
       (list (mod (+ p1 1 (aref recipes p1)) (length recipes))
             (mod (+ p2 1 (aref recipes p2)) (length recipes)))))
-  (defun solve-b (target iterations)
-    (let ((recipes (make-array (+ iterations 10) :adjustable t :fill-pointer 0))
+  (defun solve-b (target &optional (iterations 1000))
+    (let ((recipes (make-array iterations :adjustable t :fill-pointer 0 :element-type '(integer 0 9)))
           (positions '(0 1)))
       (vector-push-extend 3 recipes)
       (vector-push-extend 7 recipes)
@@ -167,6 +169,21 @@ Alright, so I'm going to reimplement everything in Common Lisp now.
               (if (search target (subseq recipes (- (length recipes) (length target))))
                   (return (search target recipes)))))))
 #+END_SRC
+
+Here's the timing information on this one:
+#+BEGIN_EXAMPLE
+Evaluation took:
+  5.244 seconds of real time
+  5.249132 seconds of total run time (5.193022 user, 0.056110 system)
+  [ Run times consist of 0.139 seconds GC time, and 5.111 seconds non-GC time. ]
+  100.10% CPU
+  16,233,424,920 processor cycles
+  1,924,772,672 bytes consed
+#+END_EXAMPLE
+
+It's incredibly important to use that =:element-type= specifier
+here. If I don't, unless the garbage collector helps me out, I'm
+likely to have run out of heap space.
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -203,19 +220,20 @@ Alright, so I'm going to reimplement everything in Common Lisp now.
   (def-suite aoc.2018.14)
   (in-suite aoc.2018.14)
   (test part-2
-    (is (= 9 (solve-b (list 5 1 5 8 9) 1000)))
+    (is (= 9 (solve-b (list 5 1 5 8 9))))
     (is (= 5 (solve-b (list 0 1 2 4 5) 1000)))
     (is (= 18 (solve-b (list 9 2 5 1 0) 1000)))
-    (is (= 2018 (solve-b (list 5 9 4 1 4) 3000))))
+    (is (= 2018 (solve-b (list 5 9 4 1 4) 3000)))
+    (is (null (solve-b (list 5 9 4 1 4) 1000))))
   (run! 'aoc.2018.14)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
 : 
 : Running test suite AOC.2018.14
-:  Running test PART-2 ....
-:  Did 4 checks.
-:     Pass: 4 (100%)
+:  Running test PART-2 .....
+:  Did 5 checks.
+:     Pass: 5 (100%)
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
