@@ -74,7 +74,7 @@ For the hash table of curves and intersections, I'm storing a function
 to handle the particular kind of turn.
 
 For =/=, whether the cart is moving up or down it will "turn
-right". That is, it's initial heading will be either =(1,0)= or
+right". That is, its initial heading will be either =(1,0)= or
 =(-1,0)= and its next heading will be =(0,-1)= or =(0,1)=,
 respectively. If it's going horizontally, it will turn left. I call
 this a "right-curve" because of the upward-and-right direction of the
@@ -190,14 +190,17 @@ cart position.
           (list position heading next-turn))))
 
   (defun tick (grid carts)
-    (let ((sorted (sort-carts (copy-seq carts))))
-      (iter (for cart in sorted)
-            (for i from 0)
-            (setf (elt sorted i) (move-cart grid cart))
-            (when (has-collision sorted)
-              (format t "Collision at ~A~%" (first (elt sorted i)))
-              (return nil))
-            (finally (return sorted)))))
+    (let ((sorted (sort-carts (copy-seq carts)))
+          (result nil))
+      (iter (until (null sorted))
+            (let ((cart (move-cart grid (pop sorted))))
+              (cond ((or (has-collision (cons cart result))
+                         (has-collision (cons cart sorted)))
+                     (format t "Collision at ~A~%" (first cart))
+                     (setf result (remove (car cart) result :key #'first))
+                     (setf sorted (remove (car cart) sorted :key #'first)))
+                    (t (push cart result)))))
+      result))
 #+END_SRC
 
 #+NAME: solve-a
@@ -211,15 +214,22 @@ cart position.
             (setf carts (tick grid carts))
             (when *debug*
               (format t "~A~%" carts))
-            (unless carts
-              (return i)))))
+            (when (= 1 (length carts))
+              (return carts))
+            (when (null carts)
+              (return nil)))))
 #+END_SRC
 
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 13 A: ~a~%" (solve-a *input*)))
+  (defun problem-a () (format t "Problem 13 A: ~a~%" (solve-a *input* 100000)))
 #+END_SRC
 ** Part 2
+Now we need to know at what point the last cart will be located. I'm
+going to just modify the above code and change some things
+below. Since I'm already printing out each collision, I'll change my
+=tick= function to remove all collisions and return the remaining
+carts. When there's just one left, =solve-a= will return it.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 13 B: ~a~%" (identity *input*)))
@@ -247,15 +257,24 @@ cart position.
   <<input>>
   <<problem-a>>
   <<problem-b>>
+  (format t "How many carts? ~A~%" (length (second *input*)))
   (problem-a)
   (problem-b)
 #+END_SRC
 ** Answer
 #+RESULTS: answers
 #+begin_example
+How many carts? 17
 Collision at #C(83 121)
-Problem 13 A: 241
-Problem 13 B: (#<HASH-TABLE :TEST EQL :COUNT 4250 {1002B9F483}>
+Collision at #C(115 104)
+Collision at #C(8 57)
+Collision at #C(64 109)
+Collision at #C(101 22)
+Collision at #C(49 106)
+Collision at #C(136 87)
+Collision at #C(108 89)
+Problem 13 A: ((#C(102 144) -1 STRAIGHT))
+Problem 13 B: (#<HASH-TABLE :TEST EQL :COUNT 4250 {100227E9D3}>
                ((#C(9 143) 1 LEFT) (#C(125 139) #C(0 -1) LEFT)
                 (#C(67 134) -1 LEFT) (#C(117 132) #C(0 1) LEFT)
                 (#C(69 130) -1 LEFT) (#C(134 121) -1 LEFT) (#C(44 84) -1 LEFT)
@@ -275,11 +294,21 @@ Problem 13 B: (#<HASH-TABLE :TEST EQL :COUNT 4250 {1002B9F483}>
   \------/   
 #+END_EXAMPLE
 
-Above is a simple test case, it's result is =7,3=.
+Above is a simple test case, its result is =7,3=.
 
+#+BEGIN_EXAMPLE
+/>-<\  
+|   |  
+| /<+-\
+| | | v
+\>+</ |
+  |   ^
+  \<->/
+#+END_EXAMPLE
+
+The above is the test case for Part 2, its result is =6,4=
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
-  ;; For some reason 
   (let ((test-case 
          `("/->-\\        "
            "|   |  /----\\"
@@ -290,59 +319,17 @@ Above is a simple test case, it's result is =7,3=.
         (*debug* nil))
     (format t "~{~A~%~}" test-case)
     (format t "~A~%" (solve-a (parse-input test-case) 20)))
-
-  ;; This test case is good, they collide at (2,1)
-  (let* ((test-case 
-          `("     " ">--<"))
-         (scenario (parse-input test-case))
-         (grid (first scenario))
-         (carts (second scenario)))
-    (iter (for (k v) in-hashtable grid)
-          (format t "~a~%" (list k v)))
+  (let ((test-case 
+         '("/>-<\\  "
+           "|   |  "
+           "| /<+-\\"
+           "| | | v"
+           "\\>+</ |"
+           "  |   ^"
+           "  \\<->/")))
     (format t "~{~A~%~}" test-case)
-    (format t "~A~%" carts)
-    (setf carts (tick grid carts))
-    (format t "~A~%" carts)
-    (setf carts (tick grid carts))
-    (format t "~A~%" carts))
+    (format t "~A~%" (solve-a (parse-input test-case) 20)))
 
-  ;; This test case is good, they collide at (1,2)
-  (let* ((test-case 
-          `("   "
-            " v "
-            " v "))
-         (scenario (parse-input test-case))
-         (grid (first scenario))
-         (carts (second scenario)))
-    (iter (for (k v) in-hashtable grid)
-          (format t "~a~%" (list k v)))
-    (format t "~{~A~%~}" test-case)
-    (format t "~A~%" carts)
-    (setf carts (sort-carts carts))
-    (format t "~A~%" carts)
-    (setf carts (tick grid carts))
-    (format t "~A~%" carts)
-    (setf carts (tick grid carts))
-    (format t "~A~%" carts))
-
-  ;; So solve works on this particular case.
-  (let* ((test-case 
-          `("   "
-            " v "
-            " v "))
-         (scenario (parse-input test-case)))
-    (format t "~{~A~%~}" test-case)
-    (format t "~A~%" (solve-a scenario)))
-
-  ;; Let's have a simple curve. Turning isn't working correctly.
-  (let* ((test-case 
-          `("   "
-            " v "
-            " \\--< "))
-         (*debug* t)
-         (scenario (parse-input test-case)))
-    (format t "~{~A~%~}" test-case)
-    (format t "~A~%" (solve-a scenario 10)))
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
@@ -354,33 +341,18 @@ Above is a simple test case, it's result is =7,3=.
 \-+-/  \-+--/
   \------/   
 Collision at #C(7 3)
-13
-     
->--<
-((#C(3 1) -1 LEFT) (#C(0 1) 1 LEFT))
-((#C(1 1) 1 LEFT) (#C(2 1) -1 LEFT))
-Collision at #C(2 1)
 NIL
-   
- v 
- v 
-((#C(1 2) #C(0 1) LEFT) (#C(1 1) #C(0 1) LEFT))
-((#C(1 1) #C(0 1) LEFT) (#C(1 2) #C(0 1) LEFT))
-Collision at #C(1 2)
-NIL
-NIL
-   
- v 
- v 
-Collision at #C(1 2)
-0
-   
- v 
- \--< 
-((#C(4 2) -1 LEFT) (#C(1 1) #C(0 1) LEFT))
-((#C(1 2) 1 LEFT) (#C(3 2) -1 LEFT))
-Collision at #C(2 2)
-NIL
-1
+/>-<\  
+|   |  
+| /<+-\
+| | | v
+\>+</ |
+  |   ^
+  \<->/
+Collision at 2
+Collision at #C(2 4)
+Collision at #C(6 4)
+Collision at #C(2 4)
+((#C(6 4) #C(0 -1) LEFT))
 #+end_example
 ** Thoughts
