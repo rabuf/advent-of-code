@@ -35,9 +35,8 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-13)
 #+END_SRC
 ** Input
-Well, this is going to be an interesting nut to crack. The elves are
-still poor planners. They've devised an incredibly complex
-track-and-cart system. IT's described in an ASCII art format:
+The elves are still poor planners. They've devised an incredibly
+complex track-and-cart system.
 
 A simple closed loop:
 #+BEGIN_EXAMPLE
@@ -65,17 +64,15 @@ I really don't know where to start on this particular problem. I
 suppose a grid represening the tracks and a vector or list of the
 carts and their positions and headings.
 
-I initially stored everything from the map in one big array. I've
-stopped doing that, it's silly. The only positions on the map that
-actually matter are the curves and the intersections. I've put those
-into a hash table.
-
-For the hash table of curves and intersections, I'm storing a function
-to handle the particular kind of turn.
+The only positions on the map that actually matter are the curves and
+the intersections. Those are stored as the keys in a hash table. The
+value of the hash table entries will be a function which can be passed
+a cart. The function returns the cart with appropriate state changes
+(heading and next-turn values).
 
 For =/=, whether the cart is moving up or down it will "turn
-right". That is, its initial heading will be either =(1,0)= or
-=(-1,0)= and its next heading will be =(0,-1)= or =(0,1)=,
+right". That is, its initial heading will be either =(0,-1)= or
+=(0,1)= and its next heading will be =(1,0)= or =(-1,0)=,
 respectively. If it's going horizontally, it will turn left. I call
 this a "right-curve" because of the upward-and-right direction of the
 =/=.
@@ -92,13 +89,13 @@ For =\= the result is the opposite. I call this the "left-curve".
   (defun turn-left (cart)
     (turn cart #C(0 -1)))
   (defun left-curve (cart)
-    (if (= (imagpart (second cart)) 0)
-        (turn-right cart)
-        (turn-left cart)))
-  (defun right-curve (cart) ;;/
-    (if (= (imagpart (second cart)) 0)
+    (if (= (realpart (second cart)) 0)
         (turn-left cart)
         (turn-right cart)))
+  (defun right-curve (cart)
+    (if (= (realpart (second cart)) 0)
+        (turn-right cart)
+        (turn-left cart)))
   (defun inter (cart)
     (destructuring-bind (position heading next-turn)
         cart
@@ -118,8 +115,6 @@ For =\= the result is the opposite. I call this the "left-curve".
       (#\^ #C(0 -1))))
   (defun is-cart (c)
     (member c '(#\< #\> #\v #\^)))
-
-
   (defun parse-input (lines)
     (let* ((grid (make-hash-table))
            (carts nil))
@@ -219,21 +214,12 @@ cart position.
             (when (null carts)
               (return nil)))))
 #+END_SRC
-
-#+NAME: problem-a
-#+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 13 A: ~a~%" (solve-a *input* 100000)))
-#+END_SRC
 ** Part 2
 Now we need to know at what point the last cart will be located. I'm
 going to just modify the above code and change some things
 below. Since I'm already printing out each collision, I'll change my
 =tick= function to remove all collisions and return the remaining
-carts. When there's just one left, =solve-a= will return it.
-#+NAME: problem-b
-#+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 13 B: ~a~%" (identity *input*)))
-#+END_SRC
+carts. When there's just one left, [[solve]] will return it.
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -255,11 +241,8 @@ carts. When there's just one left, =solve-a= will return it.
   <<initialize>>
   <<functions>>
   <<input>>
-  <<problem-a>>
-  <<problem-b>>
   (format t "How many carts? ~A~%" (length (second *input*)))
-  (problem-a)
-  (problem-b)
+  (format t "~A~%" (solve-a *input* 12000))
 #+END_SRC
 ** Answer
 #+RESULTS: answers
@@ -273,16 +256,7 @@ Collision at #C(101 22)
 Collision at #C(49 106)
 Collision at #C(136 87)
 Collision at #C(108 89)
-Problem 13 A: ((#C(102 144) -1 STRAIGHT))
-Problem 13 B: (#<HASH-TABLE :TEST EQL :COUNT 4250 {100227E9D3}>
-               ((#C(9 143) 1 LEFT) (#C(125 139) #C(0 -1) LEFT)
-                (#C(67 134) -1 LEFT) (#C(117 132) #C(0 1) LEFT)
-                (#C(69 130) -1 LEFT) (#C(134 121) -1 LEFT) (#C(44 84) -1 LEFT)
-                (#C(97 81) -1 LEFT) (#C(138 80) #C(0 1) LEFT)
-                (#C(87 55) #C(0 -1) LEFT) (#C(66 51) #C(0 1) LEFT)
-                (#C(137 49) #C(0 1) LEFT) (#C(120 29) 1 LEFT)
-                (#C(31 24) -1 LEFT) (#C(144 19) #C(0 1) LEFT)
-                (#C(29 11) #C(0 1) LEFT) (#C(67 9) 1 LEFT)))
+((#C(102 144) -1 STRAIGHT))
 #+end_example
 ** Test Cases
 #+BEGIN_EXAMPLE
