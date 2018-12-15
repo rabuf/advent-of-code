@@ -50,7 +50,7 @@ but I'm not ready to do that yet.
 
 #+NAME: parse-map
 #+BEGIN_SRC lisp :results silent
-  (defun parse-map (lines)
+  (defun parse-map (lines &optional (goblin-hp 200) (goblin-ap 3) (elf-hp 200) (elf-ap 3))
     (let ((maxx (length (car lines)))
           (maxy (length lines))
           (elves (make-hash-table))
@@ -63,11 +63,13 @@ but I'm not ready to do that yet.
                   (case c
                     (#\. (setf (gethash (complex x y) grid) t))
                     (#\G (setf (gethash (complex x y) grid) t)
-                     (setf (gethash (complex x y) goblins) (list 200 3)))
+                     (setf (gethash (complex x y) goblins)
+                           (make-player :kind :goblin :position (complex x y) :hp goblin-hp :ap goblin-ap)))
                     (#\E (setf (gethash (complex x y) grid) t)
-                     (setf (gethash (complex x y) elves) (list 200 3)))
+                     (setf (gethash (complex x y) elves)
+                           (make-player :kind :elf :position (complex x y) :hp elf-hp :ap elf-ap)))
                     (otherwise nil))))
-      (make-game :grid grid :elves elves :goblins goblins :maxx maxx :maxy maxy)))
+      (make-game :grid grid :elves elves :goblins goblins :maxx maxx :maxy maxy :round 0)))
 #+END_SRC
 
 I'm going to represent the game with a simple struct: three hashtables
@@ -80,7 +82,13 @@ and the max x and y coordinates from the input (useful for printing out).
     elves
     goblins
     maxx
-    maxy)
+    maxy
+    round)
+  (defstruct player
+    kind
+    position
+    hp
+    ap)
 #+END_SRC
 
 By creating a sparse grid, I can just iterate over it to determine
@@ -102,39 +110,170 @@ and if it is whether there's already an elf or goblin in it.
 ** Part 1
 
 All order ties are in "reading order". Since complex numbers aren't
-directly comparable (for sorting), I'll write up a function that can
-take any list where the first element is a complex number and return
-that list in sorted order.
+directly comparable (for sorting), I'll make a function that can
+compare them and pass that to =sort=. You can use any key, by default
+this will just sort a list of points.
 
 #+NAME: reading-order
 #+BEGIN_SRC lisp :results silent
-  (defun reading-order (list)
+  (defun reading-order (list &key (key #'identity))
     (flet ((complex<= (c1 c2)
              (or (< (imagpart c1) (imagpart c2))
                  (and (= (imagpart c1) (imagpart c2))
                       (< (realpart c1) (realpart c2)))
                  (= c1 c2))))
-      (sort list #'complex<= :key #'car)))
+      (sort list #'complex<= :key key)))
 #+END_SRC
 
-I should add that to a library, I've needed it (or a similar function)
-for several problems now.
+Distance is Manhattan (city block) distance.
+
+#+NAME: manhattan-distance
+#+BEGIN_SRC lisp :results silent
+  (defun manhattan-distance (p1 p2)
+    (+ (abs (imagpart (- p1 p2)))
+       (abs (realpart (- p1 p2)))))
+#+END_SRC
+
+#+NAME: get-neighbors
+#+BEGIN_SRC lisp :results silent
+  (defun get-neighbors (player table)
+    (let ((offset 1)
+          (location (player-position player)))
+      (iter (repeat 4)
+            (when (gethash (+ location offset) table)
+              (collect (gethash (+ location offset) table)))
+            (setf offset (* offset #C(0 1))))))
+#+END_SRC
+
+I should add these to a library, I've needed them for several problems
+now.
 
 I also want to be able to print the grid, for debugging purposes.
 #+NAME: print-grid
 #+BEGIN_SRC lisp :results silent
   (defun print-grid (game)
-    (iter (for y from 0 below (game-maxy game))
-          (iter (for x from 0 below (game-maxx game))
-                (cond ((null (gethash (complex x y) (game-grid game)))
-                       (format t "#"))
-                      ((gethash (complex x y) (game-goblins game))
-                       (format t "G"))
-                      ((gethash (complex x y) (game-elves game))
-                       (format t "E"))
-                      (t (format t "."))))
-          (format t "~%")))
+    (format t "Round #~d~%" (game-round game))
+    (let ((goblins (game-goblins game))
+          (elves (game-elves game))
+          (grid (game-grid game)))
+      (iter (for y from 0 below (game-maxy game))
+            (for players-in-row = nil)
+            (iter (for x from 0 below (game-maxx game))
+                  (let ((coord (complex x y)))
+                    (cond ((null (gethash coord grid))
+                           (format t "#"))
+                          ((gethash coord goblins)
+                           (format t "G")
+                           (push (gethash coord goblins) players-in-row))
+                          ((gethash coord elves)
+                           (format t "E")
+                           (push (gethash coord elves) players-in-row))
+                          (t (format t ".")))))
+            (iter (for p in players-in-row)
+                  (case (player-kind p)
+                    (:elf (format t " (E ~d ~d)" (player-hp p) (player-ap p)))
+                    (:goblin (format t " (G ~d ~d)" (player-hp p) (player-ap p)))))
+            (format t "~%"))
+      (format t "Elf HP: ~d~%"
+              (iter (for (k v) in-hashtable elves)
+                    (sum (player-hp v))))
+      (format t "Goblin HP: ~d~%"
+              (iter (for (k v) in-hashtable goblins)
+                    (sum (player-hp v))))))
 #+END_SRC
+
+Some rules for the game:
+
+1. Attacks only happen horizontally and vertically, preference to
+   reading order when there are mulitple options.
+2. Movement only happens horizontally and vertically, preference to
+   reading order when there are mulitple options.
+3. If a combatant is adjacent to an enemy at the start of their turn,
+   they attack.
+   1. Attacks are againts the opponents HP, reduced by the combatants
+      attack power.
+4. If no adjacent combatants, the creature will find the nearest enemy
+   and move towards them, preference again given to reading order when
+   they have multiple enemies they may prefer.
+5. The game ends when any combatant finds that they've wiped out the enemy.
+6. *Rounds* end when all combatants have gone, so the game can end in
+   the middle of a round for counting purposes.
+7. The desired result for Part 1 is the number of *full* rounds
+   multiplied by the sum of the HP of the survivors.
+
+#+NAME: execute-round
+#+BEGIN_SRC lisp :results silent
+  (defun attack (attacker victim)
+    (decf (player-hp victim) (player-ap attacker)))
+
+  (defun execute-round (game)
+    (let ((combatants nil)
+          (goblins (game-goblins game))
+          (elves (game-elves game)))
+      ;; Collect all combatants, regardless of type.
+      (iter (for (k v) in-hashtable goblins)
+            (push v combatants))
+      (iter (for (k v) in-hashtable elves)
+            (push v combatants))
+      ;; Put them in the correct order for taking actions
+      (setf combatants (reading-order combatants :key #'player-position))
+      ;; Each combatant will be popped off the list one at a time. They
+      ;; may also be removed if they are killed during prior to their
+      ;; turn.
+      (iter (while combatants)
+            ;; Get the current combatant
+            (let* ((current (pop combatants))
+                   ;; Get the table of their enemies
+                   (enemies (case (player-kind current)
+                              (:goblin elves)
+                              (:elf goblins)))
+                   ;; Get all their enemies (if any).
+                   (neighbors (reading-order (get-neighbors current enemies) :key #'player-position)))
+              ;; Combatants will *attack* their first (reading-order)
+              ;; neighbor, if any. That is their entire turn.
+              ;; The round terminates early, and doesn't increment the
+              ;; round number, if a combatant finds that it has no
+              ;; enemies.
+              (when (= 0 (hash-table-count enemies))
+                (return nil))
+              (when neighbors
+                ;; Neighbors are already sorted so get the first.
+                (let ((victim (car neighbors)))
+                  ;; Attack them
+                  (attack current victim)
+                  ;; If the victim's health drops to 0 or lower
+                  (when (<= (player-hp victim) 0)
+                    ;; Remove the victim from the list of potential
+                    ;; combatants (needed if they haven't taken a turn
+                    ;; yet)
+                    (setf combatants (remove (player-position victim) combatants
+                                             :key #'player-position))
+                    ;; Remove the victim from their hash table so no one
+                    ;; else attempts to attack them, and they're removed
+                    ;; from future rounds.
+                    (remhash (player-position victim) enemies)))))
+            ;; If the while loop terminates normally then we return t to
+            ;; indicate that the game can continue, and we increment the
+            ;; round count.
+            (finally (incf (game-round game))
+                     (return t)))))
+              ;; If there are no enemies adjacent to the current
+              ;; attacker, they have to move.
+              ;; I'll do that later, let's test the attack logic.
+#+END_SRC
+
+Ok, so basic combat works.
+
+Now we'll run the game through to completion.
+#+NAME: run-game
+#+BEGIN_SRC lisp :results silent
+  (defun run-game (game &optional (round-limit 1000))
+    (print-grid game)
+    (iter (while (execute-round game))
+          (for i from 0 below round-limit))
+    (print-grid game))
+#+END_SRC
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem 15 A: ~a~%" (print-grid *input*)))
@@ -155,9 +294,12 @@ I also want to be able to print the grid, for debugging purposes.
   <<parse-map>>
   <<reading-order>>
   <<print-grid>>
+  <<manhattan-distance>>
+  <<execute-round>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.15.lisp
+  (defparameter *debug* nil)
   <<structs>>
   <<initialize>>
   <<functions>>
@@ -170,54 +312,169 @@ I also want to be able to print the grid, for debugging purposes.
 ** Answer
 #+RESULTS: answers
 #+begin_example
+Round #0
 ################################
 ##########..........############
-########G..................#####
-#######..G.GG...............####
-#######....G.......#......######
-########.G.G...............#E..#
-#######G.................#.....#
+########G..................##### (G 200 3)
+#######..G.GG...............#### (G 200 3) (G 200 3) (G 200 3)
+#######....G.......#......###### (G 200 3)
+########.G.G...............#E..# (E 200 3) (G 200 3) (G 200 3)
+#######G.................#.....# (G 200 3)
 ########.......................#
-########G.....G....#.....##....#
-########.....#....G.........####
-#########..........##....E.E#.##
-##########G..G..........#####.##
-##########....#####G....####E.##
-######....G..#######.....#.....#
+########G.....G....#.....##....# (G 200 3) (G 200 3)
+########.....#....G.........#### (G 200 3)
+#########..........##....E.E#.## (E 200 3) (E 200 3)
+##########G..G..........#####.## (G 200 3) (G 200 3)
+##########....#####G....####E.## (E 200 3) (G 200 3)
+######....G..#######.....#.....# (G 200 3)
 ###....#....#########......#####
-####........#########..E...#####
+####........#########..E...##### (E 200 3)
 ###.........#########......#####
-####G....G..#########......#####
+####G....G..#########......##### (G 200 3) (G 200 3)
 ####..#.....#########....#######
-######.......#######...E.#######
-###.G.....E.G.#####.....########
-#.....G........E.......#########
+######.......#######...E.####### (E 200 3)
+###.G.....E.G.#####.....######## (G 200 3) (E 200 3) (G 200 3)
+#.....G........E.......######### (E 200 3) (G 200 3)
 #......#..#..####....#.#########
 #...#.........###.#..###########
 ##............###..#############
-######.....E####..##############
+######.....E####..############## (E 200 3)
 ######...........###############
-#######....E....################
+#######....E....################ (E 200 3)
 ######...####...################
 ######...###....################
 ###.....###..##..###############
 ################################
+Elf HP: 2000
+Goblin HP: 4000
 Problem 15 A: NIL
 Problem 15 B: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1002A9CA13}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {1002A9C1D3}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {1002A9C5F3}>
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {10035B2B33}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {10035B22F3}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {10035B2713}>
                  :MAXX 32
-                 :MAXY 32)
+                 :MAXY 32
+                 :ROUND 0)
 #+end_example
 ** Test Cases
+
+Some simple grids to test printing and single round advancement.
+
+#+NAME: single-round-combat
+#+BEGIN_SRC lisp :results output :exports both
+  (let ((game (parse-map (list "######"
+                               "#.GE.#"
+                               "#....#"
+                               "######"))))
+    (print-grid game)
+    (execute-round game)
+    (print-grid game))
+#+END_SRC
+
+Expected result: both start at 200 HP, both end at 197 HP.
+
+#+RESULTS: single-round-combat
+#+begin_example
+Round #0
+######
+#.GE.# (E 200 3) (G 200 3)
+#....#
+######
+Elf HP: 200
+Goblin HP: 200
+Round #1
+######
+#.GE.# (E 197 3) (G 197 3)
+#....#
+######
+Elf HP: 197
+Goblin HP: 197
+#+end_example
+
+#+NAME: full-round-combat
+#+BEGIN_SRC lisp :results output :exports both
+  (let ((game (parse-map (list "######"
+                               "#.GE.#"
+                               "#....#"
+                               "######"))))
+    (run-game game))
+#+END_SRC
+
+The goblin should survive, and he does. He wins because he hits
+first.
+#+RESULTS: full-round-combat
+#+begin_example
+Round #0
+######
+#.GE.# (E 200 3) (G 200 3)
+#....#
+######
+Elf HP: 200
+Goblin HP: 200
+Round #67
+######
+#.G..# (G 2 3)
+#....#
+######
+Elf HP: 0
+Goblin HP: 2
+#+end_example
+
+#+NAME: two-on-one-combat
+#+BEGIN_SRC lisp :results output :exports both
+  (let ((game (parse-map (list "######"
+                               "#.GE.#"
+                               "#..G.#"
+                               "######"))))
+    (run-game game))
+#+END_SRC
+
+Expected: Elf dies after 200/6 rounds (rounded down, so round 33). Top
+Goblin has HP reduced by 3 33 times to 101 HP. Bottom Goblin has full
+health. This gives me confidence my round count is correct.
+#+RESULTS: two-on-one-combat
+#+begin_example
+Round #0
+######
+#.GE.# (E 200 3) (G 200 3)
+#..G.# (G 200 3)
+######
+Elf HP: 200
+Goblin HP: 400
+Round #33
+######
+#.G..# (G 101 3)
+#..G.# (G 200 3)
+######
+Elf HP: 0
+Goblin HP: 301
+#+end_example
+
+
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2018.15)
   (in-suite aoc.2018.15)
 
+  (test manhattan
+    (is (= 0 (manhattan-distance (complex 0 0) (complex 0 0))))
+    (is (= 1 (manhattan-distance (complex 0 1) (complex 0 0))))
+    (is (= 3 (manhattan-distance (complex 1 1) (complex 3 0)))))
+
+  (test reading-order
+    (is (equal `((#C(0 0) 4) (#C(1 1) 3))
+               (reading-order '((#C(1 1) 3) (#C(0 0) 4))))))
+
   (run! 'aoc.2018.15)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2018.15
+:  Running test MANHATTAN ...
+:  Running test READING-ORDER .
+:  Did 4 checks.
+:     Pass: 4 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
