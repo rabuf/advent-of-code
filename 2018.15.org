@@ -41,12 +41,9 @@ This is an "oh jeez" one. The input isn't bad, a simple grid where:
 - =G= :: goblin
 - =E= :: elf
 
-I will split this into three data sets right now. A 2d-array of the
-map, a list of goblins, and a list of elves.
-
-Elves and goblins will each be of the form: type x position x hp x
-attack power. I should, perhaps, create structs or classes for this
-but I'm not ready to do that yet.
+The map is parsed into a struct consisting of all open cavern spaces,
+elves, and goblins. I've let the health and attack power be
+parameters.
 
 #+NAME: parse-map
 #+BEGIN_SRC lisp :results silent
@@ -91,11 +88,6 @@ and the max x and y coordinates from the input (useful for printing out).
     ap)
 #+END_SRC
 
-By creating a sparse grid, I can just iterate over it to determine
-what needs to happen. When an anyone wants to move, they can check to
-see if a space is available by checking if it's an open space at all,
-and if it is whether there's already an elf or goblin in it.
-
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -108,11 +100,10 @@ and if it is whether there's already an elf or goblin in it.
     (parse-map (read-input "input/15.txt")))
 #+END_SRC
 ** Part 1
-
 All order ties are in "reading order". Since complex numbers aren't
 directly comparable (for sorting), I'll make a function that can
 compare them and pass that to =sort=. You can use any key, by default
-this will just sort a list of points.
+this will just sort a list of complex numbers.
 
 #+NAME: reading-order
 #+BEGIN_SRC lisp :results silent
@@ -126,7 +117,6 @@ this will just sort a list of points.
 #+END_SRC
 
 Distance is Manhattan (city block) distance.
-
 #+NAME: manhattan-distance
 #+BEGIN_SRC lisp :results silent
   (defun manhattan-distance (p1 p2)
@@ -134,15 +124,19 @@ Distance is Manhattan (city block) distance.
        (abs (realpart (- p1 p2)))))
 #+END_SRC
 
+I needed this utility function often enough that I decided to make it
+its own thing. Given a position and a table with keys that are also
+complex number encoded positions, this will return the 4 neighbors (if
+they exist).
+
 #+NAME: get-neighbors
 #+BEGIN_SRC lisp :results silent
-  (defun get-neighbors (player table)
-    (let ((offset 1)
-          (location (player-position player)))
-      (iter (repeat 4)
-            (when (gethash (+ location offset) table)
-              (collect (gethash (+ location offset) table)))
-            (setf offset (* offset #C(0 1))))))
+  (defun get-neighbors (position table)
+    (iter (repeat 4)
+          (with offset = 1)
+          (when (gethash (+ position offset) table)
+            (collect (gethash (+ position offset) table)))
+          (setf offset (* offset #C(0 1)))))
 #+END_SRC
 
 I should add these to a library, I've needed them for several problems
@@ -207,10 +201,6 @@ Some rules for the game:
     (decf (player-hp victim) (player-ap attacker)))
 #+END_SRC
 
-#+NAME: move-direction
-#+BEGIN_SRC lisp :results silent
-  (defun move-direction (attacker game) #C(0 1))
-#+END_SRC
 
 All this code below is getting unwieldy, I'm going to start breaking
 it into chunks which can be described and reasoned about more easily.
@@ -239,76 +229,90 @@ without having to reexamine it later.
 #+BEGIN_SRC lisp :results silent
   (setf combatants (reading-order combatants :key #'player-position))
 #+END_SRC
+
+This is the main kernel of the game loop. My first version of player
+movement got unwieldy, so I cleared it all out and now I'm starting
+over.
 #+NAME: execute-round
 #+BEGIN_SRC lisp :results silent :noweb yes
-    (defun execute-round (game)
-      (let (
-            <<execute-round-let-block>>
-            )
-        <<collect-combatants>>
-        <<sort-combatants>>
-        (iter (while combatants)
-              ;; Get the current combatant
-              (let* ((current (pop combatants))
-                     ;; Get the table of their enemies
-                     (enemies (case (player-kind current)
-                                (:goblin elves)
-                                (:elf goblins)))
-                     (allies (case (player-kind current)
-                               (:goblin goblins)
-                               (:elf elves)))
-                     ;; Get all their enemies (if any).
-                     (neighbors (reading-order (get-neighbors current enemies) :key #'player-position)))
-                ;; Combatants will *attack* their first (reading-order)
-                ;; neighbor, if any. That is their entire turn.
-                ;; The round terminates early, and doesn't increment the
-                ;; round number, if a combatant finds that it has no
-                ;; enemies.
-                (when (= 0 (hash-table-count enemies))
-                  (return nil))
-                (when neighbors
-                  ;; Neighbors are already sorted so get the first.
-                  (let ((victim (car neighbors)))
-                    ;; Attack them
-                    (attack current victim)
-                    ;; If the victim's health drops to 0 or lower
-                    (when (<= (player-hp victim) 0)
-                      ;; Remove the victim from the list of potential
-                      ;; combatants (needed if they haven't taken a turn
-                      ;; yet)
-                      (setf combatants (remove (player-position victim) combatants
-                                               :key #'player-position))
-                      ;; Remove the victim from their hash table so no one
-                      ;; else attempts to attack them, and they're removed
-                      ;; from future rounds.
-                      (remhash (player-position victim) enemies))))
-                ;; If the game hasn't ended, and there are no neighbors,
-                ;; then the combatant needs to move. This one is a bit
-                ;; trickier to handle so most logic will be in its own
-                ;; function.
-                (unless neighbors
-                  (let ((direction (move-direction current game)))
-                    ;; Now we know which way the combatant needs to move,
-                    ;; we need to update the game state:
-                    ;; Remove combatant from their set of allies
-                    (remhash (player-position current) allies)
-                    ;; Update their internal position
-                    (setf (player-position current) (+ (player-position current) direction))
-                    ;; Add the combatant back to their set of allies
-                    (setf (gethash (player-position current) allies) current)))
-              ;; If the while loop terminates normally then we return t to
-              ;; indicate that the game can continue, and we increment the
-              ;; round count.
-              (finally (incf (game-round game))
-                       (return t))))))
-                ;; If there are no enemies adjacent to the current
-                ;; attacker, they have to move.
-                ;; I'll do that later, let's test the attack logic.
+  (defun execute-round (game)
+    (let (
+          <<execute-round-let-block>>
+          )
+      <<collect-combatants>>
+      <<sort-combatants>>
+      (iter (while combatants)
+            ;; Get the current combatant
+            (let* ((current (pop combatants))
+                   (enemies (case (player-kind current)
+                              (:goblin elves)
+                              (:elf goblins)))
+                   (allies (case (player-kind current)
+                             (:goblin goblins)
+                             (:elf elves)))
+                   (position (player-position current))
+                   ;; Get all their enemies (if any).
+                   (neighbors (reading-order (get-neighbors position enemies) :key #'player-position)))
+              ;; Combatants will *attack* their first (reading-order)
+              ;; neighbor, if any. That is their entire turn.
+              ;; The round terminates early, and doesn't increment the
+              ;; round number, if a combatant finds that it has no
+              ;; enemies.
+              (when (= 0 (hash-table-count enemies))
+                (return nil))
+              ;; I'm putting this first, to capture movement. Because
+              ;; after movement there is an attack if they've moved in
+              ;; range of an enemy.
+              (unless neighbors
+                (move-player current game))
+              ;; Second time calculating neighbors, but this is because
+              ;; the players position may have been updated.
+              (setf neighbors (reading-order (get-neighbors (player-position current) enemies) :key #'player-position))
+              (when neighbors
+                ;; Neighbors are already sorted so get the first.
+                (let ((victim (car neighbors)))
+                  ;; Attack them
+                  (attack current victim)
+                  ;; If the victim's health drops to 0 or lower
+                  (when (<= (player-hp victim) 0)
+                    ;; Remove the victim from the list of potential
+                    ;; combatants (needed if they haven't taken a turn
+                    ;; yet)
+                    (setf combatants (remove (player-position victim) combatants
+                                             :key #'player-position))
+                    ;; Remove the victim from their hash table so no one
+                    ;; else attempts to attack them, and they're removed
+                    ;; from future rounds.
+                    (remhash (player-position victim) enemies))))
+            ;; If the while loop terminates normally then we return t to
+            ;; indicate that the game can continue, and we increment the
+            ;; round count.
+            (finally (incf (game-round game))
+                     (return t))))))
+              ;; If there are no enemies adjacent to the current
+              ;; attacker, they have to move.
+              ;; I'll do that later, let's test the attack logic.
 #+END_SRC
 
-Ok, so basic combat works.
+This is the part that stumped me before. I had parts of it, but it was
+too cumbersome to debug. The problem I ran into was that I was letting
+the players get caught up in loops with poor pathfinding. They need to
+actually move along a path towards the enemy, not just to the closest
+position (which is what I did the first time). I tore that all out,
+here's v2.
+#+NAME: move-player
+#+BEGIN_SRC lisp :results silent
+  (defun move-player (player game)
+    (let ((enemies (case (player-kind player)
+                     (:goblin (game-elves game))
+                     (:elf (game-goblins game))))
+          (allies (case (player-kind player)
+                    (:elf (game-elves game))
+                    (:goblin (game-goblins game))))
+          (position (player-position player)))
+      nil))
+#+END_SRC
 
-Now we'll run the game through to completion.
 #+NAME: run-game
 #+BEGIN_SRC lisp :results silent
   (defun run-game (game &optional (round-limit 1000))
@@ -320,7 +324,7 @@ Now we'll run the game through to completion.
 
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 15 A: ~a~%" (print-grid *input*)))
+  (defun problem-a () (format t "Problem 15 A: ~a~%" (run-game *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
@@ -340,7 +344,6 @@ Now we'll run the game through to completion.
   <<print-grid>>
   <<manhattan-distance>>
   <<attack>>
-  <<move-direction>>
   <<execute-round>>
 #+END_SRC
 #+NAME: answers
@@ -393,14 +396,49 @@ Round #0
 ################################
 Elf HP: 2000
 Goblin HP: 4000
+Round #1001
+################################
+##########..........############
+########G..................##### (G 200 3)
+#######..G.GG...............#### (G 200 3) (G 200 3) (G 200 3)
+#######....G.......#......###### (G 200 3)
+########.G.G...............#E..# (E 200 3) (G 200 3) (G 200 3)
+#######G.................#.....# (G 200 3)
+########.......................#
+########G.....G....#.....##....# (G 200 3) (G 200 3)
+########.....#....G.........#### (G 200 3)
+#########..........##....E.E#.## (E 200 3) (E 200 3)
+##########G..G..........#####.## (G 200 3) (G 200 3)
+##########....#####G....####E.## (E 200 3) (G 200 3)
+######....G..#######.....#.....# (G 200 3)
+###....#....#########......#####
+####........#########..E...##### (E 200 3)
+###.........#########......#####
+####G....G..#########......##### (G 200 3) (G 200 3)
+####..#.....#########....#######
+######.......#######...E.####### (E 200 3)
+###.G.....E.G.#####.....######## (G 200 3) (E 200 3) (G 200 3)
+#.....G........E.......######### (E 200 3) (G 200 3)
+#......#..#..####....#.#########
+#...#.........###.#..###########
+##............###..#############
+######.....E####..############## (E 200 3)
+######...........###############
+#######....E....################ (E 200 3)
+######...####...################
+######...###....################
+###.....###..##..###############
+################################
+Elf HP: 2000
+Goblin HP: 4000
 Problem 15 A: NIL
 Problem 15 B: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {10035B2B33}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {10035B22F3}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {10035B2713}>
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {100181EC53}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {10056E7A93}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {10056E7EB3}>
                  :MAXX 32
                  :MAXY 32
-                 :ROUND 0)
+                 :ROUND 1001)
 #+end_example
 ** Test Cases
 
@@ -506,9 +544,9 @@ Goblin HP: 301
     (run-game game))
 #+END_SRC
 
-This seems to work so far. The Goblin moves one south, and is attacked
-on that same round by the ELf. This gives the Elf the advantage of
-first attack and he wins after 67 rounds.
+Expected: The Goblin moves one south, and is attacked on that same
+round by the ELf. This gives the Elf the advantage of first attack and
+he wins after 67 rounds.
 #+RESULTS: single-movement
 #+begin_example
 Round #0
@@ -519,17 +557,138 @@ Round #0
 ######
 Elf HP: 200
 Goblin HP: 200
-Round #67
+Round #1001
 ######
+#..G.# (G 200 3)
 #....#
-#....#
-#..E.# (E 2 3)
+#..E.# (E 200 3)
 ######
-Elf HP: 2
-Goblin HP: 0
+Elf HP: 200
+Goblin HP: 200
 #+end_example
 
+#+NAME: tc-18740
+#+BEGIN_SRC lisp :results output :exports both
+  (let ((game (parse-map (list "#########"
+                               "#G......#"
+                               "#.E.#...#"
+                               "#..##..G#"
+                               "#...##..#"
+                               "#...#...#"
+                               "#.G...G.#"
+                               "#.....G.#"
+                               "#########"))))
+        (run-game game))
+#+END_SRC
 
+#+RESULTS: tc-18740
+#+begin_example
+Round #0
+#########
+#G......# (G 200 3)
+#.E.#...# (E 200 3)
+#..##..G# (G 200 3)
+#...##..#
+#...#...#
+#.G...G.# (G 200 3) (G 200 3)
+#.....G.# (G 200 3)
+#########
+Elf HP: 200
+Goblin HP: 1000
+Round #1001
+#########
+#G......# (G 200 3)
+#.E.#...# (E 200 3)
+#..##..G# (G 200 3)
+#...##..#
+#...#...#
+#.G...G.# (G 200 3) (G 200 3)
+#.....G.# (G 200 3)
+#########
+Elf HP: 200
+Goblin HP: 1000
+#+end_example
+
+#+NAME: complex-movement-example
+#+BEGIN_SRC lisp :results output :exports both
+  (let ((game (parse-map (list "#########"
+                               "#G..G..G#"
+                               "#.......#"
+                               "#.......#"
+                               "#G..E..G#"
+                               "#.......#"
+                               "#.......#"
+                               "#G..G..G#"
+                               "#########"))))
+    (iter (repeat 4)
+          (print-grid game)
+          (execute-round game))
+    (print-grid game))
+#+END_SRC
+
+#+RESULTS: complex-movement-example
+#+begin_example
+Round #0
+#########
+#G..G..G# (G 200 3) (G 200 3) (G 200 3)
+#.......#
+#.......#
+#G..E..G# (G 200 3) (E 200 3) (G 200 3)
+#.......#
+#.......#
+#G..G..G# (G 200 3) (G 200 3) (G 200 3)
+#########
+Elf HP: 200
+Goblin HP: 1600
+Round #1
+#########
+#.....G.# (G 200 3)
+#G..G...# (G 197 3) (G 200 3)
+#...E..G# (G 200 3) (E 200 3)
+#.G.....# (G 200 3)
+#.......#
+#G..G..G# (G 200 3) (G 200 3) (G 200 3)
+#.......#
+#########
+Elf HP: 200
+Goblin HP: 1597
+Round #2
+#########
+#....G..# (G 200 3)
+#...G...# (G 194 3)
+#GG.E.G.# (G 200 3) (E 197 3) (G 200 3) (G 200 3)
+#.......#
+#G..G..G# (G 200 3) (G 200 3) (G 200 3)
+#.......#
+#.......#
+#########
+Elf HP: 197
+Goblin HP: 1594
+Round #3
+#########
+#.......#
+#G..GG..# (G 200 3) (G 191 3) (G 200 3)
+#..GEG..# (G 200 3) (E 185 3) (G 200 3)
+#G..G...# (G 200 3) (G 200 3)
+#......G# (G 200 3)
+#.......#
+#.......#
+#########
+Elf HP: 185
+Goblin HP: 1591
+Round #4
+#########
+#.......#
+#G..GG..# (G 200 3) (G 188 3) (G 200 3)
+#..GEG..# (G 200 3) (E 173 3) (G 200 3)
+#G..G...# (G 200 3) (G 200 3)
+#......G# (G 200 3)
+#.......#
+#.......#
+#########
+Elf HP: 173
+Goblin HP: 1588
+#+end_example
 
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
