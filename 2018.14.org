@@ -165,12 +165,25 @@ Alright, so I'm going to reimplement everything in Common Lisp now.
       (iter (repeat iterations)
             (setf recipes (next-recipes recipes positions))
             (setf positions (next-positions recipes positions))
-            (when (>= (length recipes) (length target))
-              (if (search target (subseq recipes (- (length recipes) (length target))))
-                  (return (search target recipes)))))))
+            (when (> (length recipes) (length target))
+              (if (search target  recipes :start2 (- (length recipes) (length target) 1))
+                  (return (search target recipes :start2 (- (length recipes) (length target) 1))))))))
 #+END_SRC
 
-Here's the timing information on this one:
+Timing on my machine for the above code:
+#+BEGIN_EXAMPLE
+Evaluation took:
+  4.787 seconds of real time
+  4.783282 seconds of total run time (4.724493 user, 0.058789 system)
+  [ Run times consist of 0.103 seconds GC time, and 4.681 seconds non-GC time. ]
+  99.92% CPU
+  14,818,029,875 processor cycles
+  1,403,098,944 bytes consed
+#+END_EXAMPLE
+
+Before I was using =:start2= I was taking a subsequence and searching
+against it. This was from the emacs lisp code. In Common Lisp and
+emacs lisp we have the option of starting the search from an arbitrary point.
 #+BEGIN_EXAMPLE
 Evaluation took:
   5.244 seconds of real time
