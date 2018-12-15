@@ -391,13 +391,6 @@ target with the shortest path distance, reading order to break ties.
                               (collecting (+ start offset)))
                             (setf offset (* offset #C(0 1))))))))))
 #+END_SRC
-Going over the requirements:
-1. [X] Find all spaces adjacent to enemies that are open.
-2. [X] Find which of those spaces are reachable by the player.
-3. [ ] Select the closest, reading order sort if needed, and that's
-   the target position.
-4. [ ] The next part is the hard part, find the shortest path and move
-   along it.
 
 #+NAME: in-range
 #+BEGIN_SRC lisp :results silent
