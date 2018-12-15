@@ -201,65 +201,109 @@ Some rules for the game:
 7. The desired result for Part 1 is the number of *full* rounds
    multiplied by the sum of the HP of the survivors.
 
-#+NAME: execute-round
+#+NAME: attack
 #+BEGIN_SRC lisp :results silent
   (defun attack (attacker victim)
     (decf (player-hp victim) (player-ap attacker)))
+#+END_SRC
 
-  (defun execute-round (game)
-    (let ((combatants nil)
-          (goblins (game-goblins game))
-          (elves (game-elves game)))
-      ;; Collect all combatants, regardless of type.
-      (iter (for (k v) in-hashtable goblins)
-            (push v combatants))
-      (iter (for (k v) in-hashtable elves)
-            (push v combatants))
-      ;; Put them in the correct order for taking actions
-      (setf combatants (reading-order combatants :key #'player-position))
-      ;; Each combatant will be popped off the list one at a time. They
-      ;; may also be removed if they are killed during prior to their
-      ;; turn.
-      (iter (while combatants)
-            ;; Get the current combatant
-            (let* ((current (pop combatants))
-                   ;; Get the table of their enemies
-                   (enemies (case (player-kind current)
-                              (:goblin elves)
-                              (:elf goblins)))
-                   ;; Get all their enemies (if any).
-                   (neighbors (reading-order (get-neighbors current enemies) :key #'player-position)))
-              ;; Combatants will *attack* their first (reading-order)
-              ;; neighbor, if any. That is their entire turn.
-              ;; The round terminates early, and doesn't increment the
-              ;; round number, if a combatant finds that it has no
-              ;; enemies.
-              (when (= 0 (hash-table-count enemies))
-                (return nil))
-              (when neighbors
-                ;; Neighbors are already sorted so get the first.
-                (let ((victim (car neighbors)))
-                  ;; Attack them
-                  (attack current victim)
-                  ;; If the victim's health drops to 0 or lower
-                  (when (<= (player-hp victim) 0)
-                    ;; Remove the victim from the list of potential
-                    ;; combatants (needed if they haven't taken a turn
-                    ;; yet)
-                    (setf combatants (remove (player-position victim) combatants
-                                             :key #'player-position))
-                    ;; Remove the victim from their hash table so no one
-                    ;; else attempts to attack them, and they're removed
-                    ;; from future rounds.
-                    (remhash (player-position victim) enemies)))))
-            ;; If the while loop terminates normally then we return t to
-            ;; indicate that the game can continue, and we increment the
-            ;; round count.
-            (finally (incf (game-round game))
-                     (return t)))))
-              ;; If there are no enemies adjacent to the current
-              ;; attacker, they have to move.
-              ;; I'll do that later, let's test the attack logic.
+#+NAME: move-direction
+#+BEGIN_SRC lisp :results silent
+  (defun move-direction (attacker game) #C(0 1))
+#+END_SRC
+
+All this code below is getting unwieldy, I'm going to start breaking
+it into chunks which can be described and reasoned about more easily.
+
+For convenience, I'm pulling these variables out of the game state so
+referencing them isn't so cumbersome.
+#+NAME: execute-round-let-block
+#+BEGIN_SRC lisp :results silent
+  (combatants nil)
+  (goblins (game-goblins game))
+  (elves (game-elves game))
+#+END_SRC
+
+We need a list of all combatants, regardless of their kind.
+#+NAME: collect-combatants
+#+BEGIN_SRC lisp :results silent
+  (iter (for (k v) in-hashtable goblins)
+        (push v combatants))
+  (iter (for (k v) in-hashtable elves)
+        (push v combatants))
+#+END_SRC
+
+Sort the combatants once so we can then execute over the list in order
+without having to reexamine it later.
+#+NAME: sort-combatants
+#+BEGIN_SRC lisp :results silent
+  (setf combatants (reading-order combatants :key #'player-position))
+#+END_SRC
+#+NAME: execute-round
+#+BEGIN_SRC lisp :results silent :noweb yes
+    (defun execute-round (game)
+      (let (
+            <<execute-round-let-block>>
+            )
+        <<collect-combatants>>
+        <<sort-combatants>>
+        (iter (while combatants)
+              ;; Get the current combatant
+              (let* ((current (pop combatants))
+                     ;; Get the table of their enemies
+                     (enemies (case (player-kind current)
+                                (:goblin elves)
+                                (:elf goblins)))
+                     (allies (case (player-kind current)
+                               (:goblin goblins)
+                               (:elf elves)))
+                     ;; Get all their enemies (if any).
+                     (neighbors (reading-order (get-neighbors current enemies) :key #'player-position)))
+                ;; Combatants will *attack* their first (reading-order)
+                ;; neighbor, if any. That is their entire turn.
+                ;; The round terminates early, and doesn't increment the
+                ;; round number, if a combatant finds that it has no
+                ;; enemies.
+                (when (= 0 (hash-table-count enemies))
+                  (return nil))
+                (when neighbors
+                  ;; Neighbors are already sorted so get the first.
+                  (let ((victim (car neighbors)))
+                    ;; Attack them
+                    (attack current victim)
+                    ;; If the victim's health drops to 0 or lower
+                    (when (<= (player-hp victim) 0)
+                      ;; Remove the victim from the list of potential
+                      ;; combatants (needed if they haven't taken a turn
+                      ;; yet)
+                      (setf combatants (remove (player-position victim) combatants
+                                               :key #'player-position))
+                      ;; Remove the victim from their hash table so no one
+                      ;; else attempts to attack them, and they're removed
+                      ;; from future rounds.
+                      (remhash (player-position victim) enemies))))
+                ;; If the game hasn't ended, and there are no neighbors,
+                ;; then the combatant needs to move. This one is a bit
+                ;; trickier to handle so most logic will be in its own
+                ;; function.
+                (unless neighbors
+                  (let ((direction (move-direction current game)))
+                    ;; Now we know which way the combatant needs to move,
+                    ;; we need to update the game state:
+                    ;; Remove combatant from their set of allies
+                    (remhash (player-position current) allies)
+                    ;; Update their internal position
+                    (setf (player-position current) (+ (player-position current) direction))
+                    ;; Add the combatant back to their set of allies
+                    (setf (gethash (player-position current) allies) current)))
+              ;; If the while loop terminates normally then we return t to
+              ;; indicate that the game can continue, and we increment the
+              ;; round count.
+              (finally (incf (game-round game))
+                       (return t))))))
+                ;; If there are no enemies adjacent to the current
+                ;; attacker, they have to move.
+                ;; I'll do that later, let's test the attack logic.
 #+END_SRC
 
 Ok, so basic combat works.
@@ -295,6 +339,8 @@ Now we'll run the game through to completion.
   <<reading-order>>
   <<print-grid>>
   <<manhattan-distance>>
+  <<attack>>
+  <<move-direction>>
   <<execute-round>>
 #+END_SRC
 #+NAME: answers
@@ -449,6 +495,40 @@ Round #33
 Elf HP: 0
 Goblin HP: 301
 #+end_example
+
+#+NAME: single-movement
+#+BEGIN_SRC lisp :results output :exports both
+  (let ((game (parse-map (list "######"
+                               "#..G.#"
+                               "#....#"
+                               "#..E.#"
+                               "######"))))
+    (run-game game))
+#+END_SRC
+
+This seems to work so far. The Goblin moves one south, and is attacked
+on that same round by the ELf. This gives the Elf the advantage of
+first attack and he wins after 67 rounds.
+#+RESULTS: single-movement
+#+begin_example
+Round #0
+######
+#..G.# (G 200 3)
+#....#
+#..E.# (E 200 3)
+######
+Elf HP: 200
+Goblin HP: 200
+Round #67
+######
+#....#
+#....#
+#..E.# (E 2 3)
+######
+Elf HP: 2
+Goblin HP: 0
+#+end_example
+
 
 
 #+NAME: test-cases
