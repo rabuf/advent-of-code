@@ -162,7 +162,7 @@ Alright, so I'm going to reimplement everything in Common Lisp now.
            (next (+ (aref recipes p1) (aref recipes p2)))
            (next-1 (floor (/ next 10)))
            (next-2 (mod next 10)))
-      (when (not (= 0 next-1))
+      (unless (= 0 next-1)
         (vector-push-extend next-1 recipes))
       (vector-push-extend next-2 recipes)
       recipes))
