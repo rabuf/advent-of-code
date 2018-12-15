@@ -35,6 +35,59 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-15)
 #+END_SRC
 ** Input
+This is an "oh jeez" one. The input isn't bad, a simple grid where:
+- =#= :: wall
+- =.= :: open space
+- =G= :: goblin
+- =E= :: elf
+
+I will split this into three data sets right now. A 2d-array of the
+map, a list of goblins, and a list of elves.
+
+Elves and goblins will each be of the form: type x position x hp x
+attack power. I should, perhaps, create structs or classes for this
+but I'm not ready to do that yet.
+
+#+NAME: parse-map
+#+BEGIN_SRC lisp :results silent
+  (defun parse-map (lines)
+    (let ((maxx (length (car lines)))
+          (maxy (length lines))
+          (elves (make-hash-table))
+          (goblins (make-hash-table))
+          (grid (make-hash-table)))
+      (iter (for y from 0)
+            (for line in lines)
+            (iter (for x from 0)
+                  (for c in-string line)
+                  (case c
+                    (#\. (setf (gethash (complex x y) grid) t))
+                    (#\G (setf (gethash (complex x y) grid) t)
+                     (setf (gethash (complex x y) goblins) (list 200 3)))
+                    (#\E (setf (gethash (complex x y) grid) t)
+                     (setf (gethash (complex x y) elves) (list 200 3)))
+                    (otherwise nil))))
+      (make-game :grid grid :elves elves :goblins goblins :maxx maxx :maxy maxy)))
+#+END_SRC
+
+I'm going to represent the game with a simple struct: three hashtables
+and the max x and y coordinates from the input (useful for printing out).
+
+#+NAME: game-struct
+#+BEGIN_SRC lisp :results silent
+  (defstruct game
+    grid
+    elves
+    goblins
+    maxx
+    maxy)
+#+END_SRC
+
+By creating a sparse grid, I can just iterate over it to determine
+what needs to happen. When an anyone wants to move, they can check to
+see if a space is available by checking if it's an open space at all,
+and if it is whether there's already an elf or goblin in it.
+
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -44,12 +97,47 @@ support for lisp installed you can run this by:
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/15.txt"))
+    (parse-map (read-input "input/15.txt")))
 #+END_SRC
 ** Part 1
+
+All order ties are in "reading order". Since complex numbers aren't
+directly comparable (for sorting), I'll write up a function that can
+take any list where the first element is a complex number and return
+that list in sorted order.
+
+#+NAME: reading-order
+#+BEGIN_SRC lisp :results silent
+  (defun reading-order (list)
+    (flet ((complex<= (c1 c2)
+             (or (< (imagpart c1) (imagpart c2))
+                 (and (= (imagpart c1) (imagpart c2))
+                      (< (realpart c1) (realpart c2)))
+                 (= c1 c2))))
+      (sort list #'complex<= :key #'car)))
+#+END_SRC
+
+I should add that to a library, I've needed it (or a similar function)
+for several problems now.
+
+I also want to be able to print the grid, for debugging purposes.
+#+NAME: print-grid
+#+BEGIN_SRC lisp :results silent
+  (defun print-grid (game)
+    (iter (for y from 0 below (game-maxy game))
+          (iter (for x from 0 below (game-maxx game))
+                (cond ((null (gethash (complex x y) (game-grid game)))
+                       (format t "#"))
+                      ((gethash (complex x y) (game-goblins game))
+                       (format t "G"))
+                      ((gethash (complex x y) (game-elves game))
+                       (format t "E"))
+                      (t (format t "."))))
+          (format t "~%")))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 15 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 15 A: ~a~%" (print-grid *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
@@ -59,11 +147,14 @@ support for lisp installed you can run this by:
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  <<game-struct>>
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
+  <<parse-map>>
+  <<reading-order>>
+  <<print-grid>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.15.lisp
@@ -78,8 +169,47 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+#+begin_example
+################################
+##########..........############
+########G..................#####
+#######..G.GG...............####
+#######....G.......#......######
+########.G.G...............#E..#
+#######G.................#.....#
+########.......................#
+########G.....G....#.....##....#
+########.....#....G.........####
+#########..........##....E.E#.##
+##########G..G..........#####.##
+##########....#####G....####E.##
+######....G..#######.....#.....#
+###....#....#########......#####
+####........#########..E...#####
+###.........#########......#####
+####G....G..#########......#####
+####..#.....#########....#######
+######.......#######...E.#######
+###.G.....E.G.#####.....########
+#.....G........E.......#########
+#......#..#..####....#.#########
+#...#.........###.#..###########
+##............###..#############
+######.....E####..##############
+######...........###############
+#######....E....################
+######...####...################
+######...###....################
+###.....###..##..###############
+################################
+Problem 15 A: NIL
+Problem 15 B: #S(GAME
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1002A9CA13}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {1002A9C1D3}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {1002A9C5F3}>
+                 :MAXX 32
+                 :MAXY 32)
+#+end_example
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
