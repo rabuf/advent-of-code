@@ -184,6 +184,23 @@ the target string in the fewest possible subsitutions. I figure a
 breadth first search? Apply each rule to the current string, see if
 any of them match. Repeat with each of the newly generated strings but
 increase the depth to track how many times rules have been applied.
+
+#+NAME: find-target
+#+BEGIN_SRC lisp :results silent
+  (defun find-target (target rules &optional (initial "e"))
+    (let ((depth 0)
+          (current nil)
+          (next (list initial)))
+      (iter (until (member target next :test #'string=))
+            (incf depth)
+            (setf current next)
+            (setf next nil)
+            (iter (for c in current)
+                  (setf next (append next (all-single-substitutions c rules))))
+            (setf next (remove-duplicates next :test #'string=)))
+      depth))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 19 B: ~a~%" (identity *input*)))
@@ -198,6 +215,7 @@ increase the depth to track how many times rules have been applied.
   <<read-input>>
   <<parse-input>>
   <<all-single-substitutions>>
+  <<find-target>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.19.lisp
