@@ -1,0 +1,199 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 18
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-18)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-18
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-18)
+#+END_SRC
+** Input
+#+NAME: make-grid
+#+BEGIN_SRC lisp :results silent
+  (defun make-grid (lines)
+    (let ((grid (make-array (list (+ (length (car lines)) 2) (+ (length lines) 2)) :initial-element nil)))
+      (iter (for y from 1)
+            (for line in lines)
+            (iter (for x from 1)
+                  (for c in-string line)
+                  (setf (aref grid x y) (char= #\# c))))
+      grid))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (make-grid (read-input "input/18.txt")))
+#+END_SRC
+** Part 1
+Basic game of life type simulation. The rules are:
+- If =on= and 2 or 3 neighbors =on=, stays =on=, otherwise =off=.
+- If =off= and 3 neighbors =on=, then turns =on=, else stays =off=.
+
+I'm going to pad my light array with nils on the perimeter to make the
+checking easier.
+
+#+NAME: count-neighbors
+#+BEGIN_SRC lisp :results silent
+  (defun count-neighbors (grid x y)
+    (iter outer
+          (for dy from -1 to 1)
+          (iter (for dx from -1 to 1)
+                (when (not (and (= 0 dx) (= 0 dy)))
+                  (in outer
+                      (count (aref grid (+ x dx) (+ y dy))))))))
+#+END_SRC
+#+NAME: live-or-die
+#+BEGIN_SRC lisp :results silent
+  (defun live-or-die (grid x y)
+    (let ((count (count-neighbors grid x y)))
+      (or (and (aref grid x y)
+               (or (= 2 count)
+                   (= 3 count)))
+          (and (not (aref grid x y))
+               (= 3 count)))))
+#+END_SRC
+#+NAME: next-generation
+#+BEGIN_SRC lisp :results silent
+  (defun next-generation (grid)
+    (let ((next (make-array (array-dimensions grid) :initial-element nil)))
+      (iter (for y from 1 below (1- (array-dimension grid 1)))
+            (iter (for x from 1 below (1- (array-dimension grid 0)))
+                  (setf (aref next x y) (live-or-die grid x y))))
+      next))
+#+END_SRC
+
+#+NAME: print-grid
+#+BEGIN_SRC lisp :results silent
+  (defun print-grid (grid)
+    (iter (for y from 1 below (1- (array-dimension grid 1)))
+          (iter (for x from 1 below (1- (array-dimension grid 0)))
+                (if (aref grid x y)
+                    (format t "#")
+                    (format t ".")))
+          (format t "~%")))
+#+END_SRC
+
+#+NAME: count-living
+#+BEGIN_SRC lisp :results silent
+  (defun count-living (grid)
+    (iter outer
+          (for y from 1 below (1- (array-dimension grid 1)))
+          (iter (for x from 1 below (1- (array-dimension grid 0)))
+                (in outer
+                    (count (aref grid x y))))))
+#+END_SRC
+
+#+NAME: solve-a
+#+BEGIN_SRC lisp :results silent
+  (defun solve-a (grid generations)
+    (iter (repeat generations)
+          (setf grid (next-generation grid))
+          (finally (return (count-living grid)))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 18 A: ~a~%" (solve-a *input* 100)))
+#+END_SRC
+** Part 2
+Everything above works except we have 4 sticky lights, one in each
+corner. I'll make a simple alteration. I'll use next-generation from
+above, but a stuck-on function that sets the corners before each generation.
+#+NAME: stuck-on
+#+BEGIN_SRC lisp :results silent
+  (defun stuck-on (grid)
+    (setf (aref grid 1 1) t)
+    (setf (aref grid 100 100) t)
+    (setf (aref grid 1 100) t)
+    (setf (aref grid 100 1) t))
+#+END_SRC
+
+#+NAME: solve-b
+#+BEGIN_SRC lisp :results silent
+  (defun solve-b (grid generations)
+    (iter (repeat generations)
+          (stuck-on grid)
+          (setf grid (next-generation grid)))
+    (stuck-on grid)
+    (count-living grid))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 18 B: ~a~%" (solve-b *input* 100)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<make-grid>>
+  <<read-input>>
+  <<count-neighbors>>
+  <<live-or-die>>
+  <<print-grid>>
+  <<count-living>>
+  <<solve-a>>
+  <<stuck-on>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.18.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 18 A: 1061
+: Problem 18 B: 1006
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2015.18)
+  (in-suite aoc.2015.18)
+
+  (run! 'aoc.2015.18)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
