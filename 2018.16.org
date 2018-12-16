@@ -372,7 +372,7 @@ a quick routine to iterate over this until every function has only one
 opcode.
 
 #+NAME: get-opcodes
-#+BEGIN_SRC lisp :exports both :results output
+#+BEGIN_SRC lisp :results silent
   (defun get-opcodes (to-test)
     (let ((tally (tally-codes to-test))
           (result (make-hash-table)))
@@ -388,24 +388,30 @@ opcode.
       result))
 #+END_SRC
 
-#+RESULTS: get-opcodes
+#+BEGIN_SRC lisp :results output :exports results
+  (format t "~{~a~%~}" (sort (iter (for (k v) in-hashtable (get-opcodes (car *input*)))
+                               (collect (format nil "~2,'0d: ~a" k v)))
+                         #'string<=))
+#+END_SRC
+
+#+RESULTS:
 #+begin_example
-#<FUNCTION ADDR>: (13)
-#<FUNCTION ADDI>: (10)
-#<FUNCTION MULR>: (14)
-#<FUNCTION MULI>: (5)
-#<FUNCTION BANR>: (0)
-#<FUNCTION BANI>: (6)
-#<FUNCTION BORR>: (7)
-#<FUNCTION BORI>: (4)
-#<FUNCTION SETR>: (2)
-#<FUNCTION SETI>: (15)
-#<FUNCTION GTIR>: (8)
-#<FUNCTION GTRI>: (11)
-#<FUNCTION GTRR>: (9)
-#<FUNCTION EQIR>: (3)
-#<FUNCTION EQRI>: (12)
-#<FUNCTION EQRR>: (1)
+00: #<FUNCTION BANR>
+01: #<FUNCTION EQRR>
+02: #<FUNCTION SETR>
+03: #<FUNCTION EQIR>
+04: #<FUNCTION BORI>
+05: #<FUNCTION MULI>
+06: #<FUNCTION BANI>
+07: #<FUNCTION BORR>
+08: #<FUNCTION GTIR>
+09: #<FUNCTION GTRR>
+10: #<FUNCTION ADDI>
+11: #<FUNCTION GTRI>
+12: #<FUNCTION EQRI>
+13: #<FUNCTION ADDR>
+14: #<FUNCTION MULR>
+15: #<FUNCTION SETI>
 #+end_example
 
 #+NAME: solve-b
