@@ -340,7 +340,6 @@ enough with the function below.
                                    (collect (aref command 0))))))
               (setf (gethash p mapping) (remove-duplicates opcodes))))
       mapping))
-  (tally-codes (car *input*))
 #+END_SRC
 
 #+BEGIN_SRC lisp :exports both :results output
