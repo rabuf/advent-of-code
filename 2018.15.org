@@ -204,109 +204,46 @@ Some rules for the game:
 The desired result for Part 1 is the number of *full* rounds
 multiplied by the sum of the HP of the survivors.
 
-#+NAME: attack
-#+BEGIN_SRC lisp :results silent
-  (defun attack (attacker victim)
-    (decf (player-hp victim) (player-ap attacker)))
-#+END_SRC
-
-The code below is getting unwieldy, I'm going to start breaking
-it into chunks which can be described and reasoned about more easily.
-
-For convenience, I'm pulling these variables out of the game state so
-referencing them isn't so cumbersome.
-#+NAME: execute-round-let-block
-#+BEGIN_SRC lisp :results silent
-  (combatants nil)
-  (goblins (game-goblins game))
-  (elves (game-elves game))
-#+END_SRC
-
-We need a list of all combatants, regardless of their kind.
-#+NAME: collect-combatants
-#+BEGIN_SRC lisp :results silent
-  (iter (for (k v) in-hashtable goblins)
-        (push v combatants))
-  (iter (for (k v) in-hashtable elves)
-        (push v combatants))
-#+END_SRC
-
-Sort the combatants once so we can then execute over the list in order
-without having to reexamine it later.
-#+NAME: sort-combatants
-#+BEGIN_SRC lisp :results silent
-  (setf combatants (reading-order combatants :key #'player-position))
-#+END_SRC
-
 This is the main kernel of the game loop. My first version of player
 movement got unwieldy, so I cleared it all out and now I'm starting
 over.
 #+NAME: execute-round
-#+BEGIN_SRC lisp :results silent :noweb yes
+#+BEGIN_SRC lisp :results silent
   (defun execute-round (game)
-    (let (
-          <<execute-round-let-block>>
-          )
-      <<collect-combatants>>
-      <<sort-combatants>>
+    (let ((combatants nil)
+          (goblins (game-goblins game))
+          (elves (game-elves game)))
+      (iter (for (k v) in-hashtable goblins)
+            (push v combatants))
+      (iter (for (k v) in-hashtable elves)
+            (push v combatants))
+      (setf combatants (reading-order combatants :key #'player-position))
       (iter (while combatants)
             ;; Get the current combatant
             (let* ((current (pop combatants))
                    (enemies (case (player-kind current)
                               (:goblin elves)
                               (:elf goblins)))
-                   (allies (case (player-kind current)
-                             (:goblin goblins)
-                             (:elf elves)))
                    (position (player-position current))
-                   ;; Get all their enemies (if any).
                    (neighbors (reading-order (get-neighbors position enemies) :key #'player-position)))
-              ;; Combatants will *attack* their first (reading-order)
-              ;; neighbor, if any. That is their entire turn. The round
-              ;; terminates early, and doesn't increment the round
-              ;; number, if a combatant finds that it has no enemies.
               (when (= 0 (hash-table-count enemies))
                 (return nil))
-              ;; I'm putting this first, to capture movement. Because
-              ;; after movement there is an attack if they've moved in
-              ;; range of an enemy.
               (unless neighbors
                 (move-player current game))
-              ;; Second time calculating neighbors, but this is because
-              ;; the players position may have been updated.
               (setf neighbors (reading-order (get-neighbors (player-position current) enemies) :key #'player-position))
               (when neighbors
-                ;; The victim isn't necessarily first. We need to first
-                ;; sort the neighbors by their remaining health.
                 (setf neighbors (sort neighbors #'<= :key #'player-hp))
-                ;; Then filter out all who aren't tied for the lowest
                 (setf neighbors (remove-if (lambda (v)
                                              (> (player-hp v) (player-hp (car neighbors))))
                                            neighbors))
-                ;; Now sort in reading order
                 (setf neighbors (reading-order neighbors :key #'player-position))
                 (let ((victim (car neighbors)))
-                  ;; Attack them
-                  (attack current victim)
-                  ;; If the victim's health drops to 0 or lower
+                  (decf (player-hp victim) (player-ap attacker))
                   (when (<= (player-hp victim) 0)
-                    ;; Remove the victim from the list of potential
-                    ;; combatants (needed if they haven't taken a turn
-                    ;; yet)
-                    (setf combatants (remove (player-position victim) combatants
-                                             :key #'player-position))
-                    ;; Remove the victim from their hash table so no one
-                    ;; else attempts to attack them, and they're removed
-                    ;; from future rounds.
+                    (setf combatants (remove victim combatants))
                     (remhash (player-position victim) enemies))))
-            ;; If the while loop terminates normally then we return t to
-            ;; indicate that the game can continue, and we increment the
-            ;; round count.
             (finally (incf (game-round game))
                      (return t))))))
-              ;; If there are no enemies adjacent to the current
-              ;; attacker, they have to move.
-              ;; I'll do that later, let's test the attack logic.
 #+END_SRC
 
 This is the part that stumped me before. I had parts of it, but it was
@@ -326,7 +263,7 @@ here's v2.
                      (:goblin (game-goblins game))))
            (position (player-position player))
            (grid (game-grid game))
-           (potentials (intersection (in-range enemies allies grid) (reachable position game)))
+           (potentials (intersection (in-range enemies game) (reachable position game)))
            (min-path (iter (for p in potentials)
                            (minimizing (path-length position p game)))))
       (when min-path
@@ -343,7 +280,8 @@ here's v2.
 
 If I understand it correctly, I need to find the path lengths (not
 Manhattan distance) to each of the potential targets. Then select the
-target with the shortest path distance, reading order to break ties.
+target with the shortest path distance, reading order to break
+ties. This is awful code. I'm sorry.
 #+NAME: path-length
 #+BEGIN_SRC lisp :results silent
   (defun path-length (start end game)
@@ -392,21 +330,41 @@ target with the shortest path distance, reading order to break ties.
                             (setf offset (* offset #C(0 1))))))))))
 #+END_SRC
 
+
+This returns a list of all open spaces adjacent to enemies. This logic
+is used *a lot* in my program to test if there's an open space.
 #+NAME: in-range
 #+BEGIN_SRC lisp :results silent
-  (defun in-range (enemies allies grid)
+  (defun in-range (enemies game)
     (let ((in-range nil))
       (iter (for (k v) in-hashtable enemies)
             (for offset = 1)
             (iter (repeat 4)
-                  (when (and (not (gethash (+ offset k) enemies))
-                             (not (gethash (+ offset k) allies))
-                             (gethash (+ offset k) grid))
+                  (when (open-spacep (+ offset k) game)
                     (push (+ offset k) in-range))
                   (setf offset (* offset #C(0 1)))))
       in-range))
 #+END_SRC
 
+=open-spacep= replaces logic like this:
+#+BEGIN_SRC lisp
+  (and (not (gethash (+ offset k) enemies))
+       (not (gethash (+ offset k) allies))
+       (gethash (+ offset k) grid))
+#+END_SRC
+Which has shown up in a lot of my other functions.
+
+#+NAME: open-spacep
+#+BEGIN_SRC lisp :results silent
+  (defun open-spacep (position game)
+    (and (not (gethash position (game-goblins game)))
+         (not (gethash position (game-elves game)))
+         (gethash position (game-grid game))))
+#+END_SRC
+
+I only use this for determining which positions are reachable. I will
+probably rewrite that function to just use a hashtable like I've done
+everywhere else.
 #+NAME: simplified-grid
 #+BEGIN_SRC lisp :results silent
   (defun simplified-grid (game)
@@ -414,9 +372,7 @@ target with the shortest path distance, reading order to break ties.
       (iter (for y from 0 below (game-maxy game))
             (iter (for x from 0 below (game-maxx game))
                   (let ((pos (complex x y)))
-                    (when (and (not (or (gethash pos (game-goblins game))
-                                        (gethash pos (game-elves game))))
-                               (gethash pos (game-grid game)))
+                    (when (open-spacep pos game)
                       (setf (aref grid x y) #\.)))))
       grid))
   (defun print-simplified-grid (grid)
@@ -448,6 +404,11 @@ target with the shortest path distance, reading order to break ties.
                     (setf offset (* offset #C(0 1))))))
       reachable))
 #+END_SRC
+
+The round limit here is just to save me from infinite loops. But if
+you resume with the same game instance then this works out nicely to
+pause and restart if you want to play out portions of the game instead
+of the whole thing.
 #+NAME: run-game
 #+BEGIN_SRC lisp :results silent
   (defun run-game (game &optional (round-limit 1000))
@@ -547,16 +508,16 @@ at 50.
 #+RESULTS: answers
 #+begin_example
 Problem 15 A: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {10040D3803}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {10040D2FC3}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {10040D33E3}>
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1002876353}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {1002875B13}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {1002875F33}>
                  :MAXX 32
                  :MAXY 32
                  :ROUND 0)
 Problem 15 B: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {10040D3803}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {10040D2FC3}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {10040D33E3}>
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1002876353}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {1002875B13}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {1002875F33}>
                  :MAXX 32
                  :MAXY 32
                  :ROUND 0)
