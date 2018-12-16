@@ -286,18 +286,13 @@ ties. This is awful code. I'm sorry.
 #+BEGIN_SRC lisp :results silent
   (defun path-length (start end game)
     (let ((graph (make-hash-table))
-          (grid (game-grid game))
-          (elves (game-elves game))
-          (goblins (game-goblins game))
           (search nil)
           (min-path-length (+ (game-maxx game) (game-maxy game))))
       (setf (gethash end graph) 0)
       ;; start off with the initial points to consider
       (iter (repeat 4)
             (with offset = 1)
-            (when (and (not (gethash (+ end offset) elves))
-                       (not (gethash (+ end offset) goblins))
-                       (gethash (+ end offset) grid))
+            (when (open-spacep (+ end offset) game)
               (push (+ end offset) search))
             (setf offset (* offset #C(0 1))))
       (iter (while search)
@@ -306,10 +301,8 @@ ties. This is awful code. I'm sorry.
               (setf (gethash next graph)
                     (iter (repeat 4)
                           (with offset = 1)
-                          (when (and (not (gethash (+ next offset) elves))
-                                     (not (gethash (+ next offset) goblins))
-                                     (not (gethash (+ next offset) graph))
-                                     (gethash (+ next offset) grid))
+                          (when (and (open-spacep (+ next offset) game)
+                                     (not (gethash (+ next offset) graph)))
                             (push (+ next offset) search))
                           (when (gethash (+ next offset) graph)
                             (minimizing (1+ (gethash (+ next offset) graph))))
@@ -463,8 +456,8 @@ and do a binary search.
 
 8: Won after 85 round swith 442 HP.
 
-Dammit. The problem is actually: Without a single death. Starting back
-at 50.
+Dammit. The problem is actually: Without a *single* death. Starting
+back at 50.
 
 50: All elves lived, 19 rounds and 1799 HP
 
@@ -479,6 +472,7 @@ at 50.
 13: Lost an elf.
 
 14: All elves lived, 43 rounds and 1187 HP: 51041
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 15 B: ~a~%" (identity *input*)))
@@ -597,9 +591,9 @@ Goblin HP: 2554
 The game ended in Round 101 and the winning side had 2554 hit points, for a score of 257954.
 Problem 15 A: NIL
 Problem 15 B: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {10055741B3}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 0 {1005573973}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 14 {1005573D93}>
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1004E8C1B3}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 0 {1004E8B973}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 14 {1004E8BD93}>
                  :MAXX 32
                  :MAXY 32
                  :ROUND 101)
