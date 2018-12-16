@@ -201,6 +201,8 @@ increase the depth to track how many times rules have been applied.
       depth))
 #+END_SRC
 
+This is very inefficient.
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 19 B: ~a~%" (identity *input*)))
