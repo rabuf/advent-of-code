@@ -324,6 +324,86 @@ hope I wrote that all correctly, no tests so this'll be fun.
                          (finally (return (>= i 3))))))))
 #+END_SRC
 ** Part 2
+All of the opcode function -> number mappings can be discovered easily
+enough with the function below.
+#+BEGIN_SRC lisp :results silent
+  (defun tally-codes (to-test)
+    (let ((predicates (list #'addrp #'addip #'mulrp #'mulip
+                            #'banrp #'banip #'borrp #'borip
+                            #'setrp #'setip #'gtirp #'gtrip
+                            #'gtrrp #'eqirp #'eqrip #'eqrrp))
+          (mapping (make-hash-table)))
+      (iter (for p in predicates)
+            (let ((opcodes (iter (for (pre command post) in to-test)
+                                 (when (funcall p pre command post)
+                                   (collect (aref command 0))))))
+              (setf (gethash p mapping) (remove-duplicates opcodes))))
+      mapping))
+  (tally-codes (car *input*))
+#+END_SRC
+
+#+BEGIN_SRC lisp :export both :results output
+  (iter (for (k v) in-hashtable (tally-codes (car *input*)))
+                     (format t "~a: ~a~%" k v))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#<FUNCTION ADDRP>: (4 13 7)
+#<FUNCTION ADDIP>: (10 4 13)
+#<FUNCTION MULRP>: (10 14 5 4 13 7)
+#<FUNCTION MULIP>: (5 4 13 7)
+#<FUNCTION BANRP>: (0 14 5 15 4 6 7)
+#<FUNCTION BANIP>: (14 5 15 4 6 7)
+#<FUNCTION BORRP>: (4 7)
+#<FUNCTION BORIP>: (4)
+#<FUNCTION SETRP>: (5 4 7 2)
+#<FUNCTION SETIP>: (10 14 5 15 4 7)
+#<FUNCTION GTIRP>: (8 0 14 5 15 4 6 7 2)
+#<FUNCTION GTRIP>: (8 0 12 14 5 15 4 1 6 7 11)
+#<FUNCTION GTRRP>: (8 9 0 12 5 15 4 3 6 7 11)
+#<FUNCTION EQIRP>: (8 0 12 5 15 1 3 6 11)
+#<FUNCTION EQRIP>: (8 0 12 14 5 15 6 7)
+#<FUNCTION EQRRP>: (8 0 14 5 15 1 6)
+#+end_example
+
+So it's obvious that BORI = 4, BORR = 7, and so on. I'm going to write
+a quick routine to iterate over this until every function has only one
+opcode.
+
+#+BEGIN_SRC lisp :export both :results output
+  (let ((tally (tally-codes (car *input*))))
+    (iter (until (iter (for (k v) in-hashtable tally)
+                       (always (= 1 (length v)))))
+          (iter (for (k v) in-hashtable tally)
+                (when (= 1 (length v))
+                  (iter (for (k0 v0) in-hashtable tally)
+                        (unless (equal k k0)
+                          (setf (gethash k0 tally) (remove (car v) v0)))))))
+    (iter (for (k v) in-hashtable tally)
+          (format t "~a: ~a~%" k v)))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#<FUNCTION ADDRP>: (13)
+#<FUNCTION ADDIP>: (10)
+#<FUNCTION MULRP>: (14)
+#<FUNCTION MULIP>: (5)
+#<FUNCTION BANRP>: (0)
+#<FUNCTION BANIP>: (6)
+#<FUNCTION BORRP>: (7)
+#<FUNCTION BORIP>: (4)
+#<FUNCTION SETRP>: (2)
+#<FUNCTION SETIP>: (15)
+#<FUNCTION GTIRP>: (8)
+#<FUNCTION GTRIP>: (11)
+#<FUNCTION GTRRP>: (9)
+#<FUNCTION EQIRP>: (3)
+#<FUNCTION EQRIP>: (12)
+#<FUNCTION EQRRP>: (1)
+#+end_example
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 16 B: ~a~%" (identity *input*)))
