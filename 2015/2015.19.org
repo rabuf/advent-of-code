@@ -35,6 +35,21 @@ support for lisp installed you can run this by:
   (in-package :aoc-2015-19)
 #+END_SRC
 ** Input
+The input is a list of substitution rules, followed by a blank line,
+followed by an input string.
+
+Alright, I know how to apply the rules, now I need to parse them out
+of the file.
+#+NAME: parse-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-input (lines)
+    (let ((rules nil)
+          (input (car (last lines))))
+      (iter (for line in lines)
+            (until (string= "" line))
+            (push (ppcre:split "\\s+=>\\s+" line) rules))
+      (list input rules)))
+#+END_SRC
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -44,14 +59,131 @@ support for lisp installed you can run this by:
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/19.txt"))
+    (parse-input (read-input "input/19.txt")))
 #+END_SRC
 ** Part 1
+Each rule will replace one instance, not all, of the left hand side
+with the right hand side of the rule in the string. PPCRE is going to
+come in handy here. Just exploring some of its features.
+#+BEGIN_SRC lisp :exports both
+  (ppcre:regex-replace "H" "HOH" "OH")
+#+END_SRC
+
+#+RESULTS:
+: OHOH
+
+So it can do the substitutions for us to collect. But how to make sure
+we do them all, remember we only want *one* substitution, not
+all. =regex-replace= can take a start parameter.
+#+BEGIN_SRC lisp :exports both
+  (ppcre:regex-replace "H" "HOH" "OH" :start 1)
+#+END_SRC
+
+#+RESULTS:
+: OOH
+
+Ok, not quite what I wanted, that removed the first part so we have to
+restore it. That's not too bad. How to find out all the locations to
+start at, though?
+
+#+BEGIN_SRC lisp :exports both
+  (ppcre:all-matches "H" "HOH")
+#+END_SRC
+
+#+RESULTS:
+| 0 | 1 | 2 | 3 |
+
+Those should be read off in pairs representing the start and end of
+the matches. Keeping in mind that regex-replace with a starting point
+cuts off everything before it:
+
+#+BEGIN_SRC lisp :exports both
+  (concatenate 'string (subseq "HOH" 0 1) (ppcre:regex-replace "H" "HOH" "OH" :start 1))
+#+END_SRC
+
+#+RESULTS:
+: HOOH
+
+Closer. Let's try one more thing.
+#+BEGIN_SRC lisp :exports both
+  (concatenate 'string (subseq "HOH" 0 0) (ppcre:regex-replace "H" "HOH" "OH" :start 0))
+#+END_SRC
+
+#+RESULTS:
+: OHOH
+
+#+BEGIN_SRC lisp :exports both
+  (concatenate 'string (subseq "HOH" 0 0) (ppcre:regex-replace "H" "HOH" "OH" :start 0 :end 1) (subseq "HOH" 1))
+#+END_SRC
+
+#+RESULTS:
+: OHOH
+
+OK, now let's put it into a loop.
+#+BEGIN_SRC lisp :exports both
+  (let ((input "HOH")
+        (rules '(("H" "OH")
+                 ("H" "HO")
+                 ("O" "HH"))))
+    (iter outer
+          (for (lhs rhs) in rules)
+          (let ((matches (ppcre:all-matches lhs input)))
+            (iter (while matches)
+                  (let ((start (pop matches))
+                        (end (pop matches)))
+                    (in outer
+                        (collect
+                            (concatenate 'string
+                                         (subseq input 0 start)
+                                         (ppcre:regex-replace lhs input rhs :start start :end end)
+                                         (subseq input end)))))))))
+#+END_SRC
+
+#+RESULTS:
+| OHOH | HOOH | HOOH | HOHO | HHHH |
+
+Awesome, those are all of them. Now let's make that a function.
+
+#+NAME: all-single-substitutions
+#+BEGIN_SRC lisp :results silent
+  (defun all-single-substitutions (input rules)
+    (remove-duplicates
+     (iter outer
+           (for (lhs rhs) in rules)
+           (let ((matches (ppcre:all-matches lhs input)))
+             (iter (while matches)
+                   (let ((start (pop matches))
+                         (end (pop matches)))
+                     (in outer
+                         (collect
+                             (concatenate 'string
+                                          (subseq input 0 start)
+                                          (ppcre:regex-replace lhs input rhs :start start :end end)
+                                          (subseq input end))))))))
+     :test #'equal))
+#+END_SRC
+
+#+BEGIN_SRC lisp :exports both
+  (all-single-substitutions "HOH" '(("H" "OH")
+                                    ("H" "HO")
+                                    ("O" "HH")))
+#+END_SRC
+
+#+RESULTS:
+| OHOH | HOOH | HOHO | HHHH |
+
+Perfect, just 4 like we wanted.
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 19 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 19 A: ~a~%" (length (all-single-substitutions (car *input*) (cadr *input*)))))
 #+END_SRC
 ** Part 2
+Part 2 has us start with just a single symbol "e" and try to produce
+the target string in the fewest possible subsitutions. I figure a
+breadth first search? Apply each rule to the current string, see if
+any of them match. Repeat with each of the newly generated strings but
+increase the depth to track how many times rules have been applied.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 19 B: ~a~%" (identity *input*)))
@@ -64,6 +196,8 @@ support for lisp installed you can run this by:
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
+  <<parse-input>>
+  <<all-single-substitutions>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.19.lisp
@@ -75,19 +209,54 @@ support for lisp installed you can run this by:
   <<problem-b>>
   (problem-a)
   (problem-b)
+  <<test-cases>>
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+#+begin_example
+Problem 19 A: 509
+Problem 19 B: (CRnCaSiRnBSiRnFArTiBPTiTiBFArPBCaSiThSiRnTiBPBPMgArCaSiRnTiMgArCaSiThCaSiRnFArRnSiRnFArTiTiBFArCaCaSiRnSiThCaCaSiRnMgArFYSiRnFYCaFArSiThCaSiThPBPTiMgArCaPRnSiAlArPBCaCaSiRnFYSiThCaRnFArArCaCaSiRnPBSiRnFArMgYCaCaCaCaSiThCaCaSiAlArCaCaSiRnPBSiAlArBCaCaCaCaSiThCaPBSiThPBPBCaSiRnFYFArSiThCaSiRnFArBCaCaSiRnFYFArSiThCaPBSiThCaSiRnPMgArRnFArPTiBCaPRnFArCaCaCaCaSiRnCaCaSiRnFYFArFArBCaSiThFArThSiThSiRnTiRnPMgArFArCaSiThCaPBCaSiRnBFArCaCaPRnCaCaPMgArSiRnFYFArCaSiThRnPBPMgAr
+               ((e OMg) (e NAl) (e HF) (Ti TiTi) (Ti BP) (Th ThCa) (Si CaSi)
+                (P SiRnFAr) (P PTi) (P CaP) (O OTi) (O NRnFAr) (O HP)
+                (O CRnMgAr) (O CRnFYFAr) (N HSi) (N CRnFAr) (Mg TiMg) (Mg BF)
+                (H ORnFAr) (H OB) (H NTh) (H NRnMgAr) (H NRnFYFAr) (H HCa)
+                (H CRnMgYFAr) (H CRnFYMgAr) (H CRnFYFYFAr) (H CRnAlAr) (F SiAl)
+                (F PMg) (F CaF) (Ca SiTh) (Ca SiRnMgAr) (Ca SiRnFYFAr)
+                (Ca PRnFAr) (Ca PB) (Ca CaCa) (B TiRnFAr) (B TiB) (B BCa)
+                (Al ThRnFAr) (Al ThF)))
+
+Running test suite AOC.2015.19
+ Running test ALL-SUBS-TEST .
+ Did 1 check.
+    Pass: 1 (100%)
+    Skip: 0 ( 0%)
+    Fail: 0 ( 0%)
+#+end_example
 ** Test Cases
+#+NAME: test-rules
+#+BEGIN_SRC lisp :results silent
+  (defparameter *test-rules* '(("H" "HO")
+                               ("H" "OH")
+                               ("O" "HH")))
+#+END_SRC
 #+NAME: test-cases
-#+BEGIN_SRC lisp :results output :exports both
+#+BEGIN_SRC lisp :results output :exports both :noweb yes
+  <<test-rules>>
   (def-suite aoc.2015.19)
   (in-suite aoc.2015.19)
+
+  (test all-subs-test
+    (is (= 4 (length (all-single-substitutions "HOH" *test-rules*)))))
 
   (run! 'aoc.2015.19)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2015.19
+:  Running test ALL-SUBS-TEST .
+:  Did 1 check.
+:     Pass: 1 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
