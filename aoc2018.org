@@ -1,6 +1,6 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2018 [13/25]
+* Advent of Code 2018 [15/25]
 This will be my attempt to solve the various Advent of Code 2018
 problems with Common Lisp.
 ** DONE [[file:2018.01.org][Day 1]]
@@ -16,9 +16,9 @@ problems with Common Lisp.
 ** DONE [[file:2018.11.org][Day 11]]
 ** DONE [[file:2018.12.org][Day 12]]
 ** DONE [[file:2018.13.org][Day 13]]
-** TODO [[file:2018.14.org][Day 14]]
-** TODO Day 15
-** TODO Day 16
+** DONE [[file:2018.14.org][Day 14]]
+** DONE [[file:2018.15.org][Day 15]]
+** TODO [[file:2018.16.org][Day 16]]
 ** TODO Day 17
 ** TODO Day 18
 ** TODO Day 19
