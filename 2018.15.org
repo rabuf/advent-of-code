@@ -238,7 +238,7 @@ over.
                                            neighbors))
                 (setf neighbors (reading-order neighbors :key #'player-position))
                 (let ((victim (car neighbors)))
-                  (decf (player-hp victim) (player-ap attacker))
+                  (decf (player-hp victim) (player-ap current))
                   (when (<= (player-hp victim) 0)
                     (setf combatants (remove victim combatants))
                     (remhash (player-position victim) enemies))))
@@ -418,9 +418,22 @@ of the whole thing.
     (print-grid game))
 #+END_SRC
 
+#+NAME: solve-a
+#+BEGIN_SRC lisp :results silent
+  (defun solve-a (game)
+    (run-game game)
+    (let ((round (game-round game))
+          (besthp (max (iter (for (k v) in-hashtable (game-goblins game))
+                             (sum (player-hp v)))
+                       (iter (for (k v) in-hashtable (game-elves game))
+                             (sum (player-hp v))))))
+      (format t "The game ended in Round ~d and the winning side had ~d hit points, for a score of ~d.~%"
+            round besthp (* round besthp))))
+#+END_SRC
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 15 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 15 A: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
 I'm more annoyed at this one than interested in cleaning up my
@@ -482,7 +495,6 @@ at 50.
   <<reading-order>>
   <<get-neighbors>>
   <<print-grid>>
-  <<attack>>
   <<move-player>>
   <<path-length>>
   <<simplified-grid>>
@@ -491,6 +503,7 @@ at 50.
   <<in-range>>
   <<execute-round>>
   <<run-game>>
+  <<solve-a>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.15.lisp
@@ -507,20 +520,89 @@ at 50.
 ** Answer
 #+RESULTS: answers
 #+begin_example
-Problem 15 A: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1002876353}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {1002875B13}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {1002875F33}>
-                 :MAXX 32
-                 :MAXY 32
-                 :ROUND 0)
+Round #0
+################################
+##########..........############
+########G..................##### (G 200 3)
+#######..G.GG...............#### (G 200 3) (G 200 3) (G 200 3)
+#######....G.......#......###### (G 200 3)
+########.G.G...............#E..# (E 200 3) (G 200 3) (G 200 3)
+#######G.................#.....# (G 200 3)
+########.......................#
+########G.....G....#.....##....# (G 200 3) (G 200 3)
+########.....#....G.........#### (G 200 3)
+#########..........##....E.E#.## (E 200 3) (E 200 3)
+##########G..G..........#####.## (G 200 3) (G 200 3)
+##########....#####G....####E.## (E 200 3) (G 200 3)
+######....G..#######.....#.....# (G 200 3)
+###....#....#########......#####
+####........#########..E...##### (E 200 3)
+###.........#########......#####
+####G....G..#########......##### (G 200 3) (G 200 3)
+####..#.....#########....#######
+######.......#######...E.####### (E 200 3)
+###.G.....E.G.#####.....######## (G 200 3) (E 200 3) (G 200 3)
+#.....G........E.......######### (E 200 3) (G 200 3)
+#......#..#..####....#.#########
+#...#.........###.#..###########
+##............###..#############
+######.....E####..############## (E 200 3)
+######...........###############
+#######....E....################ (E 200 3)
+######...####...################
+######...###....################
+###.....###..##..###############
+################################
+Elf HP: 2000
+# Elves: 10
+Goblin HP: 4000
+# Goblins: 20
+Round #101
+################################
+##########..........############
+########...................#####
+#######.....................####
+#######............#......######
+########...................#...#
+#######.........G........#.....# (G 200 3)
+########........GG...G.........# (G 200 3) (G 131 3) (G 200 3)
+########...........#..G..##....# (G 200 3)
+########.....#..............####
+#########.........G##G......#.## (G 152 3) (G 191 3)
+##########..............#####.##
+##########....#####.G...####..## (G 200 3)
+######.....G.#######.G...#.....# (G 188 3) (G 200 3)
+###....#....#########......#####
+####........#########......#####
+###........G#########......##### (G 92 3)
+####.......G#########......##### (G 200 3)
+####..#.....#########....#######
+######.......#######.....#######
+###...........#####.....########
+#.................G....######### (G 200 3)
+#......#..#..####.G..#.######### (G 200 3)
+#...#.........###.#..###########
+##............###..#############
+######......####..##############
+######...........###############
+#######.........################
+######...####...################
+######...###....################
+###.....###..##..###############
+################################
+Elf HP: 0
+# Elves: 0
+Goblin HP: 2554
+# Goblins: 14
+The game ended in Round 101 and the winning side had 2554 hit points, for a score of 257954.
+Problem 15 A: NIL
 Problem 15 B: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1002876353}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 10 {1002875B13}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 20 {1002875F33}>
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {10055741B3}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 0 {1005573973}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 14 {1005573D93}>
                  :MAXX 32
                  :MAXY 32
-                 :ROUND 0)
+                 :ROUND 101)
 #+end_example
 ** Test Cases
 
