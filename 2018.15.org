@@ -252,6 +252,13 @@ the players get caught up in loops with poor pathfinding. They need to
 actually move along a path towards the enemy, not just to the closest
 position (which is what I did the first time). I tore that all out,
 here's v2.
+
+Alright, I'm done working on this. But for anyone reading: This is the
+cause of my performance problems. My order here has the path searching
+stuff executed numerous times for each player. Really, it should just
+be run once, in reverse. Start at the player and generate the minimum
+spanning tree. Then the potential locations can be compared using the
+already computed distances.
 #+NAME: move-player
 #+BEGIN_SRC lisp :results silent
   (defun move-player (player game)
@@ -262,8 +269,7 @@ here's v2.
                      (:elf (game-elves game))
                      (:goblin (game-goblins game))))
            (position (player-position player))
-           (grid (game-grid game))
-           (potentials (intersection (in-range enemies game) (reachable position game)))
+           (potentials (intersection (in-range enemies game) (reachable-hash position game)))
            (min-path (iter (for p in potentials)
                            (minimizing (path-length position p game)))))
       (when min-path
@@ -355,48 +361,27 @@ Which has shown up in a lot of my other functions.
          (gethash position (game-grid game))))
 #+END_SRC
 
-I only use this for determining which positions are reachable. I will
-probably rewrite that function to just use a hashtable like I've done
-everywhere else.
-#+NAME: simplified-grid
-#+BEGIN_SRC lisp :results silent
-  (defun simplified-grid (game)
-    (let ((grid (make-array (list (game-maxx game) (game-maxy game)) :initial-element #\#)))
-      (iter (for y from 0 below (game-maxy game))
-            (iter (for x from 0 below (game-maxx game))
-                  (let ((pos (complex x y)))
-                    (when (open-spacep pos game)
-                      (setf (aref grid x y) #\.)))))
-      grid))
-  (defun print-simplified-grid (grid)
-    (let ((dimensions (array-dimensions grid)))
-      (iter (for y from 0 below (cadr dimensions))
-            (iter (for x from 0 below (car dimensions))
-                  (format t "~a" (aref grid x y)))
-            (format t "~%"))))
-#+END_SRC
-
 #+NAME: reachable
 #+BEGIN_SRC lisp :results silent
   (defun reachable (position game)
-    (let ((grid (simplified-grid game))
-          (search (list position))
-          (reachable nil))
+    (let ((search (list position))
+          (reachable nil)
+          (grid (make-hash-table)))
+      (iter (for (k v) in-hashtable (game-grid game))
+            (when (open-spacep k game)
+              (setf (gethash k grid) t)))
       (iter (while search)
-            (for offset = 1)
-            (let* ((p (pop search))
-                   (x (realpart p))
-                   (y (imagpart p)))
-              (iter (repeat 4)
-                    (let ((x (+ x (realpart offset)))
-                          (y (+ y (imagpart offset))))
-                      (when (char= #\. (aref grid x y))
-                        (setf (aref grid x y) #\?)
-                        (push (complex x y) search)
-                        (push (complex x y) reachable)))
-                    (setf offset (* offset #C(0 1))))))
+            (iter (repeat 4)
+                  (with pos = (pop search))
+                  (with offset = 1)
+                  (when (gethash (+ pos offset) grid)
+                    (push (+ pos offset) search)
+                    (push (+ pos offset) reachable)
+                    (remhash (+ pos offset) grid))
+                  (setf offset (* offset #C(0 1)))))
       reachable))
 #+END_SRC
+
 
 The round limit here is just to save me from infinite loops. But if
 you resume with the same game instance then this works out nicely to
@@ -491,9 +476,7 @@ back at 50.
   <<print-grid>>
   <<move-player>>
   <<path-length>>
-  <<simplified-grid>>
   <<reachable>>
-  <<simplified-grid>>
   <<in-range>>
   <<execute-round>>
   <<run-game>>
@@ -501,9 +484,9 @@ back at 50.
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.15.lisp
+  <<initialize>>
   (defparameter *debug* nil)
   <<structs>>
-  <<initialize>>
   <<functions>>
   <<input>>
   <<problem-a>>
@@ -591,9 +574,9 @@ Goblin HP: 2554
 The game ended in Round 101 and the winning side had 2554 hit points, for a score of 257954.
 Problem 15 A: NIL
 Problem 15 B: #S(GAME
-                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {1004E8C1B3}>
-                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 0 {1004E8B973}>
-                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 14 {1004E8BD93}>
+                 :GRID #<HASH-TABLE :TEST EQL :COUNT 448 {10022AD6A3}>
+                 :ELVES #<HASH-TABLE :TEST EQL :COUNT 0 {1005127A93}>
+                 :GOBLINS #<HASH-TABLE :TEST EQL :COUNT 14 {1005127EB3}>
                  :MAXX 32
                  :MAXY 32
                  :ROUND 101)
