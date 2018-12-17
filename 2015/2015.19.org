@@ -190,18 +190,39 @@ increase the depth to track how many times rules have been applied.
   (defun find-target (target rules &optional (initial "e"))
     (let ((depth 0)
           (current nil)
-          (next (list initial)))
-      (iter (until (member target next :test #'string=))
+          (next (list initial))
+          (seen (make-hash-table :test #'equal)))
+      (setf (gethash initial seen) 0)
+      (iter (until (gethash target seen))
+            (until (null next))
             (incf depth)
             (setf current next)
             (setf next nil)
             (iter (for c in current)
-                  (setf next (append next (all-single-substitutions c rules))))
-            (setf next (remove-duplicates next :test #'string=)))
-      depth))
+                  (iter (for n in (all-single-substitutions c rules))
+                        (unless (gethash n seen)
+                          (setf (gethash n seen) depth)
+                          (push n next)))))
+      (gethash target seen)))
 #+END_SRC
 
-This is very inefficient.
+This is very inefficient. I improved it slightly by actually, you
+know, tracking the seen strings so that no duplicates get processed. I
+also removed an =append= and replaced it with a series of =push= after
+checking that the string was, indeed, new.
+
+I'm also taking advantage of the fact that all production rules made a
+larger string than they started with and inverting them. So my actual
+search looks like:
+#+BEGIN_SRC lisp :results silent
+  (let ((inverted-rules (iter (for (lhs rhs) in (cadr *input*))
+                              (collect (list rhs lhs)))
+          (find-target "e" inverted-rules (car *input*)))))
+#+END_SRC
+This way the string shrinks every single time, further constraining
+the number of strings we need to search on our way to the
+target. Sadly, however, it's still taking ages.
+
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -247,17 +268,23 @@ Problem 19 B: (CRnCaSiRnBSiRnFArTiBPTiTiBFArPBCaSiThSiRnTiBPBPMgArCaSiRnTiMgArCa
 
 Running test suite AOC.2015.19
  Running test ALL-SUBS-TEST .
- Did 1 check.
-    Pass: 1 (100%)
+ Running test FINDING-TEST ..
+ Did 3 checks.
+    Pass: 3 (100%)
     Skip: 0 ( 0%)
     Fail: 0 ( 0%)
 #+end_example
 ** Test Cases
 #+NAME: test-rules
 #+BEGIN_SRC lisp :results silent
-  (defparameter *test-rules* '(("H" "HO")
+  (defparameter *test-rules* '(("e" "H")
+                               ("e" "O")
+                               ("H" "HO")
                                ("H" "OH")
                                ("O" "HH")))
+  (defparameter *test-inverted-rules*
+    (iter (for (k v) in *test-rules*)
+          (collect (list v k))))
 #+END_SRC
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both :noweb yes
@@ -267,6 +294,9 @@ Running test suite AOC.2015.19
 
   (test all-subs-test
     (is (= 4 (length (all-single-substitutions "HOH" *test-rules*)))))
+  (test finding-test
+    (is (= 6 (find-target "HOHOHO" *test-rules*)))
+    (is (= 6 (find-target "e" *test-inverted-rules* "HOHOHO"))))
 
   (run! 'aoc.2015.19)
 #+END_SRC
@@ -275,8 +305,9 @@ Running test suite AOC.2015.19
 : 
 : Running test suite AOC.2015.19
 :  Running test ALL-SUBS-TEST .
-:  Did 1 check.
-:     Pass: 1 (100%)
+:  Running test FINDING-TEST ..
+:  Did 3 checks.
+:     Pass: 3 (100%)
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
