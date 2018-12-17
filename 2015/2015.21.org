@@ -1,0 +1,234 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 21
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-21)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-21
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-21)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/21.txt"))
+#+END_SRC
+** Part 1
+The input is actually just the start. There're are three data sets
+that also need to be used.
+#+BEGIN_EXAMPLE
+  Weapons:    Cost  Damage   Armor
+  Dagger        8     4       0
+  Shortsword   10     5       0
+  Warhammer    25     6       0
+  Longsword    40     7       0
+  Greataxe     74     8       0
+
+  Armor:      Cost  Damage  Armor
+  Leather      13     0       1
+  Chainmail    31     0       2
+  Splintmail   53     0       3
+  Bandedmail   75     0       4
+  Platemail   102     0       5
+
+  Rings:      Cost  Damage  Armor
+  Damage +1    25     1       0
+  Damage +2    50     2       0
+  Damage +3   100     3       0
+  Defense +1   20     0       1
+  Defense +2   40     0       2
+  Defense +3   80     0       3
+#+END_EXAMPLE
+
+The player starts with 0 attack or damage and 100 hitpoints. The
+question is, what's the minimum they need to spend to ensure victory
+over their opponent. From the input file the game's boss has HP 100,
+Damage 8, Armor 2.
+
+I'll create a struct to represent a player type (both the PC and Boss
+will use the same struct).
+
+#+NAME: player-struct
+#+BEGIN_SRC lisp :results silent
+  (defstruct player
+    (hp 100)
+    (damage 0)
+    (armor 0))
+#+END_SRC
+
+On a turn take two players (attacker, defender) and execute an attack.
+#+NAME: game-turn
+#+BEGIN_SRC lisp :results silent
+  (defun turn (attacker defender)
+    (let ((damage (max 1
+                       (- (player-damage attacker)
+                          (player-armor defender)))))
+      (decf (player-hp defender) damage)))
+#+END_SRC
+
+A game consists of a series of rounds until the player or the boss is
+dead (HP <= 0).
+
+#+NAME: game
+#+BEGIN_SRC lisp :results silent
+  (defun game (player)
+    (let ((boss (make-player :damage 8 :armor 2)))
+      (iter (until (or (<= (player-hp player) 0)
+                       (<= (player-hp boss) 0)))
+            (with players-turn = t)
+            (if players-turn
+                (turn player boss)
+                (turn boss player))
+            (setf players-turn (not players-turn)))
+      (> (player-hp player) 0)))
+#+END_SRC
+
+So now we can simulate the game. We need to simulate the store. I'll
+just have 3 loops, and the goal will be to minimize a
+variable. =iterate= can help here, I think.
+
+#+NAME: select-weapon
+#+BEGIN_SRC lisp :results silent
+  (defvar *weapons* '((8 4 0)
+                      (10 5 0)
+                      (25 6 0)
+                      (40 7 0)
+                      (74 8 0)))
+  (defun select-weapon ()
+    (iter (for (cost damage _) in *weapons*)
+          (let ((result (select-armor damage cost)))
+            (when result
+              (minimize result)))))
+#+END_SRC
+
+No weapon is sufficient on its own to even out the match.
+
+#+NAME: select-armor
+#+BEGIN_SRC lisp :results silent
+  (defvar *armor* '((13 0 1)
+                    (31 0 2)
+                    (53 0 3)
+                    (75 0 4)
+                    (102 0 5)))
+  (defun select-armor (damage spent)
+    (iter (for (cost _ armor) in (cons (list 0 0 0) *armor*))
+          (let ((result (select-ring damage armor (+ spent cost))))
+            (when result
+              (minimize result)))))
+#+END_SRC
+
+Now the rings are more challenging, though not impossible. The player
+has the option of selecting 0-2 rings. Though we know they'll select
+at least one if they want to win. But each ring can only be selected
+once. I'll make two loops to handle this.
+
+#+NAME: select-ring
+#+BEGIN_SRC lisp :results silent
+   (defvar *ring* '((25 1 0)
+                    (50 2 0)
+                    (100 3 0)
+                    (20 0 1)
+                    (40 0 2)
+                    (80 0 3)))
+   (defun select-ring (damage armor spent)
+     (iter outer
+           (for (r1-cost r1-damage r1-armor) in (cons '(0 0 0) *ring*))
+           (iter (for (r2-cost r2-damage r2-armor) in
+                      (cons '(0 0 0) (remove (list r1-cost r1-damage r1-armor) *ring* :test #'equal)))
+                 (let ((damage (+ r1-damage r2-damage damage))
+                       (armor (+ r1-armor r2-armor armor))
+                       (cost (+ spent r1-cost r2-cost)))
+                   (when (game (make-player :armor armor :damage damage))
+                     (in outer
+                         (minimizing cost)))))))
+#+END_SRC
+The answer is 91.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 21 A: ~a~%" (identity *input*)))
+#+END_SRC
+** Part 2
+Problem B is actually a very slight change to the logic above. Each
+loop needs to *maximize* its result, and the innermost loop in ring
+needs to maximize based on *losing*, not winning. So literally 4 lines
+get changed.
+1. minimize->maximize (3 places)
+2. when->unless (1 place).
+The answer is 158.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 21 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<player-struct>>
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<game>>
+  <<game-turn>>
+  <<select-weapon>>
+  <<select-armor>>
+  <<select-ring>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.21.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 21 A: (Hit Points: 100 Damage: 8 Armor: 2)
+: Problem 21 B: (Hit Points: 100 Damage: 8 Armor: 2)
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2015.21)
+  (in-suite aoc.2015.21)
+
+  (run! 'aoc.2015.21)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
