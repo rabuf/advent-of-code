@@ -159,15 +159,14 @@ falls, it can't be more than one outside those bounds.
                     (count (gethash (complex x y) (wt-water wt)))))))
 #+END_SRC
 
-Ok, now the hard part. We have to fill the water table. I'm going to
-use something akin to a breadthfirst search, I guess? This'll be a
-recursive algorithm. This backtracking will allow us to handle the
-case of filling up the basins.
+Ok, now the hard part. We have to fill the water table.
 
-I'll use 3 recursive functions: left, right, and down. The functions
-will return t or nil. t will indicate that it has reached the bottom
-of the map, nil will mean it reached a clay space. That will indicate
-that we need to go back one level and again search left and right.
+I'll use 3 recursive functions: go-left, go-right, and go-down. The
+functions will return t or nil. t will indicate that it has reached
+the bottom of the map, nil will mean it reached a clay space. That
+will indicate that we need to go back one level and again search left
+and right. If both left and right lead to dead ends, we'll go back and
+fill the row with =~=.
 #+NAME: fill-basins
 #+BEGIN_SRC lisp :results silent
   (defun fill-basins (wt)
