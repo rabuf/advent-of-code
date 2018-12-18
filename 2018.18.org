@@ -202,6 +202,12 @@ score is at 2008 (or 1980 or 19652 or 2036 or ...). I found the period
 by printing out the first 2000 scores and searching backwards for matching
 scores.
 
+The general way to solve this is to create a hash table to track which
+states have been seen. As soon as a state has been seen, you know it's
+a cycle. Start counting to determine the period of the cycle. Then do
+the math above: (target - pos-in-cycle) mod period = offset, then get
+the score of (pos-in-cycle + offset).
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 18 B: ~a~%" (identity 201465)))
