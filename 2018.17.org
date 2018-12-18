@@ -293,12 +293,24 @@ that we need to go back one level and again search left and right.
               "x=498, y=10..13"
               "x=504, y=10..13"
               "y=13, x=498..504")))
-
+  (test all-water
+    (is (= 57 (let ((wt (parse-clay-coordinates *test-input*)))
+                (fill-basins wt)
+                (count-water wt)))))
+  (test water-reservoir
+    (is (= 29 (let ((wt (parse-clay-coordinates *test-input*)))
+                (fill-basins wt)
+                (count-water-reservoirs wt)))))
   (run! 'aoc.2018.17)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
 : 
 : Running test suite AOC.2018.17
-:  Didn't run anything...huh?
+:  Running test ALL-WATER .
+:  Running test WATER-RESERVOIR .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
