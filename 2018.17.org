@@ -192,16 +192,20 @@ that we need to go back one level and again search left and right.
                               (let ((right? (go-right (+ coord right)))
                                     (left? (go-left (+ coord left))))
                                 (unless (or left? right?)
-                                  (go-left (+ coord left))
-                                  (go-right (+ coord right))
+                                  (fill-left (+ coord left))
+                                  (fill-right (+ coord right))
                                   (setf (gethash coord water) #\~))
                                 (or left? right?))))))
+               (fill-right (coord)
+                 (cond ((gethash coord clay) nil)
+                       (t (setf (gethash coord water) #\~)
+                          (fill-right (+ coord right)))))
+               (fill-left (coord)
+                 (cond ((gethash coord clay) nil)
+                       (t (setf (gethash coord water) #\~)
+                          (fill-left (+ coord left)))))
                (go-right (coord)
                  (cond ((gethash coord clay) nil)
-                       ((and (gethash coord water)
-                             (char= (gethash coord water) #\|))
-                        (setf (gethash coord water) #\~)
-                        (go-right (+ coord right)))
                        (t
                         (setf (gethash coord water) #\|)
                         (if (go-down (+ coord down))
@@ -209,10 +213,6 @@ that we need to go back one level and again search left and right.
                             (go-right (+ coord right))))))
                (go-left (coord)
                  (cond ((gethash coord clay) nil)
-                       ((and (gethash coord water)
-                             (char= (gethash coord water) #\|))
-                        (setf (gethash coord water) #\~)
-                        (go-left (+ coord left)))
                        (t
                         (setf (gethash coord water) #\|)
                         (if (go-down (+ coord down))
@@ -246,6 +246,7 @@ that we need to go back one level and again search left and right.
   (defun solve-b (wt)
     (fill-basins wt)
     (count-water-reservoirs wt))
+
   (defun problem-b () (format t "Problem 17 B: ~a~%" (solve-b (parse-clay-coordinates *input*))))
 #+END_SRC
 ** Putting it all together
@@ -296,21 +297,27 @@ that we need to go back one level and again search left and right.
   (test all-water
     (is (= 57 (let ((wt (parse-clay-coordinates *test-input*)))
                 (fill-basins wt)
-                (count-water wt)))))
+                (count-water wt))))
+    (is (= 34244 (let ((wt (parse-clay-coordinates *input*)))
+                   (fill-basins wt)
+                   (count-water wt)))))
   (test water-reservoir
     (is (= 29 (let ((wt (parse-clay-coordinates *test-input*)))
                 (fill-basins wt)
-                (count-water-reservoirs wt)))))
+                (count-water-reservoirs wt))))
+    (is (= 28202 (let ((wt (parse-clay-coordinates *input*)))
+                   (fill-basins wt)
+                   (count-water-reservoirs wt)))))
   (run! 'aoc.2018.17)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
 : 
 : Running test suite AOC.2018.17
-:  Running test ALL-WATER .
-:  Running test WATER-RESERVOIR .
-:  Did 2 checks.
-:     Pass: 2 (100%)
+:  Running test ALL-WATER ..
+:  Running test WATER-RESERVOIR ..
+:  Did 4 checks.
+:     Pass: 4 (100%)
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
