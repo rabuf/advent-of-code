@@ -180,35 +180,73 @@ that we need to go back one level and again search left and right.
       (labels ((go-down (coord)
                  (cond ((> (imagpart coord) max-y) t)
                        ((gethash coord clay) nil)
-                       ((gethash coord water) t)
+                       ((and (gethash coord water)
+                             (char= (gethash coord water) #\|))
+                        t)
+                       ((and (gethash coord water)
+                             (char= (gethash coord water) #\~))
+                        nil)
                        (t (setf (gethash coord water) #\|)
                           (if (go-down (+ coord down))
                               t
                               (let ((right? (go-right (+ coord right)))
                                     (left? (go-left (+ coord left))))
+                                (unless (or left? right?)
+                                  (go-left (+ coord left))
+                                  (go-right (+ coord right))
+                                  (setf (gethash coord water) #\~))
                                 (or left? right?))))))
                (go-right (coord)
-                 (unless (gethash coord clay)
-                   (setf (gethash coord water) #\|)
-                   (if (go-down (+ coord down))
-                       t
-                       (go-right (+ coord right)))))
+                 (cond ((gethash coord clay) nil)
+                       ((and (gethash coord water)
+                             (char= (gethash coord water) #\|))
+                        (setf (gethash coord water) #\~)
+                        (go-right (+ coord right)))
+                       (t
+                        (setf (gethash coord water) #\|)
+                        (if (go-down (+ coord down))
+                            t
+                            (go-right (+ coord right))))))
                (go-left (coord)
-                 (unless (gethash coord clay)
-                   (setf (gethash coord water) #\|)
-                   (if (go-down (+ coord down))
-                       t
-                       (go-left (+ coord left))))))
+                 (cond ((gethash coord clay) nil)
+                       ((and (gethash coord water)
+                             (char= (gethash coord water) #\|))
+                        (setf (gethash coord water) #\~)
+                        (go-left (+ coord left)))
+                       (t
+                        (setf (gethash coord water) #\|)
+                        (if (go-down (+ coord down))
+                            t
+                            (go-left (+ coord left)))))))
         (go-down #C(500 1)))))
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 17 A: ~a~%" (parse-clay-coordinates *input*)))
+  (defun solve-a (wt)
+    (fill-basins wt)
+    (count-water wt))
+
+  (defun problem-a () (format t "Problem 17 A: ~a~%" (solve-a (parse-clay-coordinates *input*))))
 #+END_SRC
 ** Part 2
+
+#+NAME: count-water-reservoirs
+#+BEGIN_SRC lisp :results silent
+  (defun count-water-reservoirs (wt)
+    (iter outer
+          (for x from (1- (wt-min-x wt)) to (1+ (wt-max-x wt)))
+          (iter (for y from (wt-min-y wt) to (wt-max-y wt))
+                (in outer
+                    (count (and (gethash (complex x y) (wt-water wt))
+                                (char= (gethash (complex x y) (wt-water wt)) #\~)))))))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 17 B: ~a~%" (parse-clay-coordinates *input*)))
+  (defun solve-b (wt)
+    (fill-basins wt)
+    (count-water-reservoirs wt))
+  (defun problem-b () (format t "Problem 17 B: ~a~%" (solve-b (parse-clay-coordinates *input*))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -223,6 +261,7 @@ that we need to go back one level and again search left and right.
   <<print-water-tables>>
   <<count-water>>
   <<fill-basins>>
+  <<count-water-reservoirs>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.17.lisp
@@ -237,22 +276,8 @@ that we need to go back one level and again search left and right.
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-#+begin_example
-Problem 17 A: #S(WATER-TABLES
-                 :CLAY #<HASH-TABLE :TEST EQL :COUNT 19171 {100455C9E3}>
-                 :WATER #<HASH-TABLE :TEST EQL :COUNT 1 {100455CE03}>
-                 :MIN-Y 8
-                 :MAX-Y 1780
-                 :MIN-X 385
-                 :MAX-X 597)
-Problem 17 B: #S(WATER-TABLES
-                 :CLAY #<HASH-TABLE :TEST EQL :COUNT 19171 {100484F373}>
-                 :WATER #<HASH-TABLE :TEST EQL :COUNT 1 {100484F793}>
-                 :MIN-Y 8
-                 :MAX-Y 1780
-                 :MIN-X 385
-                 :MAX-X 597)
-#+end_example
+: Problem 17 A: 34244
+: Problem 17 B: 28202
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
