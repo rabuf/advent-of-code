@@ -47,14 +47,164 @@ support for lisp installed you can run this by:
     (read-input "input/18.txt"))
 #+END_SRC
 ** Part 1
+Another game of life type puzzle.
+
+#+NAME: text-to-grid
+#+BEGIN_SRC lisp :results silent
+  (defun text-to-grid (lines)
+    (let* ((max-x (+ 2 (length (car lines))))
+           (max-y (+ 2 (length lines)))
+           (grid (make-array `(,max-x ,max-y) :initial-element #\.)))
+      (iter (for y from 1)
+            (for line in lines)
+            (iter (for x from 1)
+                  (for c in-string line)
+                  (setf (aref grid x y) c)))
+      grid))
+#+END_SRC
+
+#+NAME: print-grid
+#+BEGIN_SRC lisp :results silent
+  (defun print-grid (grid)
+    (iter (for y from 0 below (array-dimension grid 1))
+          (iter (for x from 0 below (array-dimension grid 0))
+                (format t "~a" (aref grid x y)))
+          (format t "~%")))
+#+END_SRC
+
+#+NAME: next-minute
+#+BEGIN_SRC lisp :results silent
+  (defun count-neighbor-type (grid x y c)
+    (iter outer
+          (for i from (1- x) to (1+ x))
+          (iter (for j from (1- y) to (1+ y))
+                (unless (and (= i x) (= j y))
+                  (in outer
+                      (count (char= (aref grid i j) c)))))))
+
+  (defun next-minute (grid)
+    (let ((next (make-array (array-dimensions grid) :initial-element #\.)))
+      (iter (for y from 1 below (1- (array-dimension grid 1)))
+            (iter (for x from 1 below (1- (array-dimension grid 0)))
+                  (cond ((and (char= (aref grid x y) #\.)
+                              (>= (count-neighbor-type grid x y #\|) 3))
+                             (setf (aref next x y) #\|))
+                        ((and (char= (aref grid x y) #\|)
+                              (>= (count-neighbor-type grid x y #\#) 3))
+                             (setf (aref next x y) #\#))
+                        ((and (char= (aref grid x y) #\#)
+                              (and (>= (count-neighbor-type grid x y #\#) 1)
+                                   (>= (count-neighbor-type grid x y #\|) 1)))
+                             (setf (aref next x y) #\#))
+                        ((and (char= (aref grid x y) #\#)
+                              (not (and (>= (count-neighbor-type grid x y #\#) 1)
+                                        (>= (count-neighbor-type grid x y #\|) 1))))
+                             (setf (aref next x y) #\.))
+                        (t (setf (aref next x y) (aref grid x y))))))
+      next))
+
+  (defun score-grid (grid)
+    (let ((lumber 0)
+          (trees 0))
+      (iter (for x from 1 below (1- (array-dimension grid 0)))
+            (iter (for y from 1 below (1- (array-dimension grid 1)))
+                  (when (char= #\| (aref grid x y))
+                    (incf trees))
+                  (when (char= #\# (aref grid x y))
+                    (incf lumber))))
+      (* lumber trees)))
+#+END_SRC
+
+We need the value (# wooded acres * # lumberyards) after 10
+iterations.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 18 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 18 A: ~a~%" (let ((grid (text-to-grid *input*)))
+                                                       (iter (repeat 10)
+                                                             (setf grid (next-minute grid)))
+                                                       (score-grid grid))))
 #+END_SRC
 ** Part 2
+Like with the other game of life style one, found a pattern. I'll show
+it here:
+#+BEGIN_SRC lisp :results output
+  (let ((grid (text-to-grid *input*)))
+    (iter (for i from 1 to 2000)
+          (setf grid (next-minute grid))
+          (when (> i (- 2000 57))
+            (format t "~4,'0d: ~d~%" i (score-grid grid)))))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+1944: 184032
+1945: 184254
+1946: 186880
+1947: 191160
+1948: 195000
+1949: 198387
+1950: 201798
+1951: 201798
+1952: 201465
+1953: 199995
+1954: 200178
+1955: 197232
+1956: 195460
+1957: 191285
+1958: 185004
+1959: 181192
+1960: 176484
+1961: 178776
+1962: 177232
+1963: 179800
+1964: 181853
+1965: 185859
+1966: 187850
+1967: 190046
+1968: 190740
+1969: 186595
+1970: 182560
+1971: 184008
+1972: 184032
+1973: 184254
+1974: 186880
+1975: 191160
+1976: 195000
+1977: 198387
+1978: 201798
+1979: 201798
+1980: 201465
+1981: 199995
+1982: 200178
+1983: 197232
+1984: 195460
+1985: 191285
+1986: 185004
+1987: 181192
+1988: 176484
+1989: 178776
+1990: 177232
+1991: 179800
+1992: 181853
+1993: 185859
+1994: 187850
+1995: 190046
+1996: 190740
+1997: 186595
+1998: 182560
+1999: 184008
+2000: 184032
+#+end_example
+
+It's a period of 28. So we can compute the score for the target minute
+(1000000000). (1000000000 - 2000) mod 28 = 8. So it's whatever the
+score is at 2008 (or 1980 or 19652 or 2036 or ...). I found the period
+by printing out the first 2000 scores and searching backwards for matching
+scores.
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 18 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 18 B: ~a~%" (identity 201465)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -64,6 +214,8 @@ support for lisp installed you can run this by:
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
+  <<print-grid>>
+  <<text-to-grid>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.18.lisp
@@ -78,16 +230,44 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 18 A: 637550
+: Problem 18 B: 201465
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2018.18)
   (in-suite aoc.2018.18)
 
+  (defparameter *test-input* '(".#.#...|#."
+                               ".....#|##|"
+                               ".|..|...#."
+                               "..|#.....#"
+                               "#.#|||#|#|"
+                               "...#.||..."
+                               ".|....|..."
+                               "||...#|.#|"
+                               "|.||||..|."
+                               "...#.|..|."))
+  (test test-score
+    (is (= (* 37 31) (let ((grid (text-to-grid *test-input*)))
+                       (iter (repeat 10)
+                             (setf grid (next-minute grid)))
+                       (score-grid grid))))
+    (is (= 637550 (let ((grid (text-to-grid *input*)))
+                    (iter (repeat 10)
+                          (setf grid (next-minute grid)))
+                    (score-grid grid)))))
+
+
   (run! 'aoc.2018.18)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2018.18
+:  Running test TEST-SCORE ..
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
