@@ -1,0 +1,382 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 19
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2018-19)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2018-19
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2018-19)
+#+END_SRC
+** Input
+Today's input is a program using the language from Day 16. The opcodes
+are known, now, so we just have the instructions themselves. One
+difference, there are now 6 registers and not 4. One of them is also
+designated (first line) as the instruction register. Modifications to
+it act as jumps and gotos. Fortunately, they happen via the already
+created instructions.
+#+NAME: parse-input
+#+BEGIN_SRC lisp :results silent
+  (defstruct (computer (:conc-name cp-))
+    (instructions nil)
+    (ip 0)
+    (registers (make-array 6 :initial-element 0)))
+
+  (defstruct instruction
+    operation
+    a
+    b
+    c)
+
+  (defun parse-line (line)
+    (with-input-from-string (s line)
+      (make-instruction :operation (read s)
+                        :a (read s)
+                        :b (read s)
+                        :c (read s))))
+
+  (defun parse-input (list)
+    (let ((computer (make-computer)))
+      (setf (cp-ip computer) (parse-integer (ppcre:scan-to-strings "\\d+" (car list))))
+      (iter (for line in (cdr list))
+            (push (parse-line line)  (cp-instructions computer)))
+      (setf (cp-instructions computer) (reverse (cp-instructions computer)))
+      computer))
+#+END_SRC
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (parse-input (read-input "input/19.txt")))
+#+END_SRC
+** Part 1
+I'm copying all the instructions from Day 16 here and making some
+minor modifications.
+
+#+NAME: addition
+#+BEGIN_SRC lisp :results none
+  (defun addr (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (+ (aref registers a)
+               (aref registers b)))
+      registers))
+
+  (defun addi (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (+ (aref registers a)
+               b))
+      registers))
+#+END_SRC
+
+#+NAME: multiplication
+#+BEGIN_SRC lisp :results none
+  (defun mulr (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (* (aref registers a)
+               (aref registers b)))
+      registers))
+
+  (defun muli (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (* (aref registers a)
+               b))
+      registers))
+#+END_SRC
+
+#+NAME: bitwise-and
+#+BEGIN_SRC lisp :results none
+  (defun banr (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (logand (aref registers a)
+                    (aref registers b)))
+      registers))
+
+  (defun bani (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (logand (aref registers a)
+                    b))
+      registers))
+#+END_SRC
+
+#+NAME: bitwise-or
+#+BEGIN_SRC lisp :results none
+  (defun borr (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (logior (aref registers a)
+                    (aref registers b)))
+      registers))
+
+  (defun bori (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (logior (aref registers a)
+                    b))
+      registers))
+#+END_SRC
+
+#+NAME: assignment
+#+BEGIN_SRC lisp :results none
+  (defun setr (registers command)
+    (with-slots (a c) command
+      (setf (aref registers c)
+            (aref registers a))
+      registers))
+
+  (defun seti (registers command)
+    (with-slots (a c) command
+      (setf (aref registers c)
+            a)
+      registers))
+#+END_SRC
+
+#+NAME: greater-than
+#+BEGIN_SRC lisp :results none
+  (defun gtir (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (if (> a (aref registers b)) 1 0))
+      registers))
+
+  (defun gtri (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (if (> (aref registers a) b) 1 0))
+      registers))
+
+  (defun gtrr (registers command)
+    (with-slots (a b c) command
+xo      (setf (aref registers c)
+            (if (> (aref registers a) (aref registers b)) 1 0))
+      registers))
+#+END_SRC
+
+#+NAME: equality
+#+BEGIN_SRC lisp :results none
+  (defun eqir (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (if (= a (aref registers b)) 1 0))
+      registers))
+
+  (defun eqri (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (if (= (aref registers a) b) 1 0))
+      registers))
+
+  (defun eqrr (registers command)
+    (with-slots (a b c) command
+      (setf (aref registers c)
+            (if (= (aref registers a) (aref registers b)) 1 0))
+      registers))
+#+END_SRC
+
+We can use =symbol-function= to turn the first part of each function
+in the input into a function call to the defined operations. Now we
+need to execute the machine.
+
+#+NAME: simulate
+#+BEGIN_SRC lisp :results silent
+  (defun simulate (computer &optional (iv #(0 0 0 0 0 0)))
+    (with-slots (ip registers instructions) computer
+      (setf registers iv)
+      (iter (while (and (>= (aref registers ip) 0)
+                        (< (aref registers ip) (length instructions))))
+            (let ((current (elt instructions (aref registers ip))))
+              (with-slots (operation) current
+                (setf registers (funcall (symbol-function operation) registers current))))
+            (incf (aref registers ip)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 19 A: ~a~%" (identity *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 19 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<addition>>
+  <<multiplication>>
+  <<bitwise-and>>
+  <<bitwise-or>>
+  <<assignment>>
+  <<greater-than>>
+  <<equality>>
+  <<parse-input>>
+  <<simulate>>
+  <<read-input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.19.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 19 A: #S(COMPUTER
+                 :INSTRUCTIONS (#S(INSTRUCTION :OPERATION SETI :A 0 :B 2 :C 4)
+                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 5 :C 0)
+                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
+                                #S(INSTRUCTION :OPERATION MULI :A 2 :B 14 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 2 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
+                                #S(INSTRUCTION :OPERATION SETR :A 4 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 0 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 0 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 5)
+                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 6 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 1 :C 2)
+                                #S(INSTRUCTION :OPERATION MULI :A 5 :B 11 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 5 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 5 :B 5 :C 5)
+                                #S(INSTRUCTION :OPERATION ADDI :A 5 :B 2 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 4 :C 4)
+                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 6 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 2 :B 4 :C 4)
+                                #S(INSTRUCTION :OPERATION GTRR :A 1 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDI :A 1 :B 1 :C 1)
+                                #S(INSTRUCTION :OPERATION SETI :A 2 :B 3 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 4)
+                                #S(INSTRUCTION :OPERATION GTRR :A 3 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDI :A 3 :B 1 :C 3)
+                                #S(INSTRUCTION :OPERATION ADDR :A 1 :B 0 :C 0)
+                                #S(INSTRUCTION :OPERATION ADDI :A 4 :B 1 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 2 :B 4 :C 4)
+                                #S(INSTRUCTION :OPERATION EQRR :A 2 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 1 :B 3 :C 2)
+                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 7 :C 3)
+                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 1 :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION ADDI
+                                   :A 4
+                                   :B 16
+                                   :C 4))
+                 :IP 4
+                 :REGISTERS #(0 0 0 0 0 0))
+Problem 19 B: #S(COMPUTER
+                 :INSTRUCTIONS (#S(INSTRUCTION :OPERATION SETI :A 0 :B 2 :C 4)
+                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 5 :C 0)
+                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
+                                #S(INSTRUCTION :OPERATION MULI :A 2 :B 14 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 2 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
+                                #S(INSTRUCTION :OPERATION SETR :A 4 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 0 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 0 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 5)
+                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 6 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 1 :C 2)
+                                #S(INSTRUCTION :OPERATION MULI :A 5 :B 11 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 5 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 5 :B 5 :C 5)
+                                #S(INSTRUCTION :OPERATION ADDI :A 5 :B 2 :C 5)
+                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 4 :C 4)
+                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 6 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 2 :B 4 :C 4)
+                                #S(INSTRUCTION :OPERATION GTRR :A 1 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDI :A 1 :B 1 :C 1)
+                                #S(INSTRUCTION :OPERATION SETI :A 2 :B 3 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 4)
+                                #S(INSTRUCTION :OPERATION GTRR :A 3 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION ADDI :A 3 :B 1 :C 3)
+                                #S(INSTRUCTION :OPERATION ADDR :A 1 :B 0 :C 0)
+                                #S(INSTRUCTION :OPERATION ADDI :A 4 :B 1 :C 4)
+                                #S(INSTRUCTION :OPERATION ADDR :A 2 :B 4 :C 4)
+                                #S(INSTRUCTION :OPERATION EQRR :A 2 :B 5 :C 2)
+                                #S(INSTRUCTION :OPERATION MULR :A 1 :B 3 :C 2)
+                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 7 :C 3)
+                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 1 :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION ADDI
+                                   :A 4
+                                   :B 16
+                                   :C 4))
+                 :IP 4
+                 :REGISTERS #(0 0 0 0 0 0))
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2018.19)
+  (in-suite aoc.2018.19)
+  (defparameter *test-input* (list "#ip 0"
+                                   "seti 5 0 1"
+                                   "seti 6 0 2"
+                                   "addi 0 1 0"
+                                   "addr 1 2 3"
+                                   "setr 1 0 0"
+                                   "seti 8 0 4"
+                                   "seti 9 0 5"))
+  (defparameter *test-computer* (parse-input *test-input*))
+  (defun test-run ()
+    (simulate *test-computer*)
+    (format t "~a~%" *test-computer*))
+
+  (run! 'aoc.2018.19)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2018.19
+:  Didn't run anything...huh?
+** Thoughts
