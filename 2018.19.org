@@ -184,7 +184,7 @@ minor modifications.
 
   (defun gtrr (registers command)
     (with-slots (a b c) command
-xo      (setf (aref registers c)
+      (setf (aref registers c)
             (if (> (aref registers a) (aref registers b)) 1 0))
       registers))
 #+END_SRC
@@ -214,7 +214,7 @@ We can use =symbol-function= to turn the first part of each function
 in the input into a function call to the defined operations. Now we
 need to execute the machine.
 
-#+NAME: simulate
+#+NAME: simulate-debug
 #+BEGIN_SRC lisp :results silent
   (defun simulate (computer &optional (iv #(0 0 0 0 0 0)) (continuous t))
     (with-slots (ip registers instructions) computer
@@ -228,9 +228,22 @@ need to execute the machine.
             (incf (aref registers ip))
             (format t "~d: ~a~%" (aref registers ip) registers))))
 #+END_SRC
+#+NAME: simulate
+#+BEGIN_SRC lisp :results silent
+  (defun simulate (computer &optional (iv #(0 0 0 0 0 0)))
+    (with-slots (ip registers instructions) computer
+      (setf registers iv)
+      (iter (while (and (>= (aref registers ip) 0)
+                        (< (aref registers ip) (length instructions))))
+            (let ((current (elt instructions (aref registers ip))))
+              (with-slots (operation) current
+                (setf registers (funcall (symbol-function operation) registers current))))
+            (incf (aref registers ip)))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 19 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 19 A: ~a~%" (progn (simulate *input*)
+                                                            (aref (cp-registers *input*) 0))))
 #+END_SRC
 ** Part 2
 Takes too long. So I'm trying to determine the pattern and calculate
@@ -238,7 +251,9 @@ the result. I'm also tempted to try making the whole thing directly in
 Lisp and seeing how it works.
 
 It computes the sum of all factors (including the number itself) of
-register 5: 27941760 (sum of factors of 10550400)
+register 5: 27941760 (sum of factors of 10550400). I worked the logic
+out by evaluating the changes to register 0 using simulate-debug and
+did the math with a quick bit of lisp in the REPL.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 19 B: ~a~%" (identity *input*)))
@@ -275,45 +290,7 @@ register 5: 27941760 (sum of factors of 10550400)
 ** Answer
 #+RESULTS: answers
 #+begin_example
-Problem 19 A: #S(COMPUTER
-                 :INSTRUCTIONS (#S(INSTRUCTION :OPERATION ADDI :A 4 :B 16 :C 4)
-                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 1 :C 1)
-                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 7 :C 3)
-                                #S(INSTRUCTION :OPERATION MULR :A 1 :B 3 :C 2)
-                                #S(INSTRUCTION :OPERATION EQRR :A 2 :B 5 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDR :A 2 :B 4 :C 4)
-                                #S(INSTRUCTION :OPERATION ADDI :A 4 :B 1 :C 4)
-                                #S(INSTRUCTION :OPERATION ADDR :A 1 :B 0 :C 0)
-                                #S(INSTRUCTION :OPERATION ADDI :A 3 :B 1 :C 3)
-                                #S(INSTRUCTION :OPERATION GTRR :A 3 :B 5 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 4)
-                                #S(INSTRUCTION :OPERATION SETI :A 2 :B 3 :C 4)
-                                #S(INSTRUCTION :OPERATION ADDI :A 1 :B 1 :C 1)
-                                #S(INSTRUCTION :OPERATION GTRR :A 1 :B 5 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDR :A 2 :B 4 :C 4)
-                                #S(INSTRUCTION :OPERATION SETI :A 1 :B 6 :C 4)
-                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 4 :C 4)
-                                #S(INSTRUCTION :OPERATION ADDI :A 5 :B 2 :C 5)
-                                #S(INSTRUCTION :OPERATION MULR :A 5 :B 5 :C 5)
-                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 5 :C 5)
-                                #S(INSTRUCTION :OPERATION MULI :A 5 :B 11 :C 5)
-                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 1 :C 2)
-                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 6 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 5)
-                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 0 :C 4)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 0 :C 4)
-                                #S(INSTRUCTION :OPERATION SETR :A 4 :B 5 :C 2)
-                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION MULR :A 4 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION MULI :A 2 :B 14 :C 2)
-                                #S(INSTRUCTION :OPERATION MULR :A 2 :B 4 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 5)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 5 :C 0)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 2 :C 4))
-                 :IP 4
-                 :REGISTERS #(0 0 0 0 0 0))
+Problem 19 A: 2520
 Problem 19 B: #S(COMPUTER
                  :INSTRUCTIONS (#S(INSTRUCTION :OPERATION ADDI :A 4 :B 16 :C 4)
                                 #S(INSTRUCTION :OPERATION SETI :A 1 :B 1 :C 1)
@@ -352,7 +329,7 @@ Problem 19 B: #S(COMPUTER
                                 #S(INSTRUCTION :OPERATION SETI :A 0 :B 5 :C 0)
                                 #S(INSTRUCTION :OPERATION SETI :A 0 :B 2 :C 4))
                  :IP 4
-                 :REGISTERS #(0 0 0 0 0 0))
+                 :REGISTERS #(2520 865 1 865 257 864))
 #+end_example
 ** Test Cases
 #+NAME: test-cases
