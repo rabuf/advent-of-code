@@ -133,7 +133,7 @@ and then attempt to print them out.
 #+BEGIN_SRC lisp :results silent
   (defun print-water-tables (wt)
     (iter (for y from 0 to (wt-max-y wt))
-          (iter (for x from (wt-min-x wt) to (wt-max-x wt))
+          (iter (for x from (1- (wt-min-x wt)) to (1+ (wt-max-x wt)))
                 (let ((coord (complex x y)))
                   (cond ((gethash coord (wt-clay wt))
                          (format t "#"))
