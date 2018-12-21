@@ -226,11 +226,11 @@ Now we want the number of rooms with a shortest path 1000 or longer.
     (def-suite aoc.2018.20)
     (in-suite aoc.2018.20)
     (test distance-test
-      (is (= 31 (count-doors (build-map (parse-input "^WSSEESWWWNW(S|NENNEEEENN(ESSSSW(NWSW|SSEN)|WSWWN(E|WWS(E|SS))))$")))))
-      (is (= 23 (count-doors (build-map (parse-input "^ESSWWN(E|NNENN(EESS(WNSE|)SSS|WWWSSSSE(SW|NNNE)))$")))))
-      (is (= 18 (count-doors (build-map (parse-input "^ENNWSWW(NEWS|)SSSEEN(WNSE|)EE(SWEN|)NNN$")))))
-      (is (= 10 (count-doors (build-map (parse-input "^ENWWW(NEEE|SSE(EE|N))$")))))
-      (is (= 3 (count-doors (build-map (parse-input "^WNE$"))))))
+      (is (= 31 (max-doors (build-map (parse-input "^WSSEESWWWNW(S|NENNEEEENN(ESSSSW(NWSW|SSEN)|WSWWN(E|WWS(E|SS))))$")))))
+      (is (= 23 (max-doors (build-map (parse-input "^ESSWWN(E|NNENN(EESS(WNSE|)SSS|WWWSSSSE(SW|NNNE)))$")))))
+      (is (= 18 (max-doors (build-map (parse-input "^ENNWSWW(NEWS|)SSSEEN(WNSE|)EE(SWEN|)NNN$")))))
+      (is (= 10 (max-doors (build-map (parse-input "^ENWWW(NEEE|SSE(EE|N))$")))))
+      (is (= 3 (max-doors (build-map (parse-input "^WNE$"))))))
     (run! 'aoc.2018.20)
 #+END_SRC
 ** Test Results
