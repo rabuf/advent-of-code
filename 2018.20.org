@@ -1,0 +1,245 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 20
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2018-20)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2018-20
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2018-20)
+#+END_SRC
+** Input
+This is an interesting problem. The input is given as a regular
+expression style description of the directionsq through a complex. I'm
+going to make use of parseq to separate this into a tree structure.
+#+NAME: parse-input
+#+BEGIN_SRC lisp :results silent
+  (defun direction (d)
+    (case d
+      (#\N #C(0 -1))
+      (#\S #C(0 1))
+      (#\E #C(1 0))
+      (#\W #C(-1 0))
+      (otherwise #C(0 0))))
+
+  (defun parse-alternates (s result alt)
+    (let ((c (read-char s)))
+      (case c
+        (#\) (push (reverse alt) result)
+             (reverse result))
+        (#\( (push (parse-alternates s nil nil) alt)
+             (parse-alternates s result alt))
+        (#\| (push (reverse alt) result)
+             (parse-alternates s result nil))
+        (otherwise (push (direction c) alt)
+                   (parse-alternates s result alt)))))
+
+  (defun parse (s result)
+    (let ((c (read-char s)))
+      (case c
+        (#\$ (reverse result))
+        (#\( (push (parse-alternates s nil nil) result)
+             (parse s result))
+        (otherwise (push (direction c) result)
+                   (parse s result)))))
+
+  (defun parse-input (directions)
+    (with-input-from-string (s directions)
+      (read-char s)
+      (parse s nil)))
+#+END_SRC
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/20.txt"))
+#+END_SRC
+** Part 1
+#+NAME: build-map
+#+BEGIN_SRC lisp :results silent
+  (defun build-map (directions)
+    (let ((map (make-hash-table)))
+      (labels ((recurse (directions position)
+                 (let ((next (car directions)))
+                   (cond ((null directions) nil)
+                         ((numberp next)
+                          (pushnew position (gethash (+ position next) map))
+                          (pushnew (+ position next) (gethash position map))
+                          (recurse (cdr directions) (+ position next)))
+                         ((listp next)
+                          (iter (for alt in next)
+                                (recurse alt position))
+                          (recurse (cdr directions) position))))))
+                                ;; (recurse (append alt (cdr directions)) position)))))))
+        (recurse directions 0)
+        map)))
+#+END_SRC
+#+NAME: print-map
+#+BEGIN_SRC lisp :results silent
+  (defun bounds (map)
+    (let ((max-x most-negative-double-float)
+          (max-y most-negative-double-float)
+          (min-x most-positive-double-float)
+          (min-y most-positive-double-float))
+      (iter (for (k v) in-hashtable map)
+            (setf max-x (max max-x (realpart k)))
+            (setf max-y (max max-y (imagpart k)))
+            (setf min-x (min min-x (realpart k)))
+            (setf min-y (min min-y (imagpart k))))
+      (list max-x max-y min-x min-y)))
+
+  (defun print-map (map)
+    (destructuring-bind (maxx maxy minx miny) (bounds map)
+      (format t "~a~%" (make-string (+ 3 (* 2 (- maxx minx))) :initial-element #\#))
+      (iter (for y from miny to maxy)
+            (format t "#")
+            (iter (for x from minx to maxx)
+                  (if (= 0 (complex x y))
+                      (format t "X")
+                      (format t "."))
+                  (if (member (complex (1+ x) y) (gethash (complex x y) map))
+                      (format t "|")
+                      (format t "#")))
+            (format t "~%#")
+            (iter (for x from minx to maxx)
+                  (if (member (complex x (1+ y)) (gethash (complex x y) map))
+                      (format t "-#")
+                      (format t "##")))
+            (format t "~%"))))
+
+#+END_SRC
+
+#+NAME: max-doors
+#+BEGIN_SRC lisp :results silent
+  (defun max-doors (map &optional (position 0))
+    (let ((search (make-hash-table))
+          (max most-negative-double-float)
+          (current nil)
+          (next (list 0)))
+      (setf (gethash position search) 0)
+      (iter (while next)
+            (setf current next)
+            (setf next nil)
+            (iter (for p in current)
+                  (iter (for n in (gethash p map))
+                        (unless (gethash n search)
+                          (setf (gethash n search) (1+ (gethash p search)))
+                          (setf max (max (gethash n search) max))
+                          (pushnew n next)))))
+      max))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 20 A: ~a~%" (max-doors (build-map (parse-input (car *input*))))))
+#+END_SRC
+** Part 2
+Now we want the number of rooms with a shortest path 1000 or longer.
+#+NAME: count-doors
+#+BEGIN_SRC lisp :results silent
+  (defun count-doors (map limit &optional (position 0))
+    (let ((search (make-hash-table))
+          (max most-negative-double-float)
+          (current nil)
+          (next (list 0)))
+      (setf (gethash position search) 0)
+      (iter (while next)
+            (setf current next)
+            (setf next nil)
+            (iter (for p in current)
+                  (iter (for n in (gethash p map))
+                        (unless (gethash n search)
+                          (setf (gethash n search) (1+ (gethash p search)))
+                          (setf max (max (gethash n search) max))
+                          (pushnew n next)))))
+      (iter (for (k v) in-hashtable search)
+            (count (<= limit v)))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 20 B: ~a~%" (count-doors (build-map (parse-input (car *input*))) 1000)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-input>>
+  <<build-map>>
+  <<print-map>>
+  <<max-doors>>
+  <<count-doors>>
+  <<read-input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.20.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 20 A: 4018
+: Problem 20 B: 8581
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+    (def-suite aoc.2018.20)
+    (in-suite aoc.2018.20)
+    (test distance-test
+      (is (= 31 (count-doors (build-map (parse-input "^WSSEESWWWNW(S|NENNEEEENN(ESSSSW(NWSW|SSEN)|WSWWN(E|WWS(E|SS))))$")))))
+      (is (= 23 (count-doors (build-map (parse-input "^ESSWWN(E|NNENN(EESS(WNSE|)SSS|WWWSSSSE(SW|NNNE)))$")))))
+      (is (= 18 (count-doors (build-map (parse-input "^ENNWSWW(NEWS|)SSSEEN(WNSE|)EE(SWEN|)NNN$")))))
+      (is (= 10 (count-doors (build-map (parse-input "^ENWWW(NEEE|SSE(EE|N))$")))))
+      (is (= 3 (count-doors (build-map (parse-input "^WNE$"))))))
+    (run! 'aoc.2018.20)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2018.20
+:  Running test DISTANCE-TEST .....
+:  Did 5 checks.
+:     Pass: 5 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
