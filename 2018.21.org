@@ -217,7 +217,7 @@ and use my implementation from Day 19.
                 (with-slots (operation) current
                   (setf registers (funcall (symbol-function operation) registers current))))
               (incf (aref registers ip))
-              (when (= (aref registers ip) 29)
+              (when (= (aref registers ip) 28)
                 (unless (gethash (aref registers 5) halt-values)
                   (format t "~d: ~d~%" (aref registers 5) iterations)
                   (setf (gethash (aref registers 5) halt-values) iterations)))
