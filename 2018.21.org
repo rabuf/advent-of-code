@@ -50,7 +50,7 @@ support for lisp installed you can run this by:
 
   (defun parse-line (line)
     (with-input-from-string (s line)
-      (make-instruction :operation (read s)
+      (make-instruction :operation (symbol-function (read s))
                         :a (read s)
                         :b (read s)
                         :c (read s))))
@@ -215,14 +215,42 @@ and use my implementation from Day 19.
               (until (> iterations limit))
               (let ((current (elt instructions (aref registers ip))))
                 (with-slots (operation) current
-                  (setf registers (funcall (symbol-function operation) registers current))))
-              (incf (aref registers ip))
-              (when (= (aref registers ip) 28)
-                (unless (gethash (aref registers 5) halt-values)
-                  (format t "~d: ~d~%" (aref registers 5) iterations)
-                  (setf (gethash (aref registers 5) halt-values) iterations)))
-              (incf iterations)))))
+                  (funcall operation registers current)
+                  (when (= (aref registers ip) 28)
+                    (when (gethash (aref registers 5) halt-values)
+                      (return halt-values))
+                    (unless (gethash (aref registers 5) halt-values)
+                      (format t "~d: ~d~%" (aref registers 5) iterations)
+                      (setf (gethash (aref registers 5) halt-values) iterations)))
+                  (incf (aref registers ip))
+                  (incf iterations)))))))
 #+END_SRC
+
+#+BEGIN_SRC lisp
+  (simulate *input* #(6619857 0 0 0 0 0) 1000000000)
+#+END_SRC
+
+That will terminate in less than a second. I found the value for both
+by running the above program (changed to actually terminate, the one I
+actually used didn't terminate it just went on forever). The above
+will detect a cycle in the values of register 5 and return a hash
+table with each value of register 5 and at what iteration it was
+reached (could by off-by-one, but that number doesn't matter). The two
+desired values can be found by examining the printout or storing the
+hash table and querying it for which keys correpsonded to the min/max
+iteration value.
+
+I managed to shave off a few seconds by moving =symbol-function= to
+the creation of the instruction instances. 
+
+Rather than run the whole thing I use 712 as a benchmark. It took 90
+seconds in my initial version. 89 by moving =symbol-function=. Another
+3 seconds were removed by getting rid of =(setf registers (...))=
+because that was redundant (the operations themselves change the
+=registers= array already).
+
+The original version took 586 seconds to find the cycle. With those
+updates it now takes 536 seconds. That's a pretty good improvement.
 
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -232,6 +260,8 @@ and use my implementation from Day 19.
 #+BEGIN_SRC lisp :exports both
 (simulate *input* #(9547924 0 0 0 0 0) 10000000000)
 #+END_SRC
+
+That will terminate eventually.
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -271,150 +301,318 @@ and use my implementation from Day 19.
 #+begin_example
 Problem 21 A: #S(COMPUTER
                  :INSTRUCTIONS (#S(INSTRUCTION
-                                   :OPERATION SETI
+                                   :OPERATION #<FUNCTION SETI>
                                    :A 123
                                    :B 0
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 5
                                    :B 456
                                    :C 5)
-                                #S(INSTRUCTION :OPERATION EQRI :A 5 :B 72 :C 5)
-                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 0 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 3 :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BORI
+                                   :OPERATION #<FUNCTION EQRI>
+                                   :A 5
+                                   :B 72
+                                   :C 5)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 5
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 0
+                                   :B 0
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 0
+                                   :B 3
+                                   :C 5)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION BORI>
                                    :A 5
                                    :B 65536
                                    :C 3)
                                 #S(INSTRUCTION
-                                   :OPERATION SETI
+                                   :OPERATION #<FUNCTION SETI>
                                    :A 9010242
                                    :B 6
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 3
                                    :B 255
                                    :C 1)
-                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 1 :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 5
+                                   :B 1
+                                   :C 5)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 5
                                    :B 16777215
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION MULI
+                                   :OPERATION #<FUNCTION MULI>
                                    :A 5
                                    :B 65899
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 5
                                    :B 16777215
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION GTIR
+                                   :OPERATION #<FUNCTION GTIR>
                                    :A 256
                                    :B 3
                                    :C 1)
-                                #S(INSTRUCTION :OPERATION ADDR :A 1 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 1 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 27 :B 6 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 8 :C 1)
-                                #S(INSTRUCTION :OPERATION ADDI :A 1 :B 1 :C 4)
                                 #S(INSTRUCTION
-                                   :OPERATION MULI
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 1
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 2
+                                   :B 1
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 27
+                                   :B 6
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 0
+                                   :B 8
+                                   :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 1
+                                   :B 1
+                                   :C 4)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION MULI>
                                    :A 4
                                    :B 256
                                    :C 4)
-                                #S(INSTRUCTION :OPERATION GTRR :A 4 :B 3 :C 4)
-                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 1 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 25 :B 5 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDI :A 1 :B 1 :C 1)
-                                #S(INSTRUCTION :OPERATION SETI :A 17 :B 7 :C 2)
-                                #S(INSTRUCTION :OPERATION SETR :A 1 :B 3 :C 3)
-                                #S(INSTRUCTION :OPERATION SETI :A 7 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION EQRR :A 5 :B 0 :C 1)
-                                #S(INSTRUCTION :OPERATION ADDR :A 1 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 5 :B 2 :C 2))
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION GTRR>
+                                   :A 4
+                                   :B 3
+                                   :C 4)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 4
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 2
+                                   :B 1
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 25
+                                   :B 5
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 1
+                                   :B 1
+                                   :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 17
+                                   :B 7
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETR>
+                                   :A 1
+                                   :B 3
+                                   :C 3)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 7
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION EQRR>
+                                   :A 5
+                                   :B 0
+                                   :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 1
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 5
+                                   :B 2
+                                   :C 2))
                  :IP 2
                  :REGISTERS #(0 0 0 0 0 0))
 Problem 21 B: #S(COMPUTER
                  :INSTRUCTIONS (#S(INSTRUCTION
-                                   :OPERATION SETI
+                                   :OPERATION #<FUNCTION SETI>
                                    :A 123
                                    :B 0
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 5
                                    :B 456
                                    :C 5)
-                                #S(INSTRUCTION :OPERATION EQRI :A 5 :B 72 :C 5)
-                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 0 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 3 :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BORI
+                                   :OPERATION #<FUNCTION EQRI>
+                                   :A 5
+                                   :B 72
+                                   :C 5)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 5
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 0
+                                   :B 0
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 0
+                                   :B 3
+                                   :C 5)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION BORI>
                                    :A 5
                                    :B 65536
                                    :C 3)
                                 #S(INSTRUCTION
-                                   :OPERATION SETI
+                                   :OPERATION #<FUNCTION SETI>
                                    :A 9010242
                                    :B 6
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 3
                                    :B 255
                                    :C 1)
-                                #S(INSTRUCTION :OPERATION ADDR :A 5 :B 1 :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 5
+                                   :B 1
+                                   :C 5)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 5
                                    :B 16777215
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION MULI
+                                   :OPERATION #<FUNCTION MULI>
                                    :A 5
                                    :B 65899
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION BANI
+                                   :OPERATION #<FUNCTION BANI>
                                    :A 5
                                    :B 16777215
                                    :C 5)
                                 #S(INSTRUCTION
-                                   :OPERATION GTIR
+                                   :OPERATION #<FUNCTION GTIR>
                                    :A 256
                                    :B 3
                                    :C 1)
-                                #S(INSTRUCTION :OPERATION ADDR :A 1 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 1 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 27 :B 6 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 0 :B 8 :C 1)
-                                #S(INSTRUCTION :OPERATION ADDI :A 1 :B 1 :C 4)
                                 #S(INSTRUCTION
-                                   :OPERATION MULI
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 1
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 2
+                                   :B 1
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 27
+                                   :B 6
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 0
+                                   :B 8
+                                   :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 1
+                                   :B 1
+                                   :C 4)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION MULI>
                                    :A 4
                                    :B 256
                                    :C 4)
-                                #S(INSTRUCTION :OPERATION GTRR :A 4 :B 3 :C 4)
-                                #S(INSTRUCTION :OPERATION ADDR :A 4 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDI :A 2 :B 1 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 25 :B 5 :C 2)
-                                #S(INSTRUCTION :OPERATION ADDI :A 1 :B 1 :C 1)
-                                #S(INSTRUCTION :OPERATION SETI :A 17 :B 7 :C 2)
-                                #S(INSTRUCTION :OPERATION SETR :A 1 :B 3 :C 3)
-                                #S(INSTRUCTION :OPERATION SETI :A 7 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION EQRR :A 5 :B 0 :C 1)
-                                #S(INSTRUCTION :OPERATION ADDR :A 1 :B 2 :C 2)
-                                #S(INSTRUCTION :OPERATION SETI :A 5 :B 2 :C 2))
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION GTRR>
+                                   :A 4
+                                   :B 3
+                                   :C 4)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 4
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 2
+                                   :B 1
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 25
+                                   :B 5
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDI>
+                                   :A 1
+                                   :B 1
+                                   :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 17
+                                   :B 7
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETR>
+                                   :A 1
+                                   :B 3
+                                   :C 3)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 7
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION EQRR>
+                                   :A 5
+                                   :B 0
+                                   :C 1)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION ADDR>
+                                   :A 1
+                                   :B 2
+                                   :C 2)
+                                #S(INSTRUCTION
+                                   :OPERATION #<FUNCTION SETI>
+                                   :A 5
+                                   :B 2
+                                   :C 2))
                  :IP 2
                  :REGISTERS #(0 0 0 0 0 0))
 #+end_example
