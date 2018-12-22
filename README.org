@@ -14,6 +14,7 @@ template and method of presentation.
 * Events
 My first year participating is 2018. But I've started going back to
 previous years to work through those problems.
-** [[file:aoc2018.org][Advent of Code 2018]]
+** [[file:2018/aoc2018.org][Advent of Code 2018]]
 ** [[file:2017/aoc2017.org][Advent of Code 2017]]
+** [[file:2016/aoc2016.org][Advent of Code 2016]]
 ** [[file:2015/aoc2015.org][Advent of Code 2015]]
