@@ -1,0 +1,220 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 23
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-23)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-23
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-23)
+#+END_SRC
+** Input
+#+NAME: 
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/23.txt"))
+#+END_SRC
+** Part 1
+The program:
+#+BEGIN_EXAMPLE
+  jio a, +22 // not executed
+  inc a      // a++
+  tpl a      // a*=3
+  tpl a      // a*=3
+  tpl a      // a*=3 (a = 27)
+  inc a      // a++
+  tpl a      // a*=3
+  inc a      // a++
+  tpl a      // a*=3
+  inc a      // a++
+  inc a      // a++
+  tpl a      // a*=3 (a = 771)
+  inc a      // a++
+  inc a      // a++
+  tpl a      // a*=3
+  inc a      // a++
+  inc a      // a++
+  tpl a      // a*=3 (a = 6963)
+  inc a      // a++
+  inc a      // a++
+  tpl a      // a*=3 (a = 20895)
+  jmp +19    // go to start of loop
+  tpl a      // none of these get executed
+  tpl a
+  tpl a
+  tpl a
+  inc a
+  inc a
+  tpl a
+  inc a
+  tpl a
+  inc a
+  inc a
+  tpl a
+  inc a
+  inc a
+  tpl a
+  inc a
+  tpl a
+  tpl a      // all the way to here
+  jio a, +8  // start of loop
+  inc b
+  jie a, +4
+  tpl a
+  inc a
+  jmp +2
+  hlf a
+  jmp -7
+#+END_EXAMPLE
+
+Question: What's the value of register =b= after the program
+terminates?
+
+#+NAME: collatz
+#+BEGIN_SRC lisp :results silent
+  (defun collatz (a)
+    (let ((b 0))
+      (iter (until (= a 1))
+            (incf b)
+            (cond ((evenp a)
+                   (setf a (/ a 2)))
+                  (t (setf a (1+ (* 3 a))))))
+      b))
+#+END_SRC
+I skipped making a simulator since I knew what the program did, but I
+may come back and write one in the future.
+
+The core of this problem is the last 8 instructions which form a
+loop. The program is counting (in =b=) how long it takes for =a= to
+reach one in the 3n+1 problem (if n is odd, triple it and add 1, if
+even halve it, until it reaches 1).
+
+I worked out the values for =a= at the start of the loop using a
+calculator.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 23 A: ~a~%" (collatz 20895)))
+#+END_SRC
+** Part 2
+The second part asks what if =a= starts at 1. In that case we need to
+know the second potential input value. The first jump (=jio a, +22=)
+will execute this time and send us to the second computation of a:
+#+BEGIN_EXAMPLE
+  tpl a  // a*=3
+  tpl a  // a*=3
+  tpl a  // a*=3
+  tpl a  // a*=3 (a = 81)
+  inc a  // a++
+  inc a  // a++ (a = 83)
+  tpl a  // a*=3
+  inc a  // a++
+  tpl a  // a*=3
+  inc a  // a++
+  inc a  // a++ (a=752
+  tpl a  // a*=3
+  inc a  // a++
+  inc a  // a++
+  tpl a  // a*=3
+  inc a  // a++
+  tpl a  // a*=3
+  tpl a  // a*=3 (a = 60975)
+#+END_EXAMPLE
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 23 B: ~a~%" (collatz 60975)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<collatz>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.23.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 23 A: 255
+: Problem 23 B: 334
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2015.23)
+  (in-suite aoc.2015.23)
+
+  (run! 'aoc.2015.23)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+I'm not making a simulator or automatic translator right now, but I
+had some fun writing up how this could be done in this particular
+language:
+#+BEGIN_SRC lisp
+  (let ((a 1) (b 0))
+    (tagbody
+     0 (when (= a 1) (go 22))
+     1 (setf a 20895)
+     21 (go 40)
+     22 (setf a 60975)
+     40 (when (= a 1) (go 48))
+     41 (incf b)
+     42 (when (evenp a) (go 46))
+     43 (setf a (* a 3))
+     44 (incf a)
+     45 (go 47)
+     46 (setf a (/ a 2))
+     47 (go 40)
+     48 nil)
+    b)
+#+END_SRC
+I shortened the initialization portions but left the loop intact. So
+an easy way to simulate this machine would be a macro that accepts the
+input and sticks it inside a tag body like this. The tags become just
+the instruction number in the sequence and jumps can be calculated (in
+the macro form).
