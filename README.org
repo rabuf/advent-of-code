@@ -2,18 +2,13 @@
 #+OPTIONS: toc:nil num:nil
 * About
 This is my collection of solutions for [[http://adventofcode.com][Advent of Code]] challenges. Most
-of these will be done in Common Lisp.
+of these will be done in Common Lisp. I may go back and do some of
+them in other languages, too.
 * Organization
 Each year has its own org file (linked below). From there you can get
 to my code and write up for each of the problems I've solved for that
 year.
-
-2018 is my first year doing this live. As I have time I'm going back
-to prior years to practice solving the problems and refine my org-file
-template and method of presentation.
 * Events
-My first year participating is 2018. But I've started going back to
-previous years to work through those problems.
 ** [[file:2018/aoc2018.org][Advent of Code 2018]]
 ** [[file:2017/aoc2017.org][Advent of Code 2017]]
 ** [[file:2016/aoc2016.org][Advent of Code 2016]]
