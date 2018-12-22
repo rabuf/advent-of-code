@@ -20,6 +20,8 @@ support for lisp installed you can run this by:
     (ql:quickload "parseq"))
   (unless (find-package :fiveam)
     (ql:quickload "fiveam"))
+  (unless (find-package :cl-heap)
+    (ql:quickload "cl-heap"))
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
@@ -55,11 +57,11 @@ Need to determine the risk level of the cave Santa's friend is trapped
 in.
 
 Need to compute the geologic index of a region.
-#+NAME: geologic-index
+#+NAME: geologic-index-a
 #+BEGIN_SRC lisp :results silent
   (defun erosion-level (geo-index depth)
     (mod (+ geo-index depth) 20183))
-  (defun geologic-index (x y depth)
+  (defun geologic-index-a (x y depth)
     (let ((index (make-array (list (+ 2 x) (+ 2 y)) :initial-element 0)))
       (iter (for i from 1 to (1+ x))
             (setf (aref index i 0) (* i 16807)))
@@ -77,9 +79,9 @@ Need to compute the geologic index of a region.
 Ok, I think that works. Now we need the sum of each location from
 (0,0) to (10,715) mod 3.
 
-#+NAME: risk-level
-#+BEGIN_SRC lisp
-  (defun risk-level (geo-index x y depth)
+#+NAME: risk-level-a
+#+BEGIN_SRC lisp :results silent
+  (defun risk-level-a (geo-index x y depth)
     (iter outer
           (for j from 0 to y)
           (iter (for i from 0 to x)
@@ -87,14 +89,11 @@ Ok, I think that works. Now we need the sum of each location from
                     (sum (mod (erosion-level (aref geo-index i j) depth) 3))))))
 #+END_SRC
 
-#+RESULTS: risk-level
-: RISK-LEVEL
-
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem 22 A: ~a~%"
-                              (let ((index (geologic-index 10 715 3339)))
-                                (risk-level index 10 715 3339))))
+                              (let ((index (geologic-index-a 10 715 3339)))
+                                (risk-level-a index 10 715 3339))))
 #+END_SRC
 ** Part 2
 The second part is a pathfinding task.
@@ -127,9 +126,156 @@ reach the target.
 May traverse regions outside of those in the minimal rectangle.
 
 Negative X or Y coordinates are impenetrable rock.
+
+Start with the torch equipped.
+
+I will attempt to relearn writing the A* algorithm. It uses a
+heuristic to determine which option is "best" at any given point.
+#+NAME: geologic-index
+#+BEGIN_SRC lisp :results silent
+  (defun geologic-index (position grid depth target)
+    (cond ((= position target) 0)
+          ((gethash position grid)
+           (gethash position grid))
+          ((= 0 (imagpart position))
+           (setf (gethash position grid) (* position 16807)))
+          ((= 0 (realpart position))
+           (setf (gethash position grid) (* (imagpart position) 48271)))
+          (t (setf (gethash position grid)
+                   (* (erosion-level (geologic-index (- position #C(1 0)) grid depth target) depth)
+                      (erosion-level (geologic-index (- position #C(0 1)) grid depth target) depth))))))
+#+END_SRC
+
+#+BEGIN_SRC lisp :exports both
+  (let ((grid (make-hash-table))
+        (target #C(10 715))
+        (depth 3339))
+    (iter outer
+          (for x from 0 to 10)
+          (iter (for y from 0 to 715)
+                (in outer
+                    (sum (mod (erosion-level (geologic-index (complex x y) grid depth target) depth) 3))))))
+#+END_SRC
+
+#+RESULTS:
+: 7915
+
+That was an experiment, redid the first part using a hash table. This
+will make exploring a bit easier since it can grow more easily than
+the array.
+
+I've added the =cl-heap= package to my building blocks. This will be
+more efficient than using an alist with priorities.
+
+The graph to search is not actually just the positions, but rather
+(positions x equipped). At any given point, the position can change
+(cost of 1) or the equipment can change (cost of 7).
+
+The heuristic will be the Manhattan distance. If we overestimate the
+distance to the target then A* may not find the best poth. Manhattan
+distance is the lower bound in our case.
+
+#+NAME: manhattan-distance
+#+BEGIN_SRC lisp :results silent
+  (defun manhattan-distance (p1 p2)
+    (+ (abs (realpart (- p1 p2)))
+       (abs (imagpart (- p1 p2)))))
+#+END_SRC
+
+Playing around with clasess, because why not. =defmethod= specializes
+on the class types of all parameters. If there's no specialized
+version, the default (returning =nil=) is called, otherwise the
+specialized versions (returning =t=) will be called.
+#+NAME: classes
+#+BEGIN_SRC lisp :results silent
+  (defclass terrain () ())
+  (defclass rocky (terrain) ())
+  (defclass wet (terrain) ())
+  (defclass narrow (terrain) ())
+
+  (defclass equipment () ())
+  (defclass torch (equipment) ())
+  (defclass climbing-gear (equipment) ())
+  (defclass neither (equipment) ())
+
+  (defgeneric allowed (terrain))
+  (defmethod allowed (terrain) nil)
+  (defmethod allowed ((terrain rocky)) (list 'torch 'climbing-gear))
+  (defmethod allowed ((terrain wet)) (list 'climbing-gear 'neither))
+  (defmethod allowed ((terrain narrow)) (list 'torch 'neither))
+
+  (defun terrain-type (erosion-level)
+    (case (mod erosion-level 3)
+      (0 (make-instance 'rocky))
+      (1 (make-instance 'wet))
+      (2 (make-instance 'narrow))))
+  (defun terrain-char (erosion-level)
+    (case (mod erosion-level 3)
+      (0 #\.)
+      (1 #\=)
+      (2 #\|)))
+#+END_SRC
+
+#+NAME: search
+#+BEGIN_SRC lisp :results silent
+  (defun calculate-cost (s1 s2)
+    (cond ((= (car s1) (car s2)) 7)
+          (t 1)))
+
+  (defun search-for-target (x y depth)
+    (let* ((target (complex x y))
+           (grid (make-hash-table))
+           (state (list #C(0 0) 'torch))
+           (frontier (make-instance 'cl-heap:priority-queue))
+           (came-from (make-hash-table :test #'equalp))
+           (cost-so-far (make-hash-table :test #'equalp))
+           (goal (list target 'torch)))
+      (labels ((neighborhood (current)
+                 (let ((position (car current))
+                       (equipment (cadr current))
+                       (offsets '(-1 1 #C(0 1) #C(0 -1))))
+                   (iter outer
+                         (for offset in offsets)
+                         (when (and (<= 0 (realpart (+ offset position)))
+                                    (<= 0 (imagpart (+ offset position)))
+                                    (>= (* 2 x) (realpart (+ offset position)))
+                                    (>= (* 2 y) (imagpart (+ offset position))))
+                           (let ((terrain
+                                  (terrain-type (erosion-level
+                                                 (geologic-index (+ position offset)
+                                                                 grid depth target)
+                                                 depth))))
+                             (iter (for e in (allowed terrain))
+                                   (cond ((eq e equipment)
+                                          (in outer
+                                              (collect (list (+ position offset) equipment))))
+                                         (t
+                                          (in outer
+                                              (collect (list position e))))))))))))
+        (setf (gethash state came-from) nil)
+        (setf (gethash state cost-so-far) 0)
+        (cl-heap:enqueue frontier state 0)
+        (iter (until (= 0 (cl-heap:queue-size frontier)))
+              (for current = (cl-heap:dequeue frontier))
+              ;; (format t "~a: ~a~%" current (gethash current cost-so-far))
+              (when (equalp current goal)
+                (return (gethash current cost-so-far)))
+              (iter (for next in (neighborhood current))
+                    (let ((cost (+ (gethash current cost-so-far)
+                                   (calculate-cost current next))))
+                      (when (or (not (gethash next cost-so-far))
+                                (< cost (gethash next cost-so-far)))
+                        (setf (gethash next cost-so-far) cost)
+                        (cl-heap:enqueue frontier
+                                         next
+                                         (+ cost (manhattan-distance target (car next))))
+                        ;; (format t "~a~%" (cl-heap:peep-at-queue frontier))
+                        (setf (gethash next came-from) current))))))))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 22 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 22 B: ~a~%" (search-for-target 10 715 3339)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -138,7 +284,14 @@ Negative X or Y coordinates are impenetrable rock.
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<geologic-index-a>>
+  <<risk-level-a>>
   <<read-input>>
+
+  <<manhattan-distance>>
+  <<geologic-index>>
+  <<classes>>
+  <<search>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.22.lisp
@@ -154,7 +307,7 @@ Negative X or Y coordinates are impenetrable rock.
 ** Answer
 #+RESULTS: answers
 : Problem 22 A: 7915
-: Problem 22 B: (depth: 3339 target: 10,715)
+: Problem 22 B: 980
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
