@@ -35,6 +35,10 @@ support for lisp installed you can run this by:
   (in-package :aoc-2018-22)
 #+END_SRC
 ** Input
+The input is a depth and coordinate pair:
+- Depth :: 3339
+- X,Y :: 10,715
+
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -47,11 +51,82 @@ support for lisp installed you can run this by:
     (read-input "input/22.txt"))
 #+END_SRC
 ** Part 1
+Need to determine the risk level of the cave Santa's friend is trapped
+in.
+
+Need to compute the geologic index of a region.
+#+NAME: geologic-index
+#+BEGIN_SRC lisp :results silent
+  (defun erosion-level (geo-index depth)
+    (mod (+ geo-index depth) 20183))
+  (defun geologic-index (x y depth)
+    (let ((index (make-array (list (+ 2 x) (+ 2 y)) :initial-element 0)))
+      (iter (for i from 1 to (1+ x))
+            (setf (aref index i 0) (* i 16807)))
+      (iter (for j from 1 to (1+ y))
+            (setf (aref index 0 j) (* j 48271)))
+      (iter (for j from 1 to (1+ y))
+            (iter (for i from 1 to (1+ x))
+                  (unless (and (= i x) (= j y)) ;; friend @ spot w/ 0 index
+                    (setf (aref index i j)
+                          (* (erosion-level (aref index (1- i) j) depth)
+                             (erosion-level (aref index i (1- j)) depth))))))
+      index))
+#+END_SRC
+
+Ok, I think that works. Now we need the sum of each location from
+(0,0) to (10,715) mod 3.
+
+#+NAME: risk-level
+#+BEGIN_SRC lisp
+  (defun risk-level (geo-index x y depth)
+    (iter outer
+          (for j from 0 to y)
+          (iter (for i from 0 to x)
+                (in outer
+                    (sum (mod (erosion-level (aref geo-index i j) depth) 3))))))
+#+END_SRC
+
+#+RESULTS: risk-level
+: RISK-LEVEL
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 22 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 22 A: ~a~%"
+                              (let ((index (geologic-index 10 715 3339)))
+                                (risk-level index 10 715 3339))))
 #+END_SRC
 ** Part 2
+The second part is a pathfinding task.
+#+BEGIN_QUOTE
+As you leave, he hands you some tools: a torch and some climbing
+gear. You can't equip both tools at once, but you can choose to use
+neither.
+
+Tools can only be used in certain regions:
+
+- In rocky regions, you can use the climbing gear or the torch. You
+  cannot use neither (you'll likely slip and fall).
+- In wet regions, you can use the climbing gear or neither tool. You
+  cannot use the torch (if it gets wet, you won't have a light
+  source).
+- In narrow regions, you can use the torch or neither tool. You cannot
+  use the climbing gear (it's too bulky to fit).
+#+END_QUOTE
+
+Entering a region takes 1 minute, changing equipped tool (even to
+neither) takes 7 minutes. You cannot enter a region with the wrong
+tool equipped (so can't enter =wet= with a =torch=).
+
+Must equip the torch (if not already equipped) once at the target
+location to find them (potential extra 7 minutes).
+
+The question is, what's the fewest number of minutes it'd take to
+reach the target.
+
+May traverse regions outside of those in the minimal rectangle.
+
+Negative X or Y coordinates are impenetrable rock.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 22 B: ~a~%" (identity *input*)))
@@ -78,8 +153,8 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 22 A: 7915
+: Problem 22 B: (depth: 3339 target: 10,715)
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
