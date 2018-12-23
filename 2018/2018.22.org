@@ -237,29 +237,31 @@ specialized versions (returning =t=) will be called.
                    (iter outer
                          (for offset in offsets)
                          (when (and (<= 0 (realpart (+ offset position)))
-                                    (<= 0 (imagpart (+ offset position)))
-                                    (>= (* 2 x) (realpart (+ offset position)))
-                                    (>= (* 2 y) (imagpart (+ offset position))))
-                           (let ((terrain
+                                    (<= 0 (imagpart (+ offset position))))
+                           (let ((current-terrain
+                                  (terrain-type (erosion-level
+                                                 (geologic-index position grid depth target)
+                                                 depth)))
+                                 (next-terrain
                                   (terrain-type (erosion-level
                                                  (geologic-index (+ position offset)
                                                                  grid depth target)
                                                  depth))))
-                             (iter (for e in (allowed terrain))
-                                   (cond ((eq e equipment)
-                                          (in outer
-                                              (collect (list (+ position offset) equipment))))
-                                         (t
-                                          (in outer
-                                              (collect (list position e))))))))))))
+                             (when (member equipment (allowed next-terrain))
+                               (collect (list (+ position offset) equipment)))
+                             (unless (member equipment (allowed next-terrain))
+                               (collect (list position (car (intersection (allowed next-terrain)
+                                                                     (allowed current-terrain))))))))))))
         (setf (gethash state came-from) nil)
         (setf (gethash state cost-so-far) 0)
         (cl-heap:enqueue frontier state 0)
         (iter (until (= 0 (cl-heap:queue-size frontier)))
               (for current = (cl-heap:dequeue frontier))
-              ;; (format t "~a: ~a~%" current (gethash current cost-so-far))
               (when (equalp current goal)
-                (return (gethash current cost-so-far)))
+                (return (values
+                         (gethash current cost-so-far)
+                         (path came-from goal)
+                         grid)))
               (iter (for next in (neighborhood current))
                     (let ((cost (+ (gethash current cost-so-far)
                                    (calculate-cost current next))))
@@ -268,9 +270,15 @@ specialized versions (returning =t=) will be called.
                         (setf (gethash next cost-so-far) cost)
                         (cl-heap:enqueue frontier
                                          next
-                                         (+ cost (manhattan-distance target (car next))))
-                        ;; (format t "~a~%" (cl-heap:peep-at-queue frontier))
+                                         (+ cost (manhattan-distance target (car next))
+                                            (if (eq (cadr next) 'torch) 0 7)))
                         (setf (gethash next came-from) current))))))))
+
+  (defun path (came-from goal)
+    (let ((state goal))
+      (iter (while (gethash state came-from))
+            (collect state)
+            (setf state (gethash state came-from)))))
 #+END_SRC
 
 #+NAME: problem-b
