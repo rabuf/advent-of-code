@@ -1,0 +1,203 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 24
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2018-24)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2018-24
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2018-24)
+#+END_SRC
+** Input
+The input format isn't too bad, I'm going to try Parseq again.
+#+BEGIN_EXAMPLE
+  Immune System:
+  3115 units each with 1585 hit points (weak to slashing, bludgeoning) with an attack that does 4 slashing damage at initiative 7
+  3866 units each with 6411 hit points (weak to cold, radiation; immune to fire) with an attack that does 14 slashing damage at initiative 11
+  40 units each with 10471 hit points (weak to bludgeoning, slashing; immune to cold) with an attack that does 2223 cold damage at initiative 3
+  1923 units each with 2231 hit points (weak to slashing, fire) with an attack that does 10 bludgeoning damage at initiative 13
+  4033 units each with 10164 hit points (immune to slashing) with an attack that does 22 radiation damage at initiative 5
+  36 units each with 5938 hit points (weak to bludgeoning, cold; immune to fire) with an attack that does 1589 slashing damage at initiative 4
+  2814 units each with 7671 hit points (weak to cold) with an attack that does 21 radiation damage at initiative 15
+  217 units each with 9312 hit points (immune to slashing) with an attack that does 345 radiation damage at initiative 8
+  38 units each with 7686 hit points (weak to bludgeoning) with an attack that does 1464 radiation damage at initiative 14
+  5552 units each with 3756 hit points (weak to slashing) with an attack that does 6 fire damage at initiative 10
+
+  Infection:
+  263 units each with 28458 hit points (weak to fire, radiation) with an attack that does 186 cold damage at initiative 9
+  137 units each with 29425 hit points (immune to fire; weak to cold) with an attack that does 367 radiation damage at initiative 1
+  2374 units each with 41150 hit points (immune to bludgeoning, slashing, radiation; weak to cold) with an attack that does 34 bludgeoning damage at initiative 6
+  1287 units each with 24213 hit points (immune to fire) with an attack that does 36 cold damage at initiative 17
+  43 units each with 32463 hit points (weak to radiation; immune to slashing, bludgeoning) with an attack that does 1347 fire damage at initiative 16
+  140 units each with 51919 hit points (weak to slashing, bludgeoning) with an attack that does 633 fire damage at initiative 12
+  3814 units each with 33403 hit points with an attack that does 15 fire damage at initiative 19
+  3470 units each with 44599 hit points (weak to slashing, radiation) with an attack that does 23 radiation damage at initiative 18
+  394 units each with 36279 hit points with an attack that does 164 fire damage at initiative 20
+  4288 units each with 20026 hit points with an attack that does 7 radiation damage at initiative 2
+#+END_EXAMPLE
+Two lists of group details.
+#+NAME: parse-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-input (lines)
+    (with-local-rules
+      (defrule numbers () (+ digit) (:string) (:function #'parse-integer))
+      (defrule attack-type () (or "slashing"
+                                  "bludgeoning"
+                                  "cold"
+                                  "radiation"
+                                  "fire"))
+      (defrule weaknesses-immunities () (and "(" (+ (not ")")) ") "))
+      (defrule army () (and numbers " units each with " numbers " hit points "
+                            (? weaknesses-immunities)
+                            "with an attack that does " numbers " " attack-type
+                            " damage at initiative " numbers))
+      (defrule immune-system () (and "Immune System:" (+ army)))
+      (defrule infection () (and "Infection:" (+ (not ""))))
+      (defrule armies () (and (or immune-system infection) "" (or immune-system infection)))
+      (parseq 'armies lines)))
+  (defun parse-army (line)
+    (with-local-rules
+      (defrule numbers () (+ digit) (:string) (:function #'parse-integer))
+      (defrule slashing () "slashing" (:constant :slashing))
+      (defrule bludgeoning () "bludgeoning" (:constant :bludgeoning))
+      (defrule cold () "cold" (:constant :cold))
+      (defrule radiation () "radiation" (:constant :radiation))
+      (defrule fire () "fire" (:constant :fire))
+      (defrule attack-type () (or slashing bludgeoning cold radiation fire))
+      (defrule type-tail () (and ", " attack-type))
+      (defrule type-list () (and attack-type (* type-tail)) (:flatten))
+      (defrule immune () (and "immune to " type-list))
+      (defrule weak () (and "weak to " type-list))
+      (defrule weaknesses-immunities () (and "(" (or weak immune) (? (and "; " (or weak immune))) ") "))
+      (defrule army () (and numbers " units each with " numbers " hit points "
+                            (? weaknesses-immunities)
+                            "with an attack that does " numbers " " attack-type
+                            " damage at initiative " numbers))
+      (parseq 'army line)))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/24.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (identity *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2018.24.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 24 A: (Immune System:
+               3115 units each with 1585 hit points (weak to slashing, bludgeoning) with an attack that does 4 slashing damage at initiative 7
+               3866 units each with 6411 hit points (weak to cold, radiation; immune to fire) with an attack that does 14 slashing damage at initiative 11
+               40 units each with 10471 hit points (weak to bludgeoning, slashing; immune to cold) with an attack that does 2223 cold damage at initiative 3
+               1923 units each with 2231 hit points (weak to slashing, fire) with an attack that does 10 bludgeoning damage at initiative 13
+               4033 units each with 10164 hit points (immune to slashing) with an attack that does 22 radiation damage at initiative 5
+               36 units each with 5938 hit points (weak to bludgeoning, cold; immune to fire) with an attack that does 1589 slashing damage at initiative 4
+               2814 units each with 7671 hit points (weak to cold) with an attack that does 21 radiation damage at initiative 15
+               217 units each with 9312 hit points (immune to slashing) with an attack that does 345 radiation damage at initiative 8
+               38 units each with 7686 hit points (weak to bludgeoning) with an attack that does 1464 radiation damage at initiative 14
+               5552 units each with 3756 hit points (weak to slashing) with an attack that does 6 fire damage at initiative 10
+                Infection:
+               263 units each with 28458 hit points (weak to fire, radiation) with an attack that does 186 cold damage at initiative 9
+               137 units each with 29425 hit points (immune to fire; weak to cold) with an attack that does 367 radiation damage at initiative 1
+               2374 units each with 41150 hit points (immune to bludgeoning, slashing, radiation; weak to cold) with an attack that does 34 bludgeoning damage at initiative 6
+               1287 units each with 24213 hit points (immune to fire) with an attack that does 36 cold damage at initiative 17
+               43 units each with 32463 hit points (weak to radiation; immune to slashing, bludgeoning) with an attack that does 1347 fire damage at initiative 16
+               140 units each with 51919 hit points (weak to slashing, bludgeoning) with an attack that does 633 fire damage at initiative 12
+               3814 units each with 33403 hit points with an attack that does 15 fire damage at initiative 19
+               3470 units each with 44599 hit points (weak to slashing, radiation) with an attack that does 23 radiation damage at initiative 18
+               394 units each with 36279 hit points with an attack that does 164 fire damage at initiative 20
+               4288 units each with 20026 hit points with an attack that does 7 radiation damage at initiative 2)
+Problem 24 B: (Immune System:
+               3115 units each with 1585 hit points (weak to slashing, bludgeoning) with an attack that does 4 slashing damage at initiative 7
+               3866 units each with 6411 hit points (weak to cold, radiation; immune to fire) with an attack that does 14 slashing damage at initiative 11
+               40 units each with 10471 hit points (weak to bludgeoning, slashing; immune to cold) with an attack that does 2223 cold damage at initiative 3
+               1923 units each with 2231 hit points (weak to slashing, fire) with an attack that does 10 bludgeoning damage at initiative 13
+               4033 units each with 10164 hit points (immune to slashing) with an attack that does 22 radiation damage at initiative 5
+               36 units each with 5938 hit points (weak to bludgeoning, cold; immune to fire) with an attack that does 1589 slashing damage at initiative 4
+               2814 units each with 7671 hit points (weak to cold) with an attack that does 21 radiation damage at initiative 15
+               217 units each with 9312 hit points (immune to slashing) with an attack that does 345 radiation damage at initiative 8
+               38 units each with 7686 hit points (weak to bludgeoning) with an attack that does 1464 radiation damage at initiative 14
+               5552 units each with 3756 hit points (weak to slashing) with an attack that does 6 fire damage at initiative 10
+                Infection:
+               263 units each with 28458 hit points (weak to fire, radiation) with an attack that does 186 cold damage at initiative 9
+               137 units each with 29425 hit points (immune to fire; weak to cold) with an attack that does 367 radiation damage at initiative 1
+               2374 units each with 41150 hit points (immune to bludgeoning, slashing, radiation; weak to cold) with an attack that does 34 bludgeoning damage at initiative 6
+               1287 units each with 24213 hit points (immune to fire) with an attack that does 36 cold damage at initiative 17
+               43 units each with 32463 hit points (weak to radiation; immune to slashing, bludgeoning) with an attack that does 1347 fire damage at initiative 16
+               140 units each with 51919 hit points (weak to slashing, bludgeoning) with an attack that does 633 fire damage at initiative 12
+               3814 units each with 33403 hit points with an attack that does 15 fire damage at initiative 19
+               3470 units each with 44599 hit points (weak to slashing, radiation) with an attack that does 23 radiation damage at initiative 18
+               394 units each with 36279 hit points with an attack that does 164 fire damage at initiative 20
+               4288 units each with 20026 hit points with an attack that does 7 radiation damage at initiative 2)
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2018.24)
+  (in-suite aoc.2018.24)
+
+  (run! 'aoc.2018.24)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
