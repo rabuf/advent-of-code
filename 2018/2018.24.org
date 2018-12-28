@@ -20,6 +20,8 @@ support for lisp installed you can run this by:
     (ql:quickload "parseq"))
   (unless (find-package :fiveam)
     (ql:quickload "fiveam"))
+  (unless (find-package :cl-heap)
+    (ql:quickload "cl-heap"))
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
@@ -66,20 +68,19 @@ Two lists of group details.
 #+BEGIN_SRC lisp :results silent
   (defun parse-input (lines)
     (with-local-rules
-      (defrule numbers () (+ digit) (:string) (:function #'parse-integer))
-      (defrule attack-type () (or "slashing"
-                                  "bludgeoning"
-                                  "cold"
-                                  "radiation"
-                                  "fire"))
-      (defrule weaknesses-immunities () (and "(" (+ (not ")")) ") "))
-      (defrule army () (and numbers " units each with " numbers " hit points "
-                            (? weaknesses-immunities)
-                            "with an attack that does " numbers " " attack-type
-                            " damage at initiative " numbers))
-      (defrule immune-system () (and "Immune System:" (+ army)))
-      (defrule infection () (and "Infection:" (+ (not ""))))
-      (defrule armies () (and (or immune-system infection) "" (or immune-system infection)))
+      (defrule immune-system () (and "Immune System:" (+ (not "")))
+        (:lambda (_ armies)
+          (mapcar #'(lambda (a)
+                      (cons :immune-system a))
+                  (mapcar #'parse-army armies))))
+      (defrule infection () (and "Infection:" (+ (not "")))
+        (:lambda (_ armies)
+          (mapcar #'(lambda (a)
+                      (cons :infection a))
+                  (mapcar #'parse-army armies))))
+      (defrule armies () (and (or immune-system infection) "" (or immune-system infection))
+        (:lambda (g1 _ g2)
+                (append g1 g2)))
       (parseq 'armies lines)))
   (defun parse-army (line)
     (with-local-rules
@@ -90,17 +91,39 @@ Two lists of group details.
       (defrule radiation () "radiation" (:constant :radiation))
       (defrule fire () "fire" (:constant :fire))
       (defrule attack-type () (or slashing bludgeoning cold radiation fire))
-      (defrule type-tail () (and ", " attack-type))
+      (defrule type-tail () (and ", " attack-type) (:choose 1))
       (defrule type-list () (and attack-type (* type-tail)) (:flatten))
-      (defrule immune () (and "immune to " type-list))
-      (defrule weak () (and "weak to " type-list))
-      (defrule weaknesses-immunities () (and "(" (or weak immune) (? (and "; " (or weak immune))) ") "))
-      (defrule army () (and numbers " units each with " numbers " hit points "
+      (defrule immune () (and "immune to " type-list)
+        (:lambda (_ types)
+          (cons :immune types)))
+      (defrule weak () (and "weak to " type-list)
+        (:lambda (_ types)
+          (cons :weak types)))
+      (defrule weaknesses-immunities () (and "(" (or weak immune) (? (and "; " (or weak immune))) ") ")
+        (:choose 1 '(2 1)))
+      (defrule units () (and numbers " units each with ")
+        (:lambda (n _)
+          (list :units n)))
+      (defrule health () (and numbers " hit points ")
+        (:lambda (n _)
+          (list :health n)))
+      (defrule damage () (and "with an attack that does " numbers " " attack-type)
+        (:lambda (_ n __ type)
+          (list :damage n type)))
+      (defrule initiative () (and " damage at initiative " numbers)
+        (:lambda (_ n)
+          (list :initiative n)))
+      (defrule army () (and units health
                             (? weaknesses-immunities)
-                            "with an attack that does " numbers " " attack-type
-                            " damage at initiative " numbers))
+                            damage
+                            initiative))
       (parseq 'army line)))
 #+END_SRC
+
+The above was me having fun with parseq. I created two functions each
+with their own set of rules just to simplify my life. Both return
+alists so in the simulation we can split it into the two groups and
+build whatever other structures are needed more easily.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -110,17 +133,213 @@ Two lists of group details.
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/24.txt"))
+    (parse-input (read-input "input/24.txt")))
 #+END_SRC
 ** Part 1
+Part one requires us to simulate another game. Each creature goes in
+order of initiative (I'll use a priority queue) with higher initiative
+first.
+
+I should first split every army out into a struct:
+#+NAME: army-to-struct
+#+BEGIN_SRC lisp :results silent
+  (defstruct army
+    side
+    units
+    health
+    initiative
+    weak
+    immune
+    damage
+    type)
+
+  #|
+  (:INFECTION (:UNITS 3470) (:HEALTH 44599) ((:WEAK :SLASHING :RADIATION) NIL)
+    (:DAMAGE 23 :RADIATION) (:INITIATIVE 18))
+  |#
+
+  (defun list-to-army (list)
+    (let ((side (first list))
+          (units (second (second list)))
+          (health (second (third list)))
+          (damage (second (fifth list)))
+          (type (third (fifth list)))
+          (initiative (second (sixth list)))
+          (weak (cond ((null (fourth list)) nil)
+                      ((eq (first (first (fourth list))) :weak)
+                       (cdr (first (fourth list))))
+                      ((eq (first (second (fourth list))) :weak)
+                       (cdr (second (fourth list))))))
+          (immune (cond ((null (fourth list)) nil)
+                        ((eq (first (first (fourth list))) :immune)
+                         (cdr (first (fourth list))))
+                        ((eq (first (second (fourth list))) :immune)
+                         (cdr (second (fourth list)))))))
+      (make-army :side side :units units :health health :damage damage :type type
+                 :initiative initiative :weak weak :immune immune)))
+#+END_SRC
+Each army has an effective power: # units * damage
+#+NAME: effective-power
+#+BEGIN_SRC lisp :results silent
+  (defun effective-power (army)
+    (* (army-units army) (army-damage army)))
+#+END_SRC
+
+Target Selection:
+
+Each army selects an opponent based on who it would cause the most
+damage to (regardless of number of units in the opponent
+group). Accounting for immunity (if immune, 0 damage) and weaknesses
+(if weak, double damage).
+
+Each defender can be selected by only one opponent. This is important
+and handy. I'm going to create a hashtable of all the armies and use
+gensym to create a unique identifier.
+
+#+NAME: simulate
+#+BEGIN_SRC lisp :results silent
+  (defun damage (army target)
+    (cond ((member (army-type army) (army-immune target)) 0)
+          (t (* (if (member (army-type army) (army-weak target)) 2 1)
+                (army-damage army)
+                (army-units army)))))
+
+  (defun target (army id enemy targeting targeted)
+    "This is overly complicated."
+    (let ((target nil)
+          (damage 0)
+          (initiative 0)
+          (effective-power 0))
+      (iter (for (k v) in-hashtable enemy)
+            (unless (gethash k targeted)
+              (cond ((= 0 (damage army v)) nil)
+                    ((> (damage army v) damage)
+                     (setf target k)
+                     (setf damage (damage army v))
+                     (setf initiative (army-initiative v))
+                     (setf effective-power (effective-power v)))
+                    ((and (= (damage army v) damage)
+                          (> (effective-power v) effective-power))
+                     (setf target k)
+                     (setf damage (damage army v))
+                     (setf initiative (army-initiative v))
+                     (setf effective-power (effective-power v)))
+                    ((and (= (damage army v) damage)
+                          (= (effective-power v) effective-power)
+                          (> (army-initiative v) initiative))
+                     (setf target k)
+                     (setf damage (damage army v))
+                     (setf initiative (army-initiative v))
+                     (setf effective-power (effective-power v))))))
+      (when target
+        (setf (gethash id targeting) target)
+        (setf (gethash target targeted) id))))
+
+  (defun attack (army target)
+    (let ((damage (damage army target)))
+      (setf (army-units target) (max (- (army-units target) (truncate damage (army-health target)))
+                                     0))))
+
+  (defun simulate (armies &optional (boost 0))
+    (let* ((immune-system (make-hash-table))
+           (infection (make-hash-table))
+           (attack-queue (make-instance 'cl-heap:priority-queue :sort-fun #'>))
+           (target-queue (make-instance 'cl-heap:priority-queue
+                                        :sort-fun (lambda (x y)
+                                                    (or (> (car x) (car y))
+                                                        (and (= (car x) (car y))
+                                                             (> (cadr x) (cadr y))))))))
+      (iter (for army in (mapcar #'list-to-army armies))
+            (if (eq (army-side army) :immune-system)
+                (setf (gethash (gensym) immune-system) army))
+            (if (eq (army-side army) :infection)
+                (setf (gethash (gensym) infection) army)))
+      (iter (for (k v) in-hashtable immune-system)
+            (incf (army-damage v) boost))
+      ;; The combat continues until everyone is dead
+      (iter (until (or (= 0 (hash-table-count immune-system))
+                       (= 0 (hash-table-count infection))))
+            (with is-targeting = (make-hash-table))
+            (with targeted-by = (make-hash-table))
+            ;; Enqueue armies for both phases
+            (iter (for (k v) in-hashtable immune-system)
+                  (cl-heap:enqueue target-queue k (list (effective-power v) (army-initiative v)))
+                  (cl-heap:enqueue attack-queue k (army-initiative v)))
+            (iter (for (k v) in-hashtable infection)
+                  (cl-heap:enqueue target-queue k (list (effective-power v) (army-initiative v)))
+                  (cl-heap:enqueue attack-queue k (army-initiative v)))
+            ;; Targeting Phase
+            (iter (while (> (cl-heap:queue-size target-queue) 0))
+                  (for id = (cl-heap:dequeue target-queue))
+                  (cond ((gethash id immune-system)
+                         (target (gethash id immune-system) id infection is-targeting targeted-by))
+                        ((gethash id infection)
+                         (target (gethash id infection) id immune-system is-targeting targeted-by))))
+            ;; Attack Phase
+            (iter (while (> (cl-heap:queue-size attack-queue) 0))
+                  (for id = (cl-heap:dequeue attack-queue))
+                  (when (gethash id is-targeting)
+                    (attack (or (gethash id immune-system)
+                                (gethash id infection))
+                            (or (gethash (gethash id is-targeting) immune-system)
+                                (gethash (gethash id is-targeting) infection)))))
+            ;; Remove dead armies
+            (iter (for (k v) in-hashtable immune-system)
+                  (when (zerop (army-units v))
+                    (remhash k immune-system)))
+            (iter (for (k v) in-hashtable infection)
+                  (when (zerop (army-units v))
+                    (remhash k infection)))
+            ;; clear target selections
+            (clrhash targeted-by)
+            (clrhash is-targeting))
+      ;; Answer is how many units are in surviving side.
+      (values
+       (iter (for (k v) in-hashtable (if (= 0 (hash-table-count infection)) immune-system infection))
+             (sum (army-units v)))
+       (if (= 0 (hash-table-count infection)) :immune-system :infection))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 24 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (simulate *input*)))
 #+END_SRC
 ** Part 2
+Similar to Day 15 we can improve the performance of our side. Here
+it's called a "boost" and applies to all groups in the immune
+system. We need to know the smallest boost that will allow the immune
+system to win.
+
+I've made three changes to the simulate function:
+1. Accept an optional (default to 0) boost parameter.
+2. Apply that as an increment to all immune system groups.
+3. Report who wins.
+
+Like with Day 15 I'm not going to write the search function itself,
+I'll just experiment with various boosts and record the results here:
+| Boost | Winner        |
+|-------+---------------|
+|     0 | Infection     |
+| 10000 | Immune System |
+|  5000 | Immune System |
+|  2500 | Immune System |
+|  1250 | Immune System |
+|   625 | Immune System |
+|   312 | Immune System |
+|   150 | Immune System |
+|    75 | Immune System |
+|    37 | Infection     |
+|    50 | Infection     |
+|    60 | Infection     |
+|    70 | Immune System |
+|    65 | Infection     |
+|    67 | Infection     |
+
+69 causes an infinite laop (I haven't printed out the circumstances,
+but I guess groups that are immune to each other are left and so no
+progress is made).
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 24 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (simulate *input* 70)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -129,6 +348,10 @@ Two lists of group details.
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<effective-power>>
+  <<army-to-struct>>
+  <<parse-input>>
+  <<simulate>>
   <<read-input>>
 #+END_SRC
 #+NAME: answers
@@ -144,60 +367,26 @@ Two lists of group details.
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-#+begin_example
-Problem 24 A: (Immune System:
-               3115 units each with 1585 hit points (weak to slashing, bludgeoning) with an attack that does 4 slashing damage at initiative 7
-               3866 units each with 6411 hit points (weak to cold, radiation; immune to fire) with an attack that does 14 slashing damage at initiative 11
-               40 units each with 10471 hit points (weak to bludgeoning, slashing; immune to cold) with an attack that does 2223 cold damage at initiative 3
-               1923 units each with 2231 hit points (weak to slashing, fire) with an attack that does 10 bludgeoning damage at initiative 13
-               4033 units each with 10164 hit points (immune to slashing) with an attack that does 22 radiation damage at initiative 5
-               36 units each with 5938 hit points (weak to bludgeoning, cold; immune to fire) with an attack that does 1589 slashing damage at initiative 4
-               2814 units each with 7671 hit points (weak to cold) with an attack that does 21 radiation damage at initiative 15
-               217 units each with 9312 hit points (immune to slashing) with an attack that does 345 radiation damage at initiative 8
-               38 units each with 7686 hit points (weak to bludgeoning) with an attack that does 1464 radiation damage at initiative 14
-               5552 units each with 3756 hit points (weak to slashing) with an attack that does 6 fire damage at initiative 10
-                Infection:
-               263 units each with 28458 hit points (weak to fire, radiation) with an attack that does 186 cold damage at initiative 9
-               137 units each with 29425 hit points (immune to fire; weak to cold) with an attack that does 367 radiation damage at initiative 1
-               2374 units each with 41150 hit points (immune to bludgeoning, slashing, radiation; weak to cold) with an attack that does 34 bludgeoning damage at initiative 6
-               1287 units each with 24213 hit points (immune to fire) with an attack that does 36 cold damage at initiative 17
-               43 units each with 32463 hit points (weak to radiation; immune to slashing, bludgeoning) with an attack that does 1347 fire damage at initiative 16
-               140 units each with 51919 hit points (weak to slashing, bludgeoning) with an attack that does 633 fire damage at initiative 12
-               3814 units each with 33403 hit points with an attack that does 15 fire damage at initiative 19
-               3470 units each with 44599 hit points (weak to slashing, radiation) with an attack that does 23 radiation damage at initiative 18
-               394 units each with 36279 hit points with an attack that does 164 fire damage at initiative 20
-               4288 units each with 20026 hit points with an attack that does 7 radiation damage at initiative 2)
-Problem 24 B: (Immune System:
-               3115 units each with 1585 hit points (weak to slashing, bludgeoning) with an attack that does 4 slashing damage at initiative 7
-               3866 units each with 6411 hit points (weak to cold, radiation; immune to fire) with an attack that does 14 slashing damage at initiative 11
-               40 units each with 10471 hit points (weak to bludgeoning, slashing; immune to cold) with an attack that does 2223 cold damage at initiative 3
-               1923 units each with 2231 hit points (weak to slashing, fire) with an attack that does 10 bludgeoning damage at initiative 13
-               4033 units each with 10164 hit points (immune to slashing) with an attack that does 22 radiation damage at initiative 5
-               36 units each with 5938 hit points (weak to bludgeoning, cold; immune to fire) with an attack that does 1589 slashing damage at initiative 4
-               2814 units each with 7671 hit points (weak to cold) with an attack that does 21 radiation damage at initiative 15
-               217 units each with 9312 hit points (immune to slashing) with an attack that does 345 radiation damage at initiative 8
-               38 units each with 7686 hit points (weak to bludgeoning) with an attack that does 1464 radiation damage at initiative 14
-               5552 units each with 3756 hit points (weak to slashing) with an attack that does 6 fire damage at initiative 10
-                Infection:
-               263 units each with 28458 hit points (weak to fire, radiation) with an attack that does 186 cold damage at initiative 9
-               137 units each with 29425 hit points (immune to fire; weak to cold) with an attack that does 367 radiation damage at initiative 1
-               2374 units each with 41150 hit points (immune to bludgeoning, slashing, radiation; weak to cold) with an attack that does 34 bludgeoning damage at initiative 6
-               1287 units each with 24213 hit points (immune to fire) with an attack that does 36 cold damage at initiative 17
-               43 units each with 32463 hit points (weak to radiation; immune to slashing, bludgeoning) with an attack that does 1347 fire damage at initiative 16
-               140 units each with 51919 hit points (weak to slashing, bludgeoning) with an attack that does 633 fire damage at initiative 12
-               3814 units each with 33403 hit points with an attack that does 15 fire damage at initiative 19
-               3470 units each with 44599 hit points (weak to slashing, radiation) with an attack that does 23 radiation damage at initiative 18
-               394 units each with 36279 hit points with an attack that does 164 fire damage at initiative 20
-               4288 units each with 20026 hit points with an attack that does 7 radiation damage at initiative 2)
-#+end_example
+: Problem 24 A: 14854
+: Problem 24 B: 3467
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2018.24)
   (in-suite aoc.2018.24)
-
+  (defparameter *test-input*
+    (list "Immune System:"
+          "17 units each with 5390 hit points (weak to radiation, bludgeoning) with an attack that does 4507 fire damage at initiative 2"
+          "989 units each with 1274 hit points (immune to fire; weak to bludgeoning, slashing) with an attack that does 25 slashing damage at initiative 3"
+          ""
+          "Infection:"
+          "801 units each with 4706 hit points (weak to radiation) with an attack that does 116 bludgeoning damage at initiative 1"
+          "4485 units each with 2961 hit points (immune to radiation; weak to fire, cold) with an attack that does 12 slashing damage at initiative 4"))
   (run! 'aoc.2018.24)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2018.24
+:  Didn't run anything...huh?
 ** Thoughts
