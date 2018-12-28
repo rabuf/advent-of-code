@@ -195,7 +195,7 @@ point, but only other things at a similar distance.
           (count-in-range (nb-position box) bots))
      (manhattan-distance (nb-position box) '(0 0 0))))
   (defun bounding-cube (bot)
-    (let ((width (expt 2 (ceiling (log (nb-range bot) 2)))))
+    (let ((width (expt 2 (1+ (ceiling (log (nb-range bot) 2))))))
           (make-nanobot :position (nb-position bot) :range width)))
 
   (defun priority-compare (p1 p2)
