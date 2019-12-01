@@ -54,7 +54,7 @@ the amount of fuel for all modules.
 #+NAME: calc-fuel
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun calc-fuel (mass)
-    (- (floor (/ mass 3)) 2))
+    (- (floor mass 3) 2))
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -118,3 +118,12 @@ call it 0 and terminate.
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
+The next morning I realized =floor= takes two parameters. This was
+also pointed out by Reddit user phil_g. So instead of:
+#+BEGIN_SRC lisp
+  (- (floor (/ m 3)) 2)
+#+END_SRC
+It can be written as:
+#+BEGIN_SRC lisp
+  (- (floor m 3) 2)
+#+END_SRC
