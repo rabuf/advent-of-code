@@ -40,8 +40,8 @@ the mass of a spacecraft module.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect (parse-integer line))))
+    (iter (for line in-file file using #'read)
+          (collect line)))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -91,6 +91,7 @@ call it 0 and terminate.
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
   <<calc-fuel>>
+  <<recursive-fuel>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.01.lisp
@@ -138,6 +139,7 @@ call it 0 and terminate.
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
+*** =floor=
 The next morning I realized =floor= takes two parameters. This was
 also pointed out by Reddit user phil_g. So instead of:
 #+BEGIN_SRC lisp
@@ -147,7 +149,7 @@ It can be written as:
 #+BEGIN_SRC lisp
   (- (floor m 3) 2)
 #+END_SRC
-
+*** Tail recursion
 From a quickness of writing perspective, =recursive-fuel= was not tail
 recursive. I've added an optional parameter to store the total and
 pass that to the recursive call. This doesn't really impact *this*
@@ -158,3 +160,31 @@ problem, but it's a better style. Here's the original:
       (if (<= fuel 0) 0
           (+ fuel (recursive-fuel fuel)))))
 #+END_SRC
+*** Input handling
+I am reusing the template I put together for 2018 (my first year of
+participation, though I've gone back and done some puzzles from prior
+years). At midnight, I'd forgotten how I handled reading the input
+file and had to throw in an extra =parse-integer= call because of
+it. The original:
+#+BEGIN_SRC lisp
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-integer line))))
+#+END_SRC
+However, with that form of iteration the =<read>= function can be
+specified to be anything. =read= is the better function than
+=read-line=, it will read and parse lisp objects from text files. In
+this case, it will correctly convert the text in the file to an
+integer. This is another small change, but it's a useful
+one. Hopefully I won't forget how to use my template tomorrow.
+*** Testing
+I've added tests using the examples from the problem statement. I
+should have put these in first, but this was a simpler problem so I
+didn't bother. For more complex problems this is the first thing I do
+after I have a solution sketch in place.
+*** Reproducibility
+I realized while reviewing the code that I'd failed to include a
+reference to the block titled /recursive-fuel/. Oops. This was fine
+for me last night because I'd manually compiled the function via =C-c
+C-c= into the lisp image. But if this were run in a clean image, it
+would've failed since the function would be undefined.
