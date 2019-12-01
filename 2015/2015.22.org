@@ -35,18 +35,34 @@ support for lisp installed you can run this by:
   (in-package :aoc-2015-22)
 #+END_SRC
 ** Input
-#+NAME: read-input
-#+BEGIN_SRC lisp :results silent
-  (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
-#+END_SRC
+In this case the input is simple, the boss's stats. We can skip
+parsing the input if we'd like, and we do like.
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defparameter *input*
-    (read-input "input/22.txt"))
+  (defparameter *input* (list 51 9))
 #+END_SRC
 ** Part 1
+The player character is now a wizard. It has 5 spells, each has a
+different effect and cost. The player begins with 500 mana and 50 hit
+points. The player loses if either their HP drops below 1, or they
+have insufficient mana to cast a spell.
+
+The challenge is to select the series of spells that will kill the
+boss using the least mana.
+
+The spells:
+- Magic Missile :: Cost 53, 4 damage, Duration 0
+- Drain :: Cost 73, 2 damage, 2 healng, duration 0
+- Shield :: Cost 113, armor +7, duration 6
+- Poison :: Cost 173, 3 damage/turn, duration 6
+- Recharge :: Cost 229, 101 mana/turn, duration 5
+
+"turn" means both player and boss turns. So a spell with duration 6
+will hit the boss on his turn, then again on the player's turn, and so
+on.
+
+A spell cannot be cast if it's already active (so if the =recharge=
+effect is in place, the spell cannot be cast yet).
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem 22 A: ~a~%" (identity *input*)))

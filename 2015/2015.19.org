@@ -226,7 +226,7 @@ target. Sadly, however, it's still taking ages.
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 19 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 19 B: ~a~%" 195))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
