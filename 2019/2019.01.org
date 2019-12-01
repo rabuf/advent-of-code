@@ -71,8 +71,8 @@ call it 0 and terminate.
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun recursive-fuel (mass &optional (total 0))
     (let ((fuel (calc-fuel mass)))
-      (if (<= fuel 0) total
-          (recursive-fuel fuel (+ fuel total)))))
+      (cond ((plusp fuel) (recursive-fuel fuel (+ fuel total)))
+            (t total))))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -188,3 +188,22 @@ reference to the block titled /recursive-fuel/. Oops. This was fine
 for me last night because I'd manually compiled the function via =C-c
 C-c= into the lisp image. But if this were run in a clean image, it
 would've failed since the function would be undefined.
+*** if v cond
+I have a preference for cond, but apparently I'm out of practice on
+writing lisp. I made a change to =recursive-fuel= so that it uses cond
+rather than if. It's not important when there are really only two
+options, but I prefer this style.
+*** plusp/minusp
+I originally had something like:
+#+BEGIN_SRC lisp
+  (if (<= fuel 0) ...)
+#+END_SRC
+This is really the case of:
+#+BEGIN_SRC lisp
+  (if (not (plusp fuel)) ...)
+#+END_SRC
+It's a bit more idiomatic, and less error prone (I'd accidentally
+typed greater-than-or-equal the first time, coding at midnight is
+dangerous). As part of my clean up I've swapped the conditions (to
+take the case that fuel is positive first) and changed the conditional
+expression to use cond instead of if.
