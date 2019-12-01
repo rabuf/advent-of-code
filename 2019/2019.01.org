@@ -69,10 +69,10 @@ mass of the added fuel. If the calculated fuel is less than 0 then
 call it 0 and terminate.
 #+NAME: recursive-fuel
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun recursive-fuel (mass)
+  (defun recursive-fuel (mass &optional (total 0))
     (let ((fuel (calc-fuel mass)))
-      (if (<= fuel 0) 0
-          (+ fuel (recursive-fuel fuel)))))
+      (if (<= fuel 0) total
+          (recursive-fuel fuel (+ fuel total)))))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -113,10 +113,30 @@ call it 0 and terminate.
   (def-suite aoc.2019.01)
   (in-suite aoc.2019.01)
 
+  (test non-recursive
+    (is (= 2 (calc-fuel 12)))
+    (is (= 2 (calc-fuel 14)))
+    (is (= 654 (calc-fuel 1969)))
+    (is (= 33583 (calc-fuel 100756))))
+
+  (test recursive
+    (is (= 2 (recursive-fuel 12)))
+    (is (= 2 (recursive-fuel 14)))
+    (is (= 966 (recursive-fuel 1969)))
+    (is (= 50346 (recursive-fuel 100756))))
+
   (run! 'aoc.2019.01)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2019.01
+:  Running test NON-RECURSIVE ....
+:  Running test RECURSIVE ....
+:  Did 8 checks.
+:     Pass: 8 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
 The next morning I realized =floor= takes two parameters. This was
 also pointed out by Reddit user phil_g. So instead of:
@@ -126,4 +146,15 @@ also pointed out by Reddit user phil_g. So instead of:
 It can be written as:
 #+BEGIN_SRC lisp
   (- (floor m 3) 2)
+#+END_SRC
+
+From a quickness of writing perspective, =recursive-fuel= was not tail
+recursive. I've added an optional parameter to store the total and
+pass that to the recursive call. This doesn't really impact *this*
+problem, but it's a better style. Here's the original:
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun recursive-fuel (mass)
+    (let ((fuel (calc-fuel mass)))
+      (if (<= fuel 0) 0
+          (+ fuel (recursive-fuel fuel)))))
 #+END_SRC
