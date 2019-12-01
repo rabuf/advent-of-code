@@ -1,0 +1,120 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 01
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-01)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-01
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-01)
+#+END_SRC
+** Input
+A file containing a series of numbers (one per line). Each represents
+the mass of a spacecraft module.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-integer line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/01.txt"))
+#+END_SRC
+** Part 1
+Given the mass from the inputs, calculate the fuel required. Sum up
+the amount of fuel for all modules.
+#+NAME: calc-fuel
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun calc-fuel (mass)
+    (- (floor (/ mass 3)) 2))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-a (list)
+    (loop for l in list
+       sum (calc-fuel l)))
+  (defun problem-a () (format t "Problem 01 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Recursively apply the fuel calculation in order to account for the
+mass of the added fuel. If the calculated fuel is less than 0 then
+call it 0 and terminate.
+#+NAME: recursive-fuel
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun recursive-fuel (mass)
+    (let ((fuel (calc-fuel mass)))
+      (if (<= fuel 0) 0
+          (+ fuel (recursive-fuel fuel)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (input)
+    (loop for m in input
+       sum (recursive-fuel m)))
+
+  (defun problem-b () (format t "Problem 01 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<calc-fuel>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.01.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 01 A: 3278434
+: Problem 01 B: 4914785
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.01)
+  (in-suite aoc.2019.01)
+
+  (run! 'aoc.2019.01)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
