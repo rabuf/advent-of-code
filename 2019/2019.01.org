@@ -65,8 +65,8 @@ the amount of fuel for all modules.
 #+END_SRC
 ** Part 2
 Recursively apply the fuel calculation in order to account for the
-mass of the added fuel. If the calculated fuel is less than 0 then
-call it 0 and terminate.
+mass of the added fuel. If the calculated fuel is 0 or less, then
+return the total.
 #+NAME: recursive-fuel
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun recursive-fuel (mass &optional (total 0))
