@@ -40,14 +40,17 @@ wires.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun description-to-direction (string)
-    (ecase (char string 0)
-      ((#\R) (list #C(1 0) (parse-integer (subseq string 1))))
-      ((#\L) (list #C(-1 0) (parse-integer (subseq string 1))))
-      ((#\U) (list #C(0 1) (parse-integer (subseq string 1))))
-      ((#\D) (list #C(0 -1) (parse-integer (subseq string 1))))))
+    (list
+     (ecase (char string 0)
+       ((#\R) #C(1 0))
+       ((#\L) #C(-1 0))
+       ((#\U) #C(0 1))
+       ((#\D) #C(0 -1)))
+     (parse-integer (subseq string 1))))
 
   (defun wire-directions (descriptions)
     (map 'list #'description-to-direction descriptions))
+
   (defun read-input (file)
     (iter (for line in-file file using #'read-line)
           (collect (wire-directions (cl-ppcre:split "," line)))))
