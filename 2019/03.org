@@ -63,20 +63,21 @@ point of the two wires.
 #+NAME: solve-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun draw-wire (wire)
-    (let ((trace (make-hash-table))
-          (position #C(0 0))
-          (steps 0))
-      (loop for (d l) in wire
-         do (loop for i from 0 below l do
-                 (incf position d)
-                 (incf steps)
-                 (unless (gethash position trace)
-                   (setf (gethash position trace) steps))))
+    (let ((trace (make-hash-table)))
+      (iter (for (d l) in wire)
+            (with steps = 0)
+            (with position = #C(0 0))
+            (iter (for i from 0 below l)
+                  (incf position d)
+                  (incf steps)
+                  (unless (gethash position trace)
+                    (setf (gethash position trace) steps))))
       trace))
   (defun intersections (w1 w2)
     (let ((intersections '()))
-      (loop for p being the hash-keys of w1
-         when (gethash p w2) do (push p intersections))
+      (iter (for (p nil) in-hashtable w1)
+            (when (gethash p w2)
+              (push p intersections)))
       intersections))
   (defun manhattan (p)
     (+ (abs (realpart p))
