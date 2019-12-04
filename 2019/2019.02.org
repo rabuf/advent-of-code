@@ -53,7 +53,7 @@ The input this time is a comma separated list of integers.
 ** Part 1
 Basic computer simulation. /Intcode/ has 3 instructions:
 - 1 :: add the values at the next two locations and store in the third location
-- 2 :: multiply teh values at the next two locations and store in the third location
+- 2 :: multiply the values at the next two locations and store in the third location
 - 99 :: terminate
 
 The task is to put 12 and 2 into locations 1 and 2, and determine the
