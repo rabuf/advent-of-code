@@ -102,18 +102,16 @@ sequences which minimizes the number of sequences to consider
 #+NAME: better-solution
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun run-length (password)
-    (let ((prev (first password))
-          (run-length 1)
-          (encoding nil))
-      (iter (for current in (rest password))
-            (finally (push run-length encoding))
-            (cond ((= prev current)
-                   (incf run-length))
-                  (t
-                   (push run-length encoding)
-                   (setf run-length 1)
-                   (setf prev current))))
-      encoding))
+    (iter (for current in (rest password))
+          (for prev previous current initially (first password))
+          (with run-length = 1)
+          (with encoding = nil)
+          (finally (push run-length encoding) (return encoding))
+          (cond ((= prev current)
+                 (incf run-length))
+                (t
+                 (push run-length encoding)
+                 (setf run-length 1)))))
   (defun p2-pairwise (password)
     (member 2 (run-length password)))
   (defun p1-pairwise (password)
