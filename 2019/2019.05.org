@@ -1,0 +1,220 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 05
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-05)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-05
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-05)
+#+END_SRC
+** Input
+Another Intcode prorgam. It's one line of comma separated values. 
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (s file)
+      (map 'vector #'parse-integer (cl-ppcre:split "," (read-line s)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/05.txt"))
+#+END_SRC
+** Part 1
+We have some additional instructions now for the Intcode machine.
+- 1 :: Add
+- 2 :: Multiply
+- 3 :: Read
+- 4 :: Write
+- 5 :: Jump-if-true
+- 6 :: Jump-if-false
+- 7 :: Less-than
+- 8 :: Equals
+
+=5-8= are from Part 2, but I'll include them in this part of the
+solution.
+#+NAME: intcode
+#+BEGIN_SRC lisp
+  (defun intcode (program &key (in *standard-input*) (out *standard-output*))
+    (macrolet ((at (n) `(aref program ,n))
+               (atat (n) `(aref program (aref program ,n))))
+      (iter (with program = (copy-seq program))
+            (with pc = 0)
+            (for op = (at pc))
+            (for instr = (mod op 100))
+            (for modes = (floor op 100))
+            (for m1 = (mod modes 10))
+            (for m2 = (mod (floor modes 10) 10))
+            (for m3 = (mod (floor modes 100) 10))
+            (for o1 = (+ pc 1))
+            (for o2 = (+ pc 2))
+            (for o3 = (+ pc 3))
+            (ecase instr
+              (1 (setf (atat o3)
+                       (ecase modes
+                         (00 (+ (atat o1) (atat o2)))
+                         (01 (+ (at o1) (atat o2)))
+                         (10 (+ (atat o1) (at o2)))
+                         (11 (+ (at o1) (at o2)))))
+                 (incf pc 4))     
+              (2 (setf (atat o3)
+                       (ecase modes
+                         (00 (* (atat o1) (atat o2)))
+                         (01 (* (at o1) (atat o2)))
+                         (10 (* (atat o1) (at o2)))
+                         (11 (* (at o1) (at o2)))))
+                 (incf pc 4))
+              (3 (setf (atat o1) (read in))
+                 (incf pc 2))
+              (4 (format out "~a: ~a~%"
+                         pc
+                         (ecase modes
+                           (0 (atat o1))
+                           (1 (at o1))))
+                 (incf pc 2))
+              (5 (if (not (zerop
+                           (ecase (mod modes 10)
+                             (0 (atat o1))
+                             (1 (at o1)))))
+                     (setf pc (ecase (floor modes 10)
+                                (0 (atat o2))
+                                (1 (at o2))))
+                     (incf pc 3)))
+              (6 (if (zerop
+                      (ecase (mod modes 10)
+                        (0 (atat o1))
+                        (1 (at o1))))
+                     (setf pc (ecase (floor modes 10)
+                                (0 (atat o2))
+                                (1 (at o2))))
+                     (incf pc 3)))
+              (7 (setf (atat o3)
+                       (ecase modes
+                         (00 (if (< (atat o1) (atat o2)) 1 0))
+                         (01 (if (< (at o1) (atat o2)) 1 0))
+                         (10 (if (< (atat o1) (at o2)) 1 0))
+                         (11 (if (< (at o1) (at o2)) 1 0))))
+                 (incf pc 4))
+              (8 (setf (atat o3)
+                       (ecase modes
+                         (00 (if (= (atat o1) (atat o2)) 1 0))
+                         (01 (if (= (at o1) (atat o2)) 1 0))
+                         (10 (if (= (atat o1) (at o2)) 1 0))
+                         (11 (if (= (at o1) (at o2)) 1 0))))
+                 (incf pc 4))
+              (99 (return-from intcode))))))
+#+END_SRC
+
+#+RESULTS: intcode
+: INTCODE
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 05 A: ~a~%"
+                              (with-output-to-string (out)
+                                (with-input-from-string (in "1")
+                                  (intcode *input* :in in :out out)))))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 05 B: ~a~%"
+                              (with-output-to-string (out)
+                                (with-input-from-string (in "5")
+                                  (intcode *input* :in in :out out)))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.05.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 05 A: 10: 0
+24: 0
+58: 0
+80: 0
+102: 0
+124: 0
+150: 0
+172: 0
+206: 0
+220: 8332629
+
+Problem 05 B: 674: 8805067
+
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.05)
+  (in-suite aoc.2019.05)
+
+  (test read-and-comparisons
+    (is (string= "6: 0
+  "
+                 (with-output-to-string (*standard-output*)
+                   (with-input-from-string (*standard-input* "7")
+                     (intcode #(3 9 8 9 10 9 4 9 99 -1 8))))))
+    (is (string= "6: 1
+  "
+                 (with-output-to-string (*standard-output*)
+                   (with-input-from-string (*standard-input* "8")
+                     (intcode #(3 9 8 9 10 9 4 9 99 -1 8)))))))
+
+  (run! 'aoc.2019.05)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2019.05
+:  Running test READ-AND-COMPARISONS ..
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
