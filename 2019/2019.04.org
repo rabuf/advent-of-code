@@ -118,8 +118,6 @@ sequences which minimizes the number of sequences to consider
     (member 2 (run-length password)))
   (defun p1-pairwise (password)
     (member-if #'(lambda (n) (>= n 2)) (run-length password)))
-  (defun split-password (password)
-    (map 'list #'(lambda (c) (- (char-code c) (char-code #\0))) (format nil "~a" password)))
 
   (defun test-password (password &key (min 100000) (max 999999) (p2 nil))
     (let ((n (parse-integer (format nil "~{~a~}"  password))))
