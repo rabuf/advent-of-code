@@ -20,6 +20,8 @@ support for lisp installed you can run this by:
     (ql:quickload "parseq"))
   (unless (find-package :fiveam)
     (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
@@ -63,6 +65,29 @@ the amount of fuel for all modules.
        sum (calc-fuel l)))
   (defun problem-a () (format t "Problem 01 A: ~a~%" (solve-a *input*)))
 #+END_SRC
+
+I had explored [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node347.html][Series]] in the past but not gotten far, just didn't have
+suitable problems to play with. I saw a Haskell solution and realized
+that Series allowed for a simlilarly compact, yet clear,
+solution. Here it is:
+#+BEGIN_SRC lisp :noweb yes
+  (time (series:collect-sum (series:map-fn t #'calc-fuel (series:scan-file "input/01.txt"))))
+#+END_SRC
+
+#+RESULTS:
+: 3278434
+Now that we have that, we can also solve the second part:
+#+BEGIN_SRC lisp :noweb yes
+  (collect-sum
+   (mapping ((x (scan-file "input/01.txt")))
+            (collect-sum (subseries
+                          (scan-fn t #'(lambda () x) #'calc-fuel #'minusp)
+                          1))))
+#+END_SRC
+
+#+RESULTS:
+: 4914785
+
 ** Part 2
 Recursively apply the fuel calculation in order to account for the
 mass of the added fuel. If the calculated fuel is 0 or less, then
