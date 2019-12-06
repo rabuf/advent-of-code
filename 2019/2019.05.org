@@ -204,7 +204,40 @@ Problem 05 B: 674: 8805067
   "
                  (with-output-to-string (*standard-output*)
                    (with-input-from-string (*standard-input* "8")
-                     (intcode #(3 9 8 9 10 9 4 9 99 -1 8)))))))
+                     (intcode #(3 9 8 9 10 9 4 9 99 -1 8))))))
+    (is (string= "6: 0
+  "
+                 (with-output-to-string (*standard-output*)
+                   (with-input-from-string (*standard-input* "8")
+                     (intcode #(3 9 7 9 10 9 4 9 99 -1 8))))))
+    (is (string= "6: 1
+  "
+                 (with-output-to-string (*standard-output*)
+                   (with-input-from-string (*standard-input* "7")
+                     (intcode #(3 9 7 9 10 9 4 9 99 -1 8)))))))
+
+  (test jump-and-comparisons
+    (is (string= "26: 1000
+  "
+                 (with-output-to-string (*standard-output*)
+                   (with-input-from-string (*standard-input* "8")
+                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31 
+                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104 
+                                999 1105 1 46 1101 1000 1 20 4 20 1105 1 46 98 99))))))
+    (is (string= "40: 1001
+  "
+                 (with-output-to-string (*standard-output*)
+                   (with-input-from-string (*standard-input* "9")
+                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31 
+                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104 
+                                999 1105 1 46 1101 1000 1 20 4 20 1105 1 46 98 99))))))
+    (is (string= "31: 999
+  "
+                 (with-output-to-string (*standard-output*)
+                   (with-input-from-string (*standard-input* "7")
+                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31 
+                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104 
+                                999 1105 1 46 1101 1000 1 20 4 20 1105 1 46 98 99)))))))
 
   (run! 'aoc.2019.05)
 #+END_SRC
@@ -212,9 +245,10 @@ Problem 05 B: 674: 8805067
 #+RESULTS: test-cases
 : 
 : Running test suite AOC.2019.05
-:  Running test READ-AND-COMPARISONS ..
-:  Did 2 checks.
-:     Pass: 2 (100%)
+:  Running test READ-AND-COMPARISONS ....
+:  Running test JUMP-AND-COMPARISONS ...
+:  Did 7 checks.
+:     Pass: 7 (100%)
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
