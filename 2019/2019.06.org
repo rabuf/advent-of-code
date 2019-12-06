@@ -35,26 +35,73 @@ support for lisp installed you can run this by:
   (in-package :aoc-2019-06)
 #+END_SRC
 ** Input
+The input is a collection of orbits (directional pairs). I'm going to
+split the lines on =)=.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
     (iter (for line in-file file using #'read-line)
-          (collect line)))
+          (collect (cl-ppcre:split "\\)" line))))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/06.txt"))
+    (make-graph (read-input "input/06.txt")))
 #+END_SRC
 ** Part 1
+Tally the number of direct orbits and indirect orbits. A direct orbit
+is, well, exactly the information in the input. The indirect is the
+distance from COM less one.
+#+NAME: make-graph
+#+BEGIN_SRC lisp :noweb yes :Results silent
+  (defun make-graph (orbits)
+    (let ((graph (make-hash-table :test 'equal)))
+      (iter (for (l r) in orbits)
+            (setf (gethash r graph) l))
+      graph))
+#+END_SRC
+#+NAME: count-orbits
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun count-direct (graph)
+    (iter (for (k v) in-hashtable graph)
+          (sum 1)))
+
+  (defun count-indirect (graph)
+    (labels ((depth (object acc)
+               (if (string= object "COM") acc
+                   (depth (gethash object graph) (1+ acc)))))
+      (iter (for (l r) in-hashtable graph)
+            (sum (depth r 0)))))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 06 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 06 A: ~a~%" (+ (count-direct *input*)
+                                                        (count-indirect *input*))))
 #+END_SRC
 ** Part 2
+Part 2 requires finding the minimum number of transfers to get from
+where YOU is orbit to where SAN is in orbit.
+#+NAME: transfers
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun transfers (orbits)
+    (let ((from (gethash "YOU" orbits))
+          (to (gethash "SAN" orbits)))
+      (labels ((depth (object acc)
+                 (if (string= object "COM") acc
+                     (depth (gethash object orbits) (1+ acc))))
+               (common-root (a b)
+                 (let ((da (depth a 0))
+                       (db (depth b 0)))
+                   (cond ((equal a b) a)
+                         ((< da db) (common-root a (gethash b orbits)))
+                         ((> da db) (common-root b (gethash a orbits)))
+                         ((= da db) (common-root (gethash a orbits) (gethash b orbits)))))))
+        (- (+ (depth from 0) (depth to 0))
+           (* 2 (depth (common-root from to) 0))))))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 06 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 06 B: ~a~%" (transfers *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -64,6 +111,10 @@ support for lisp installed you can run this by:
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
+  <<make-graph>>
+  <<input>>
+  <<count-orbits>>
+  ;; <<transfers>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.06.lisp
@@ -78,8 +129,8 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 06 A: 278744
+: Problem 06 B: 475
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
