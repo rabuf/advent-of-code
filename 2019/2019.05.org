@@ -35,7 +35,7 @@ support for lisp installed you can run this by:
   (in-package :aoc-2019-05)
 #+END_SRC
 ** Input
-Another Intcode prorgam. It's one line of comma separated values. 
+Another Intcode prorgam. It's one line of comma separated values.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -83,7 +83,7 @@ solution.
                          (01 (+ (at o1) (atat o2)))
                          (10 (+ (atat o1) (at o2)))
                          (11 (+ (at o1) (at o2)))))
-                 (incf pc 4))     
+                 (incf pc 4))
               (2 (setf (atat o3)
                        (ecase modes
                          (00 (* (atat o1) (atat o2)))
@@ -221,29 +221,29 @@ Problem 05 B: 674: 8805067
   "
                  (with-output-to-string (*standard-output*)
                    (with-input-from-string (*standard-input* "8")
-                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31 
-                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104 
+                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31
+                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104
                                 999 1105 1 46 1101 1000 1 20 4 20 1105 1 46 98 99))))))
     (is (string= "40: 1001
   "
                  (with-output-to-string (*standard-output*)
                    (with-input-from-string (*standard-input* "9")
-                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31 
-                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104 
+                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31
+                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104
                                 999 1105 1 46 1101 1000 1 20 4 20 1105 1 46 98 99))))))
     (is (string= "31: 999
   "
                  (with-output-to-string (*standard-output*)
                    (with-input-from-string (*standard-input* "7")
-                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31 
-                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104 
+                     (intcode #(3 21 1008 21 8 20 1005 20 22 107 8 21 20 1006 20 31
+                                1106 0 36 98 0 0 1002 21 125 20 4 20 1105 1 46 104
                                 999 1105 1 46 1101 1000 1 20 4 20 1105 1 46 98 99)))))))
 
   (run! 'aoc.2019.05)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
-: 
+:
 : Running test suite AOC.2019.05
 :  Running test READ-AND-COMPARISONS ....
 :  Running test JUMP-AND-COMPARISONS ...
