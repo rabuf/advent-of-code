@@ -1,0 +1,146 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 08
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-08)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-08
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-08)
+#+END_SRC
+** Input
+The input today is a series of integers concatenated together on one
+line. We want each individual integer.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (map 'list #'(lambda (c) (- (char-code c) (char-code #\0)))
+         (first (iter (for line in-file file using #'read-line)
+                      (collect line)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/08.txt"))
+#+END_SRC
+** Part 1
+I need to chunk this out into 25x6 arrays, find the one with the
+fewest 0's present and calculate the product of the number of 1s and
+2s in that layer.
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun make-layers (input h w)
+    (iter (for i from 0 below (length input) by (* h w))
+          (collect (subseq input i (+ i (* h w))))))
+  (defun solve-a (input)
+    (let ((chunks (make-layers input 25 6)))
+      (iter (for ch in chunks)
+            (finding (* (count-if (lambda (x) (= x 1)) ch)
+                        (count-if (lambda (x) (= x 2)) ch))
+                     minimizing
+                     (count-if #'zerop ch)))))
+#+END_SRC
+
+I've discovered an annoying thing about iterate. =count= doesn't work
+as expected because iterate has taken that name. I had to use
+=count-if= as a quick and dirty solution.
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 08 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Now we need to render the image. Starting with the first layer,
+compute the pixel in the rendered image. 0 is black, 1 is white, 2 is
+transparent. If there is a series of pixels =(0 2 1)= the color is
+black (0). If it's =(2 2 1)= the color is white (1).
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun print-image (image h w)
+    (iter (for i from 0 below h)
+          (iter (for j from 0 below w)
+                (format t "~[ ~;#~; ~]" (aref image (+ (* w i) j))))
+          (format t "~%")))
+  (defun solve-b (image)
+    (let ((layers (make-layers image 25 6))
+          (final (make-array 150 :initial-element 2)))
+      (iter (for l in layers)
+            (iter (for i from 0 below 150)
+                  (when (= 2 (aref final i))
+                    (setf (aref final i) (nth i l)))))
+      (print-image final 6 25)))
+
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 08 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<solve-a>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.08.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 08 A: 2975
+: #### #  # ###  #  # #### 
+: #    #  # #  # #  # #    
+: ###  #### #  # #  # ###  
+: #    #  # ###  #  # #    
+: #    #  # # #  #  # #    
+: #### #  # #  #  ##  #### 
+: Problem 08 B: NIL
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.08)
+  (in-suite aoc.2019.08)
+
+  (run! 'aoc.2019.08)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts

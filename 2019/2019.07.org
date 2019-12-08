@@ -1,0 +1,385 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 07
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-07)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :bt-semaphore)
+    (ql:quickload "bt-semaphore"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-07
+    (:use :common-lisp
+          :iterate
+          :lparallel.queue
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-07)
+#+END_SRC
+** Input
+It's another Intcode program. I'll borrow some snippets from Day 5.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (s file)
+      (map 'vector #'parse-integer (cl-ppcre:split "," (read-line s)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/07.txt"))
+#+END_SRC
+** Part 1
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun intcode (program &key (in *standard-input*) (out *standard-output*))
+    (macrolet ((at (n) `(aref program ,n))
+               (atat (n) `(aref program (aref program ,n))))
+      (iter (with program = (copy-seq program))
+            (with pc = 0)
+            (for op = (at pc))
+            (for instr = (mod op 100))
+            (for modes = (floor op 100))
+            (for m1 = (mod modes 10))
+            (for m2 = (mod (floor modes 10) 10))
+            (for m3 = (mod (floor modes 100) 10))
+            (for o1 = (+ pc 1))
+            (for o2 = (+ pc 2))
+            (for o3 = (+ pc 3))
+            (ecase instr
+              (1 (setf (atat o3)
+                       (ecase modes
+                         (00 (+ (atat o1) (atat o2)))
+                         (01 (+ (at o1) (atat o2)))
+                         (10 (+ (atat o1) (at o2)))
+                         (11 (+ (at o1) (at o2)))))
+                 (incf pc 4))
+              (2 (setf (atat o3)
+                       (ecase modes
+                         (00 (* (atat o1) (atat o2)))
+                         (01 (* (at o1) (atat o2)))
+                         (10 (* (atat o1) (at o2)))
+                         (11 (* (at o1) (at o2)))))
+                 (incf pc 4))
+              (3 (setf (atat o1) (read in))
+                 (incf pc 2))
+              (4 (format out "~a"
+                         (ecase modes
+                           (0 (atat o1))
+                           (1 (at o1))))
+                 (incf pc 2))
+              (5 (if (not (zerop
+                           (ecase (mod modes 10)
+                             (0 (atat o1))
+                             (1 (at o1)))))
+                     (setf pc (ecase (floor modes 10)
+                                (0 (atat o2))
+                                (1 (at o2))))
+                     (incf pc 3)))
+              (6 (if (zerop
+                      (ecase (mod modes 10)
+                        (0 (atat o1))
+                        (1 (at o1))))
+                     (setf pc (ecase (floor modes 10)
+                                (0 (atat o2))
+                                (1 (at o2))))
+                     (incf pc 3)))
+              (7 (setf (atat o3)
+                       (ecase modes
+                         (00 (if (< (atat o1) (atat o2)) 1 0))
+                         (01 (if (< (at o1) (atat o2)) 1 0))
+                         (10 (if (< (atat o1) (at o2)) 1 0))
+                         (11 (if (< (at o1) (at o2)) 1 0))))
+                 (incf pc 4))
+              (8 (setf (atat o3)
+                       (ecase modes
+                         (00 (if (= (atat o1) (atat o2)) 1 0)) 
+                        (01 (if (= (at o1) (atat o2)) 1 0))
+                         (10 (if (= (atat o1) (at o2)) 1 0))
+                         (11 (if (= (at o1) (at o2)) 1 0))))
+                 (incf pc 4))
+              (99 (return-from intcode))))))
+#+END_SRC
+
+Ok, so the progarm today is an Apmlifier. There need to be 5 instances
+of them, run in series. Each takes two inputs:
+- Phase Setting :: [0-4] each is used once.
+- Input :: The input for the first amplifier is 0, then the rest
+           receive the output of the preceding amplifier.
+
+I have an idea of making this fully automatic with using I/O streams
+shared between the different aplifiers, but I'll go easy on myself.
+#+NAME: amplifiers
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun amplifiers (program)
+    (let ((settings (list 0 1 2 3 4)))
+      (iter outer
+            (for a in settings)
+            (for na = (remove a settings))
+            (for out-a =
+                 (with-input-from-string (in (format nil "~a 0" a))
+                   (with-output-to-string (out)
+                     (intcode program :in in :out out))))
+            ;; (format t "A: ~a ~a ~a~%" a na out-a)
+            (iter (for b in na)
+                  (for nb = (remove b na))
+                  (for out-b =
+                       (with-input-from-string (in (format nil "~a ~a" b out-a))
+                         (with-output-to-string (out)
+                           (intcode program :in in :out out))))
+                  ;; (format t "B: ~a ~a ~a~%" b nb out-b)
+                  (iter (for c in nb)
+                        (for nc = (remove c nb))
+                        (for out-c =
+                             (with-input-from-string (in (format nil "~a ~a" c out-b))
+                               (with-output-to-string (out)
+                                 (intcode program :in in :out out))))
+                        ;; (format t "C: ~a ~a ~a~%" c nc out-c)
+                        (iter (for d in nc)
+                              (for nd = (remove d nc))
+                              (for out-d =
+                                   (with-input-from-string (in (format nil "~a ~a" d out-c))
+                                     (with-output-to-string (out)
+                                       (intcode program :in in :out out))))
+                              ;; (format t "D: ~a ~a ~a~%" b nb out-b)
+                              (iter (for e in nd)
+                                    (for out-e =
+                                         (with-input-from-string (in (format nil "~a ~a" e out-d))
+                                           (with-output-to-string (out)
+                                             (intcode program :in in :out out))))
+                                    ;; (format t "E: ~a ~a~%" e out-e)
+                                    (in outer
+                                        (maximizing (parse-integer out-e))))))))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 07 A: ~a~%" (amplifiers *input*)))
+#+END_SRC
+** Part 2
+Well, I need threads to keep this design going. I'm now going to play
+around a bit with different streams options.
+
+I've modified the simulator so it now has a read and write functions
+as keyword parameters. By default it reads from =*standard-input*= and
+writes to =*standard-output*=. If the =in= and =out= parameters are
+streams, the read and write functions will work as expected.
+
+This change was mainly made so that the function wasn't changed
+appreciably while allowing the adoption of =lparallel.queue=.
+#+NAME: intcode
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun intcode (program &key (in *standard-input*) (out *standard-output*)
+                            (read-fn #'read) (write-fn #'(lambda (v s) (write v :stream s))))
+    (macrolet ((at (n) `(aref program ,n))
+               (atat (n) `(aref program (aref program ,n))))
+      (iter (with program = (copy-seq program))
+            (with pc = 0)
+            (for op = (at pc))
+            (for instr = (mod op 100))
+            (for modes = (floor op 100))
+            (for m1 = (mod modes 10))
+            (for m2 = (mod (floor modes 10) 10))
+            (for m3 = (mod (floor modes 100) 10))
+            (for o1 = (+ pc 1))
+            (for o2 = (+ pc 2))
+            (for o3 = (+ pc 3))
+            (ecase instr
+              (1 (setf (atat o3) (ecase modes
+                                   (00 (+ (atat o1) (atat o2)))
+                                   (01 (+ (at o1) (atat o2)))
+                                   (10 (+ (atat o1) (at o2)))
+                                   (11 (+ (at o1) (at o2)))))
+                 (incf pc 4))
+              (2 (setf (atat o3) (ecase modes
+                                   (00 (* (atat o1) (atat o2)))
+                                   (01 (* (at o1) (atat o2)))
+                                   (10 (* (atat o1) (at o2)))
+                                   (11 (* (at o1) (at o2)))))
+                 (incf pc 4))
+              (3 (setf (atat o1) (funcall read-fn in))
+                 (incf pc 2))
+              (4 (funcall write-fn (ecase modes
+                                     (0 (atat o1))
+                                     (1 (at o1)))
+                          out)
+                 (incf pc 2))
+              (5 (if (not (zerop (ecase (mod modes 10)
+                                   (0 (atat o1))
+                                   (1 (at o1)))))
+                     (setf pc (ecase (floor modes 10)
+                                (0 (atat o2))
+                                (1 (at o2))))
+                     (incf pc 3)))
+              (6 (if (zerop (ecase (mod modes 10)
+                              (0 (atat o1))
+                              (1 (at o1))))
+                     (setf pc (ecase (floor modes 10)
+                                (0 (atat o2))
+                                (1 (at o2))))
+                     (incf pc 3)))
+              (7 (setf (atat o3)
+                       (ecase modes
+                         (00 (if (< (atat o1) (atat o2)) 1 0))
+                         (01 (if (< (at o1) (atat o2)) 1 0))
+                         (10 (if (< (atat o1) (at o2)) 1 0))
+                         (11 (if (< (at o1) (at o2)) 1 0))))
+                 (incf pc 4))
+              (8 (setf (atat o3)
+                       (ecase modes
+                         (00 (if (= (atat o1) (atat o2)) 1 0)) 
+                        (01 (if (= (at o1) (atat o2)) 1 0))
+                         (10 (if (= (atat o1) (at o2)) 1 0))
+                         (11 (if (= (at o1) (at o2)) 1 0))))
+                 (incf pc 4))
+              (99 (return-from intcode))))))
+#+END_SRC
+
+Now that that's working, we can use lparallel's queues and Bordeaux
+Threads.
+#+NAME: amplifier
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun debug-pop-queue (q)
+    (loop for i from 1 to 20
+         do (multiple-value-bind (r s) (try-pop-queue q)
+              (when s (return r))
+              (unless s (format t "~a: empty input~%" (bt:thread-name (bt:current-thread)))
+                      (sleep 0.25))
+              (when (= i 18) (push-queue 10 q)))))
+  (defun amplifier (settings program)
+    (let* ((queues (iter (for i from 0)
+                         (for s in settings)
+                         (for q = (make-queue))
+                         (push-queue s q)
+                         (when (= 0 i) (push-queue 0 q))
+                         (collect q)))
+           (threads (iter (for i from 0 below (length settings))
+                          (for in = (nth i queues))
+                          (for name in (list "A" "B" "C" "D" "E"))
+                          (for out = (nth (mod (1+ i) (length settings)) queues))
+                          (collect
+                              (bt:make-thread
+                               (lambda ()
+                                 (intcode program
+                                            :in in
+                                            :out out
+                                            :read-fn #'pop-queue
+                                            :write-fn #'push-queue))
+                               :name name)))))
+      ;; Apply settings to each
+      ;; (push-queue 0 (first queues)) ;; set input of 0 for A
+      (iter (for th in threads)
+            (bt:join-thread th))
+      (pop-queue (first queues))))
+#+END_SRC
+
+Ok, now that that's done, let's rewrite part 1 using this version of
+amplifiers:
+#+NAME: amplifiers
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun amplifiers (program &optional (settings (list 0 1 2 3 4)))
+    (iter outer
+          (for a in settings)
+          (for na = (remove a settings))
+          (iter (for b in na)
+                (for nb = (remove b na))
+                (iter (for c in nb)
+                      (for nc = (remove c nb))
+                      (iter (for d in nc)
+                            (for nd = (remove d nc))
+                            (iter (for e in nd)
+                                  (format t "~a~%" (list a b c d e))
+                                  (in outer
+                                      (maximizing (amplifier (list a b c d e) program)))))))))
+#+END_SRC
+And it hangs. That sucks. I don't know why. Periodically, and it's
+random which settings it happens on, this hangs with an empty queue in
+one or more threads.
+#+BEGIN_SRC lisp
+  (with-input-from-string
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 07 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<intcode>>
+  <<amplifiers>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.07.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 07 A: 38834
+Problem 07 B: #(3 8 1001 8 10 8 105 1 0 0 21 34 51 76 101 114 195 276 357 438
+                99999 3 9 1001 9 3 9 1002 9 3 9 4 9 99 3 9 101 4 9 9 102 4 9 9
+                1001 9 5 9 4 9 99 3 9 1002 9 4 9 101 3 9 9 102 5 9 9 1001 9 2 9
+                1002 9 2 9 4 9 99 3 9 1001 9 3 9 102 2 9 9 101 4 9 9 102 3 9 9
+                101 2 9 9 4 9 99 3 9 102 2 9 9 101 4 9 9 4 9 99 3 9 102 2 9 9 4
+                9 3 9 102 2 9 9 4 9 3 9 1001 9 1 9 4 9 3 9 1001 9 2 9 4 9 3 9
+                101 2 9 9 4 9 3 9 1002 9 2 9 4 9 3 9 1002 9 2 9 4 9 3 9 1001 9
+                2 9 4 9 3 9 1002 9 2 9 4 9 3 9 101 2 9 9 4 9 99 3 9 101 2 9 9 4
+                9 3 9 1002 9 2 9 4 9 3 9 1001 9 1 9 4 9 3 9 1001 9 1 9 4 9 3 9
+                1002 9 2 9 4 9 3 9 102 2 9 9 4 9 3 9 101 1 9 9 4 9 3 9 1002 9 2
+                9 4 9 3 9 1001 9 2 9 4 9 3 9 1001 9 2 9 4 9 99 3 9 1001 9 2 9 4
+                9 3 9 102 2 9 9 4 9 3 9 101 2 9 9 4 9 3 9 102 2 9 9 4 9 3 9
+                1001 9 1 9 4 9 3 9 102 2 9 9 4 9 3 9 1001 9 1 9 4 9 3 9 102 2 9
+                9 4 9 3 9 1002 9 2 9 4 9 3 9 101 2 9 9 4 9 99 3 9 102 2 9 9 4 9
+                3 9 102 2 9 9 4 9 3 9 1002 9 2 9 4 9 3 9 1001 9 1 9 4 9 3 9
+                1002 9 2 9 4 9 3 9 102 2 9 9 4 9 3 9 1001 9 2 9 4 9 3 9 101 1 9
+                9 4 9 3 9 102 2 9 9 4 9 3 9 102 2 9 9 4 9 99 3 9 1002 9 2 9 4 9
+                3 9 101 2 9 9 4 9 3 9 101 1 9 9 4 9 3 9 101 2 9 9 4 9 3 9 101 1
+                9 9 4 9 3 9 1001 9 2 9 4 9 3 9 1002 9 2 9 4 9 3 9 1001 9 1 9 4
+                9 3 9 1001 9 2 9 4 9 3 9 1002 9 2 9 4 9 99)
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.07)
+  (in-suite aoc.2019.07)
+
+  (run! 'aoc.2019.07)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts

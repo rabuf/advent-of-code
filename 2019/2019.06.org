@@ -81,7 +81,6 @@ distance from COM less one.
 ** Part 2
 Part 2 requires finding the minimum number of transfers to get from
 where YOU is orbit to where SAN is in orbit.
-#+NAME: transfers
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun transfers (orbits)
     (let ((from (gethash "YOU" orbits))
@@ -99,6 +98,29 @@ where YOU is orbit to where SAN is in orbit.
         (- (+ (depth from 0) (depth to 0))
            (* 2 (depth (common-root from to) 0))))))
 #+END_SRC
+
+This morning I realized I'd made a mistake above. Not with the answer,
+but the algorithm. I'm calculating the depth repeatedly at each step,
+that's not needed and adds to the time complexity.
+#+NAME: transfers
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun transfers (orbits)
+    (let* ((from (gethash "YOU" orbits))
+           (to (gethash "SAN" orbits)))
+      (labels ((depth (object &optional (acc 0))
+                 (if (string= object "COM") acc
+                     (depth (gethash object orbits) (1+ acc))))
+               (common-root (a b da db)
+                 (cond ((equal a b) a)
+                       ((< da db) (common-root a (gethash b orbits) da (1- db)))
+                       ((> da db) (common-root (gethash a orbits) b (1- da) db))
+                       ((= da db) (common-root (gethash a orbits) (gethash b orbits) (1- da) (1- db))))))
+        (let ((depth-from (depth from 0))
+              (depth-to (depth to 0)))
+          (- (+ depth-from depth-to)
+             (* 2 (depth (common-root from to depth-from depth-to) 0)))))))
+#+END_SRC
+Now it's a $O(N)$ algorithm where $N$ is the depth of the tree.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 06 B: ~a~%" (transfers *input*)))
