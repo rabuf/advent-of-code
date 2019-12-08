@@ -123,7 +123,7 @@ It's another Intcode program. I'll borrow some snippets from Day 5.
               (99 (return-from intcode))))))
 #+END_SRC
 
-Ok, so the progarm today is an Apmlifier. There need to be 5 instances
+Ok, so the program today is an Apmlifier. There need to be 5 instances
 of them, run in series. Each takes two inputs:
 - Phase Setting :: [0-4] each is used once.
 - Input :: The input for the first amplifier is 0, then the rest
@@ -179,9 +179,6 @@ shared between the different aplifiers, but I'll go easy on myself.
   (defun problem-a () (format t "Problem 07 A: ~a~%" (amplifiers *input*)))
 #+END_SRC
 ** Part 2
-Well, I need threads to keep this design going. I'm now going to play
-around a bit with different streams options.
-
 I've modified the simulator so it now has a read and write functions
 as keyword parameters. By default it reads from =*standard-input*= and
 writes to =*standard-output*=. If the =in= and =out= parameters are
@@ -317,9 +314,7 @@ amplifiers:
 And it hangs. That sucks. I don't know why. Periodically, and it's
 random which settings it happens on, this hangs with an empty queue in
 one or more threads.
-#+BEGIN_SRC lisp
-  (with-input-from-string
-#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 07 B: ~a~%" (identity *input*)))
