@@ -250,7 +250,7 @@ appreciably while allowing the adoption of =lparallel.queue=.
               (8 (setf (atat o3)
                        (ecase modes
                          (00 (if (= (atat o1) (atat o2)) 1 0)) 
-                        (01 (if (= (at o1) (atat o2)) 1 0))
+                         (01 (if (= (at o1) (atat o2)) 1 0))
                          (10 (if (= (atat o1) (at o2)) 1 0))
                          (11 (if (= (at o1) (at o2)) 1 0))))
                  (incf pc 4))
@@ -261,38 +261,29 @@ Now that that's working, we can use lparallel's queues and Bordeaux
 Threads.
 #+NAME: amplifier
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun debug-pop-queue (q)
-    (loop for i from 1 to 20
-         do (multiple-value-bind (r s) (try-pop-queue q)
-              (when s (return r))
-              (unless s (format t "~a: empty input~%" (bt:thread-name (bt:current-thread)))
-                      (sleep 0.25))
-              (when (= i 18) (push-queue 10 q)))))
   (defun amplifier (settings program)
-    (let* ((queues (iter (for i from 0)
-                         (for s in settings)
-                         (for q = (make-queue))
-                         (push-queue s q)
-                         (when (= 0 i) (push-queue 0 q))
-                         (collect q)))
-           (threads (iter (for i from 0 below (length settings))
-                          (for in = (nth i queues))
-                          (for name in (list "A" "B" "C" "D" "E"))
-                          (for out = (nth (mod (1+ i) (length settings)) queues))
-                          (collect
-                              (bt:make-thread
-                               (lambda ()
-                                 (intcode program
-                                            :in in
-                                            :out out
-                                            :read-fn #'pop-queue
-                                            :write-fn #'push-queue))
-                               :name name)))))
-      ;; Apply settings to each
-      ;; (push-queue 0 (first queues)) ;; set input of 0 for A
-      (iter (for th in threads)
-            (bt:join-thread th))
-      (pop-queue (first queues))))
+    (flet ((generator (in out)
+             (lambda ()
+               (intcode program
+                        :in in
+                        :out out
+                        :read-fn #'pop-queue
+                        :write-fn #'push-queue))))
+      (let* ((queues (iter (for i from 0)
+                           (for s in settings)
+                           (for q = (make-queue :initial-contents (list s)))
+                           (when (= 0 i) (push-queue 0 q))
+                           (collect q)))
+             (threads (iter (for i from 0)
+                            (for in = (nth i queues))
+                            (for out = (nth (mod (1+ i) (length settings)) queues))
+                            (for name in (list "A" "B" "C" "D" "E"))
+                            (for f = (generator in out))
+                            (collect
+                                (bt:make-thread f :name name)))))
+        (iter (for th in threads)
+              (bt:join-thread th))
+        (pop-queue (first queues)))))
 #+END_SRC
 
 Ok, now that that's done, let's rewrite part 1 using this version of
@@ -310,19 +301,12 @@ amplifiers:
                       (iter (for d in nc)
                             (for nd = (remove d nc))
                             (iter (for e in nd)
-                                  (format t "~a~%" (list a b c d e))
                                   (in outer
                                       (maximizing (amplifier (list a b c d e) program)))))))))
 #+END_SRC
-And it hangs. That sucks. I don't know why. Periodically, and it's
-random which settings it happens on, this hangs with an empty queue in
-one or more threads.
-#+BEGIN_SRC lisp
-  (with-input-from-string
-#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 07 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 07 B: ~a~%" (amplifiers *input* (list 5 6 7 8 9))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -334,6 +318,7 @@ one or more threads.
   <<read-input>>
   <<input>>
   <<intcode>>
+  <<amplifier>>
   <<amplifiers>>
 #+END_SRC
 #+NAME: answers
@@ -349,29 +334,8 @@ one or more threads.
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-#+begin_example
-Problem 07 A: 38834
-Problem 07 B: #(3 8 1001 8 10 8 105 1 0 0 21 34 51 76 101 114 195 276 357 438
-                99999 3 9 1001 9 3 9 1002 9 3 9 4 9 99 3 9 101 4 9 9 102 4 9 9
-                1001 9 5 9 4 9 99 3 9 1002 9 4 9 101 3 9 9 102 5 9 9 1001 9 2 9
-                1002 9 2 9 4 9 99 3 9 1001 9 3 9 102 2 9 9 101 4 9 9 102 3 9 9
-                101 2 9 9 4 9 99 3 9 102 2 9 9 101 4 9 9 4 9 99 3 9 102 2 9 9 4
-                9 3 9 102 2 9 9 4 9 3 9 1001 9 1 9 4 9 3 9 1001 9 2 9 4 9 3 9
-                101 2 9 9 4 9 3 9 1002 9 2 9 4 9 3 9 1002 9 2 9 4 9 3 9 1001 9
-                2 9 4 9 3 9 1002 9 2 9 4 9 3 9 101 2 9 9 4 9 99 3 9 101 2 9 9 4
-                9 3 9 1002 9 2 9 4 9 3 9 1001 9 1 9 4 9 3 9 1001 9 1 9 4 9 3 9
-                1002 9 2 9 4 9 3 9 102 2 9 9 4 9 3 9 101 1 9 9 4 9 3 9 1002 9 2
-                9 4 9 3 9 1001 9 2 9 4 9 3 9 1001 9 2 9 4 9 99 3 9 1001 9 2 9 4
-                9 3 9 102 2 9 9 4 9 3 9 101 2 9 9 4 9 3 9 102 2 9 9 4 9 3 9
-                1001 9 1 9 4 9 3 9 102 2 9 9 4 9 3 9 1001 9 1 9 4 9 3 9 102 2 9
-                9 4 9 3 9 1002 9 2 9 4 9 3 9 101 2 9 9 4 9 99 3 9 102 2 9 9 4 9
-                3 9 102 2 9 9 4 9 3 9 1002 9 2 9 4 9 3 9 1001 9 1 9 4 9 3 9
-                1002 9 2 9 4 9 3 9 102 2 9 9 4 9 3 9 1001 9 2 9 4 9 3 9 101 1 9
-                9 4 9 3 9 102 2 9 9 4 9 3 9 102 2 9 9 4 9 99 3 9 1002 9 2 9 4 9
-                3 9 101 2 9 9 4 9 3 9 101 1 9 9 4 9 3 9 101 2 9 9 4 9 3 9 101 1
-                9 9 4 9 3 9 1001 9 2 9 4 9 3 9 1002 9 2 9 4 9 3 9 1001 9 1 9 4
-                9 3 9 1001 9 2 9 4 9 3 9 1002 9 2 9 4 9 99)
-#+end_example
+: Problem 07 A: 38834
+: Problem 07 B: 69113332
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
