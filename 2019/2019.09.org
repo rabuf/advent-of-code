@@ -28,6 +28,7 @@ support for lisp installed you can run this by:
   (defpackage :aoc-2019-09
     (:use :common-lisp
           :iterate
+          :lparallel.queue
           :parseq
           :fiveam)
     (:export :problem-a
