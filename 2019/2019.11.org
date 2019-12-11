@@ -60,22 +60,29 @@ should behave. But we need two additional things:
   panels and then turns the robot.
 #+NAME: solve-a
 #+BEGIN_SRC lisp :noweb yes :results silent
+  (defun print-panels (panels)
+    (destructuring-bind (max-x min-x max-y min-y)
+        (iter (for (k v) in-hashtable panels)
+              (maximizing (realpart k) into max-x)
+              (minimizing (realpart k) into min-x)
+              (maximizing (imagpart k) into max-y)
+              (minimizing (imagpart k) into min-y)
+              (finally (return (list max-x min-x max-y min-y))))
+      (iter (for y from max-y downto min-y)
+            (iter (for x from min-x to max-x)
+                  (format t "~[ ~;#~]" (gethash (complex x y) panels 0)))
+            (format t "~%"))
+      (format t "Number of panels: ~a~%" (hash-table-count panels))))
+    
+
   (defun simulate (robot &optional (initial 0))
     (let ((panels (make-hash-table))
           (position #C(0 0))
-          (direction #C(0 1))
-          (max-x 0)
-          (max-y 0)
-          (min-x 0)
-          (min-y 0))
+          (direction #C(0 1)))
       (setf (gethash position panels) initial)
       (labels ((camera ()
                  (gethash position panels 0))
                (paint (x)
-                 (setf max-x (max max-x (realpart position)))
-                 (setf max-y (max max-y (imagpart position)))
-                 (setf min-x (min min-x (realpart position)))
-                 (setf min-y (min min-y (imagpart position)))
                  (setf (gethash position panels) x))
                (rotate (x)
                  (setf direction
@@ -89,11 +96,7 @@ should behave. But we need two additional things:
                      (funcall (first actions) x)
                      (setf actions (reverse actions))))))
         (intcode robot :read-fn #'camera :write-fn (make-environment))
-        (format t "~a~%" (hash-table-count panels))
-        (iter (for y from max-y downto min-y)
-              (iter (for x from min-x to max-x)
-                    (format t "~[ ~;#~]" (gethash (complex x y) panels 0)))
-              (format t "~%")))))
+        (print-panels panels))))
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -190,7 +193,6 @@ should behave. But we need two additional things:
 ** Answer
 #+RESULTS: answers
 #+begin_example
-1932
        ##                                        
       # #                                        
       #   #                                      
@@ -265,14 +267,15 @@ should behave. But we need two additional things:
                               # #                
                               # #                
                                ##                
+Number of panels: 1932
 Problem 11 A: NIL
-249
  ####  ##  #  # #  #  ##    ## #### ###    
  #    #  # #  # # #  #  #    # #    #  #   
  ###  #    #### ##   #       # ###  #  #   
  #    # ## #  # # #  # ##    # #    ###    
  #    #  # #  # # #  #  # #  # #    # #    
  ####  ### #  # #  #  ###  ##  #### #  #   
+Number of panels: 249
 Problem 11 B: NIL
 #+end_example
 ** Test Cases
