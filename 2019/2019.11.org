@@ -1,0 +1,289 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 11
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-11)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-11
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :lparallel.queue
+          :bordeaux-threads
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-11)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+    (defun read-input (file)
+      (with-open-file (s file)
+        (map 'vector #'parse-integer (cl-ppcre:split "," (read-line s)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/11.txt"))
+#+END_SRC
+** Part 1
+Another Intcode problem. This time, the program describes how a robot
+should behave. But we need two additional things:
+- A "camera" which feeds input to the robot about the current state.
+- A "painter" and "rotator" which takes the output and paints the
+  panels and then turns the robot.
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun simulate (robot &optional (initial 0))
+    (let ((panels (make-hash-table))
+          (position #C(0 0))
+          (direction #C(0 1))
+          (max-x 0)
+          (max-y 0)
+          (min-x 0)
+          (min-y 0))
+      (setf (gethash position panels) initial)
+      (labels ((camera ()
+                 (gethash position panels 0))
+               (paint (x)
+                 (setf max-x (max max-x (realpart position)))
+                 (setf max-y (max max-y (imagpart position)))
+                 (setf min-x (min min-x (realpart position)))
+                 (setf min-y (min min-y (imagpart position)))
+                 (setf (gethash position panels) x))
+               (rotate (x)
+                 (setf direction
+                       (ecase x
+                         (0 (* direction #C(0 1)))
+                         (1 (* direction #C(0 -1)))))
+                 (incf position direction))
+               (make-environment ()
+                 (let ((actions (list #'paint #'rotate)))
+                   (lambda (x)
+                     (funcall (first actions) x)
+                     (setf actions (reverse actions))))))
+        (intcode robot :read-fn #'camera :write-fn (make-environment))
+        (format t "~a~%" (iter (for (k v) in-hashtable panels)
+                     (sum 1)))
+        (iter (for y from max-y downto min-y)
+              (iter (for x from min-x to max-x)
+                    (format t "~[ ~;#~]" (gethash (complex x y) panels 0)))
+              (format t "~%")))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 11 A: ~a~%" (simulate *input* 0)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (simulate *input* 1)))
+#+END_SRC
+** Putting it all together
+#+NAME: intcode
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun intcode (program &key (read-fn #'read) (write-fn #'write))
+    (let ((memory (make-hash-table))
+          (relative-base 0))
+      (iter (for val in-vector program with-index i)
+            (setf (gethash i memory) val))
+      (flet ((fetch (mode address)
+               (gethash (ecase mode
+                          (0 (gethash address memory 0))
+                          (1 address)
+                          (2 (+ relative-base
+                                (gethash address memory 0))))
+                        memory 0))
+             (store (mode address value)
+               (setf (gethash (ecase mode
+                                (0 (gethash address memory 0))
+                                (2 (+ relative-base
+                                      (gethash address memory 0))))
+                              memory 0)
+                     value)))
+        (iter (with pc = 0)
+              (for op = (fetch 1 pc))
+              (for instr = (mod op 100))
+              (for modes = (floor op 100))
+              (for (m1 m2 m3) = (list (mod modes 10)
+                                      (mod (floor modes 10) 10)
+                                      (mod (floor modes 100) 10)))
+              (for (o1 o2 o3) = (list (+ pc 1) (+ pc 2) (+ pc 3)))
+              (ecase instr
+                (1 (store m3 o3
+                          (+ (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (2 (store m3 o3
+                          (* (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (3 (store m1 o1 (funcall read-fn))
+                   (incf pc 2))
+                (4 (funcall write-fn
+                            (fetch m1 o1))
+                   (incf pc 2))
+                (5 (if (not (zerop (fetch m1 o1)))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (6 (if (zerop (fetch m1 o1))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (7 (store m3 o3
+                          (if (< (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (8 (store m3 o3
+                          (if (= (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (9 (incf relative-base (fetch m1 o1))
+                   (incf pc 2))
+                (99 (return-from intcode)))))))
+#+END_SRC
+
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<intcode>>
+  <<solve-a>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.11.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+1932
+       ##                                        
+      # #                                        
+      #   #                                      
+       #   #                                     
+      ###  #                           ##        
+       # #                             # #       
+      # # ##                         #   #       
+     ## ##  # #                     ###  #       
+      # #  ##  ##                  #   ## #      
+          ##  # #                  #  #### #     
+      ##     # #                    ##  ##       
+      ###  #  ## # ###               ## # #      
+   #     ####   #  ## ##              #   #      
+   #  #### #   # # ##  # #          #   ## #     
+   # ###   #  #  ## ##  # #   ### # ####  # ###  
+  ##    ## # #   # ##### # #  #  ##   #    #  #  
+  #   ####     ###   # #  ##    # #   ##    ##   
+  ###### #   # ###  # ##  # #  #  ## #           
+  #  ### ###      ###     #    #       # #       
+   ## ### ####  #      ## ##### #  ### ###       
+        # # #  ### #  # # ## #   ## # #  ##      
+          # #    #######   #### #   # #####      
+            #   ###### ###       ### ## #        
+              ##  ##   # ##    ##   #  ##        
+            #    ## ######   #  # ## #           
+              ########## #   # ##   # #          
+             ##  # #    ####  #    # # #         
+           #  #   # ###   #    ####### ##        
+       ## ## # #### ###   # # #### #  #          
+    ######  # # ##   ### # ##     ### ###        
+ ###   # ## ## # ## #   ## ## # ###### #         
+ #  ##  #      ######     # #  ##  #  #          
+  ##  #   ###### ### # ### #  # # #              
+      ##### ##  # ## #     ###  # #              
+      ##    #  #### ###  ## ## # #               
+       ## ## ######        ### # ##              
+         # #   ###       #                       
+          #   # # # ## ## #   #   ##             
+       # # ###  ## #  ######  ##  ##             
+       #   ##### ##  ##    # #  #  #             
+         ## #  #  ##### ###### ### ##            
+        #  # ##      # ## #   #   #              
+         ##           # ### ####  ####           
+         #   #       ###  ### #  ##   #          
+          ## ##    #### # ### ## #    #    ##    
+         ######    # # # #  ##      ##    #  #   
+ ##     ##    # ####  # #  # ##  ##  ##  # ## #  
+ ## ## # # #  # # #  # ### # # ##  #      #  ##  
+ #### ## ######   ##    #   ## ##  #  #  #   ##  
+ ### #  ###   #  #  #######  # ##   ###### ## #  
+ ## #### #   #   #  ##  #    # # ##  #  ####  #  
+# ### ## # ## #  #      ###  #      # # ###### # 
+# #   #  # ###  ###   #  #     # # ##     #   ###
+ #     ###   #  ##  #  ## ## ##  # #  #  ###   ##
+    ##   ##   #  ## # ##   # #### ##   # #### ## 
+  #   ## #       ## #### # ##     # #####   ## # 
+    #### ##         ##  #  #### #  #### #    ## #
+   ######           # ## ######   # #  # ##    ##
+    #   #             # ## ########   #  # #     
+      # #               # ##  ##### #   #        
+                        # ###     #  #  ##       
+                       # ##     #########        
+                       #  ## #  ### #######      
+                        # # ## ## ##  #  #       
+                         ##### ## #    ##        
+                        # #   #   #  #   #       
+                   #  # # ##   #  ##  # ###      
+                   #   ##  #   # ##   # #        
+                       #    #    # # # #         
+                     #  ## #    # ##  #          
+                     ##   ##   # #               
+                              # #                
+                              # #                
+                               ##                
+Problem 11 A: NIL
+249
+ ####  ##  #  # #  #  ##    ## #### ###    
+ #    #  # #  # # #  #  #    # #    #  #   
+ ###  #    #### ##   #       # ###  #  #   
+ #    # ## #  # # #  # ##    # #    ###    
+ #    #  # #  # # #  #  # #  # #    # #    
+ ####  ### #  # #  #  ###  ##  #### #  #   
+Problem 11 B: NIL
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.11)
+  (in-suite aoc.2019.11)
+
+  (run! 'aoc.2019.11)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
