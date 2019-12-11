@@ -225,14 +225,14 @@ So to determine order:
 
   (defun solve-b (points)
     (let ((coordinate
-           (find 200 (destroy-all-asteroids #C(19 11) (remove #C(19 11) points))
+           (find 199 (destroy-all-asteroids #C(19 11) (remove #C(19 11) points))
                  :key #'car)))
       (+ (* 100 (realpart (cadr coordinate)))
          (imagpart (cadr coordinate)))))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 10 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 10 B: ~a~%" (solve-b *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -262,11 +262,12 @@ So to determine order:
   <<problem-a>>
   <<problem-b>>
   (problem-a)
-  ;;(problem-b)
+  (problem-b)
 #+END_SRC
 ** Answer
 #+RESULTS: answers
 : Problem 10 A: (230 #C(19 11))
+: Problem 10 B: 1205
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
