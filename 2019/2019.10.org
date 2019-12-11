@@ -1,0 +1,293 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 10
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-10)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-10
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-10)
+#+END_SRC
+** Input
+The input is a set of asteroids indicated by a =#= in a text
+field. I'll parse them and produce a list of coordinates of where they
+are in the grid.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-lines (lines)
+    (iter outer
+          (for l in lines)
+          (for y from 0)
+          (iter (for c in-string l)
+                (for x from 0)
+                (when (char= c #\#)
+                  (in outer
+                      (collect (complex x y)))))))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (parse-lines (read-input "input/10.txt")))
+#+END_SRC
+** Part 1
+Each asteroid is at the *center* of the location, so these coordinates
+are very precise. The question is: Which asteroid can see the most
+other asteroids, and how many can it see?
+
+To solve this I'm going to use the line equation, but take advantage
+of Common Lisp's complex numbers. Rather than calculating a
+traditional slope using $y = m\cdotx+b$, I'll compute a complex number
+where the real part is the "run" and the imaginary part is the
+"rise". This will, conveniently, allow me to handle vertical lines
+easily.
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun best-visibility (points)
+    (let ((visibility (make-hash-table)))
+      (loop for p1 in points
+         do (let ((visited (make-hash-table)))
+              (loop for p2 in points
+                 unless (or (gethash p2 visited) (= p1 p2))
+                 do (let ((s (slope p1 p2))
+                          (ps (remove-if-not (lambda (p3) (and (not (= p1 p3)) (in-line p1 p2 p3))) points)))
+                      (loop for p in ps
+                         do (setf (gethash p visited) t))
+                      (destructuring-bind (left right)
+                          (reduce (lambda (partition p3)
+                                    (list (or (first partition) (left-of p3 p1 s))
+                                          (or (second partition) (not (left-of p3 p1 s)))))
+                                  ps
+                                  :initial-value (list nil nil))
+                        (setf (gethash p1 visibility) (+ (gethash p1 visibility 0)
+                                                         (if left 1 0)
+                                                         (if right 1 0))))))))
+      (maphash (lambda (k v)
+                 (format t "~a -> ~a~%" k v))
+               visibility)
+      (loop for v being the hash-values of visibility
+         maximizing v)))
+#+END_SRC
+
+#+NAME: slope
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun slope (p1 p2)
+    (let* ((x (realpart (- p1 p2)))
+           (y (imagpart (- p1 p2)))
+           (gcd (gcd x y))
+           (slope (complex (/ x gcd) (/ y gcd))))
+      slope))
+#+END_SRC
+Given the constraints of the problem, all points are at integer
+multiples of the slope from each other if they're on the same
+line. Since Common Lisp has a sensible numerical tower, I'll take
+advantage of that again:
+#+NAME: in-line
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun in-line (p1 p2 p3)
+    (integerp (/ (- p3 p1) (slope p1 p2))))
+#+END_SRC
+Before the core logic, the last function needed is to distinguish
+between points to the left of the asteroid being examined and right.
+#+NAME: left-of
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun left-of (p1 p2 slope)
+    (< 0 (/ (- p2 p1) slope)))
+#+END_SRC
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun best-visibility (points)
+    (let ((visibility (make-hash-table)))
+      (iter (for p1 in points)
+            (for visited = (make-hash-table))
+            (iter (for p2 in points)
+                  (unless (or (gethash p2 visited) (= p1 p2))
+                    (let ((s (slope p1 p2))
+                          (ps (remove-if-not (lambda (p3)
+                                               (and (not (= p1 p3))
+                                                    (in-line p1 p2 p3)))
+                                             points)))
+                      (iter (for p in ps)
+                            (setf (gethash p visited) t))
+                      (destructuring-bind (left right)
+                          (reduce (lambda (partition p3)
+                                    (list (or (first partition)
+                                              (left-of p3 p1 s))
+                                          (or (second partition)
+                                              (not (left-of p3 p1 s)))))
+                                  ps
+                                  :initial-value (list nil nil))
+                        (setf (gethash p1 visibility) (+ (gethash p1 visibility 0)
+                                                         (if left 1 0)
+                                                         (if right 1 0))))))))
+      (iter (for (k v) in-hashtable visibility)
+            (finding (list v k) maximizing v))))
+#+END_SRC
+I'm not going to press this one further, I may revisit in a bit. I
+have some ideas to make it more efficient. Right now it takes 12
+seconds on my laptop (2017 13" Macbook Pro). I'm not happy with that,
+but I can live with it for now. I have an idea of using the Series
+library for some parts which should be more efficient.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 10 A: ~a~%" (best-visibility *input*)))
+#+END_SRC
+** Part 2
+Well, this'll be interesting. The challeng is to destroy all
+asteroids. Or, really, identify which would be the 200th destroyed
+asteroid.
+
+A giant laser, initially with slope $<0,1>$ in my system, rotates
+clockwise destroying one asteroid along the path before moving over. I
+am adding a function, =right-of=, which is literally the opposite of
+=left-of=. Using that, I can start at the base and search each point
+in the list. If it's =in-line= with the base along the slope, and
+=right-of= the base, I can compute the =distance=. The shortest
+distance asteroid is the one which will be destroyed.
+#+NAME: distance
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun distance (p1 p2 slope)
+    (/ (- p1 p2) slope))
+#+END_SRC
+
+#+NAME: right-of
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun right-of (p1 p2 slope)
+    (> 0 (distance p2 p1 slope)))
+#+END_SRC
+
+#+NAME: to-destroy
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun to-destroy (base slope points)
+    (iter (for p in points)
+          (when (and (in-line base (+ base slope) p)
+                     (right-of p base slope))
+            (finding p minimizing (distance p base slope)))))
+#+END_SRC
+
+The part I'm contemplating now is how to handle the rotation of the
+laser. It turns out there's a =phase= function which returns the angle
+(radians) of complex numbers. This couldn't bet better for this problem.
+
+So to determine order:
+
+#+NAME: ordered-slopes
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun ordered-slopes (base asteroids)
+    (remove-duplicates
+     (sort
+      (iter (for a in asteroids)
+            (collect (slope a base)))
+      (lambda (a b)
+        (<= (phase (* #C(0 -1) a))
+            (phase (* #C(0 -1) b)))))))
+#+END_SRC
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun destroy-all-asteroids (base asteroids)
+    (let ((slopes (ordered-slopes base asteroids)))
+      (setf (cdr (last slopes)) slopes)
+      (iter (for direction in slopes)
+            (with i = 1)
+            (while asteroids)
+            (for target = (to-destroy base direction asteroids))
+            (setf asteroids (remove target asteroids))
+            (when target
+              (collecting (list i target))
+              (incf i)))))
+
+  (defun solve-b (points)
+    (let ((coordinate
+           (find 200 (destroy-all-asteroids #C(19 11) (remove #C(19 11) points))
+                 :key #'car)))
+      (+ (* 100 (realpart (cadr coordinate)))
+         (imagpart (cadr coordinate)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 10 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<slope>>
+  <<in-line>>
+  <<left-of>>
+  <<solve-a>>
+  <<distance>>
+  <<right-of>>
+  <<to-destroy>>
+  <<ordered-slopes>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.10.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  ;;(problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 10 A: (230 #C(19 11))
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.10)
+  (in-suite aoc.2019.10)
+  (test best-visibility
+    (is (= 8 (first (best-visibility (parse-lines
+                                      (list ".#..#"
+                                            "....."
+                                            "#####"
+                                            "....#"
+                                            "...##")))))))
+  (run! 'aoc.2019.10)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2019.10
+:  Running test BEST-VISIBILITY .
+:  Did 1 check.
+:     Pass: 1 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
