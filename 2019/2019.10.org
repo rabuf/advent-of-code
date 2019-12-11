@@ -201,13 +201,16 @@ So to determine order:
 #+NAME: ordered-slopes
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun ordered-slopes (base asteroids)
-    (remove-duplicates
-     (sort
-      (iter (for a in asteroids)
-            (collect (slope a base)))
-      (lambda (a b)
-        (<= (phase (* #C(0 -1) a))
-            (phase (* #C(0 -1) b)))))))
+    (let ((slopes (remove-duplicates
+                   (sort
+                    (iter (for a in asteroids)
+                          (collect (slope a base)))
+                    (lambda (a b)
+                      (< (phase (* #C(0 -1) a))
+                         (phase (* #C(0 -1) b))))))))
+      (if (= (car (last slopes)) #C(0 -1))
+          (nconc (last slopes) (butlast slopes))
+          slopes)))
 #+END_SRC
 #+NAME: solve-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -225,7 +228,7 @@ So to determine order:
 
   (defun solve-b (points)
     (let ((coordinate
-           (find 199 (destroy-all-asteroids #C(19 11) (remove #C(19 11) points))
+           (find 200 (destroy-all-asteroids #C(19 11) (remove #C(19 11) points))
                  :key #'car)))
       (+ (* 100 (realpart (cadr coordinate)))
          (imagpart (cadr coordinate)))))
