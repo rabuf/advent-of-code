@@ -50,7 +50,7 @@ I'm just hard coding the input.
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defparameter *input* (list #(-3 15 -11) #(3 13 -19) #(-13 18 -2) #(6 0 -1)))
+  (defparameter *input* (list (list -3 15 -11) (list 3 13 -19) (list -13 18 -2) (list 6 0 -1)))
 #+END_SRC
 ** Part 1
 Each item in the input represents a moon. Question: What is the total
@@ -98,8 +98,13 @@ energy of the system after 1000 steps?
              planets)
     (mapc #'update-planet planets))
 
+  (defun make-planets  (planets)
+    (mapcar (lambda (planet)
+              (make-planet :position (apply #'vector planet) :velocity (vector 0 0 0)))
+            planets))
+
   (defun solve-a (planets &optional (steps 1000))
-    (let ((planets (map 'list (lambda (pos) (make-planet :position pos :velocity (make-array 3 :initial-element 0))) planets)))
+    (let ((planets (make-planets planets)))
       (loop repeat steps
          do (next-state planets))
       (apply #'+ (map 'list #'total-energy planets))))
@@ -109,9 +114,29 @@ energy of the system after 1000 steps?
 How many steps does it take before a previous state is reached? A
 naive solution would kill me on memory and time. I'll sleep on this
 one and come back to it fresh tomorrow.
+
+This solution works for the first test case, but not the second and
+not my input.
+
+#+NAME: find-orbital-period
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun axis-velocities (planets axis)
+      (loop for p in planets
+            always (zerop (svref (planet-velocity p) axis))))
+
+  (defun find-orbital-period (planets)
+      (let (x-period y-period z-period)
+           (loop for i from 1
+                 until (and x-period y-period z-period)
+                 do (next-state planets)
+                    (if (and (not x-period) (axis-velocities planets 0)) (setf x-period i))
+                    (if (and (not y-period) (axis-velocities planets 1)) (setf y-period i))
+                    (if (and (not z-period) (axis-velocities planets 2)) (setf z-period i)))
+           (* 2 (lcm x-period y-period z-period))))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 12 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 12 B: ~a~%" (find-orbital-period (make-planets *input*))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -123,6 +148,7 @@ one and come back to it fresh tomorrow.
   <<read-input>>
   <<input>>
   <<energy>>
+  <<find-orbital-period>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.12.lisp
@@ -138,7 +164,7 @@ one and come back to it fresh tomorrow.
 ** Answer
 #+RESULTS: answers
 : Problem 12 A: 12070
-: Problem 12 B: (#(-3 15 -11) #(3 13 -19) #(-13 18 -2) #(6 0 -1))
+: Problem 12 B: 500903629351944
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
