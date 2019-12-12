@@ -20,6 +20,12 @@ support for lisp installed you can run this by:
     (ql:quickload "parseq"))
   (unless (find-package :fiveam)
     (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
@@ -64,6 +70,7 @@ support for lisp installed you can run this by:
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
+  <<input>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle YEAR.DAY.lisp
