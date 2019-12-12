@@ -1,12 +1,12 @@
 #+STARTUP: indent contents
 #+OPTIONS: num:nil toc:nil
-* Day DAY
+* Day 12
 ** Executing this code
 If you have a lisp installation, emacs, org-mode, and org-babel
 support for lisp installed you can run this by:
 1. Starting slime (=M-x slime=)
 2. Typing =C-c C-c= in the block [[initialize][initialize]].
-3. In the repl type =(in-package :aoc-YEAR-DAY)=
+3. In the repl type =(in-package :aoc-2019-12)=
 4. Typing =C-c C-c= in the block [[answers][answers]]
 ** Initial stuffs
 *** Packages to load
@@ -31,16 +31,17 @@ support for lisp installed you can run this by:
 #+NAME: initialize
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<packages>>
-  (defpackage :aoc-YEAR-DAY
+  (defpackage :aoc-2019-12
     (:use :common-lisp
           :iterate
           :parseq
           :fiveam)
     (:export :problem-a
              :problem-b))
-  (in-package :aoc-YEAR-DAY)
+  (in-package :aoc-2019-12)
 #+END_SRC
 ** Input
+I'm just hard coding the input.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
@@ -49,31 +50,82 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defparameter *input*
-    (read-input "input/DAY.txt"))
+  (defparameter *input* (list #(-3 15 -11) #(3 13 -19) #(-13 18 -2) #(6 0 -1)))
 #+END_SRC
 ** Part 1
+Each item in the input represents a moon. Question: What is the total
+energy of the system after 1000 steps?
+
+#+NAME: planet
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defstruct planet
+    position
+    (velocity #(0 0 0)))
+#+END_SRC
+#+NAME: energy
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun kinetic-energy (planet)
+    (apply #'+ (map 'list #'abs (planet-velocity planet))))
+  (defun potential-energy (planet)
+    (apply #'+ (map 'list #'abs (planet-position planet))))
+  (defun total-energy (planet)
+    (* (potential-energy planet)
+       (kinetic-energy planet)))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem DAY A: ~a~%" (identity *input*)))
+  (defun pairwise (p1 p2)
+    (loop for index from 0 to 2
+       do (cond
+            ((< (aref (planet-position p1) index)
+                (aref (planet-position p2) index))
+             (incf (aref (planet-velocity p1) index))
+             (decf (aref (planet-velocity p2) index)))
+            ((> (aref (planet-position p1) index)
+                (aref (planet-position p2) index))
+             (decf (aref (planet-velocity p1) index))
+             (incf (aref (planet-velocity p2) index))))))
+
+  (defun update-planet (planet)
+    (setf (planet-position planet)
+          (map 'vector #'+ (planet-position planet) (planet-velocity planet))))
+
+  (defun next-state (planets)
+    (maplist (lambda (sub)
+               (loop with p1 = (first sub)
+                  for p2 in (rest sub)
+                  do (pairwise p1 p2)))
+             planets)
+    (mapc #'update-planet planets))
+
+  (defun solve-a (planets &optional (steps 1000))
+    (let ((planets (map 'list (lambda (pos) (make-planet :position pos :velocity (make-array 3 :initial-element 0))) planets)))
+      (loop repeat steps
+         do (next-state planets))
+      (apply #'+ (map 'list #'total-energy planets))))
+  (defun problem-a () (format t "Problem 12 A: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
+How many steps does it take before a previous state is reached? A
+naive solution would kill me on memory and time. I'll sleep on this
+one and come back to it fresh tomorrow.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem DAY B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 12 B: ~a~%" (identity *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  <<planet>>
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
   <<input>>
+  <<energy>>
 #+END_SRC
 #+NAME: answers
-#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle YEAR.DAY.lisp
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.12.lisp
   <<initialize>>
   <<structs>>
   <<functions>>
@@ -85,15 +137,15 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 12 A: 12070
+: Problem 12 B: (#(-3 15 -11) #(3 13 -19) #(-13 18 -2) #(6 0 -1))
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
-  (def-suite aoc.YEAR.DAY)
-  (in-suite aoc.YEAR.DAY)
+  (def-suite aoc.2019.12)
+  (in-suite aoc.2019.12)
 
-  (run! 'aoc.YEAR.DAY)
+  (run! 'aoc.2019.12)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
