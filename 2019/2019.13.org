@@ -211,6 +211,7 @@ score.
   <<input>>
   <<intcode>>
   <<count-blocks>>
+  <<play-game>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.13.lisp
