@@ -133,6 +133,47 @@ not my input.
                     (if (and (not y-period) (axis-velocities planets 1)) (setf y-period i))
                     (if (and (not z-period) (axis-velocities planets 2)) (setf z-period i)))
            (* 2 (lcm x-period y-period z-period))))
+
+  (defun all-of-index (planets index)
+      (loop for p in planets
+            collect (list (svref (planet-position p) index)
+                          (svref (planet-velocity p) index))))
+
+  (defun repeating (planets)
+      (let ((xs (make-hash-table :test 'equal))
+            (ys (make-hash-table :test 'equal))
+            (zs (make-hash-table :test 'equal))
+            (x-period nil)
+            (y-period nil)
+            (z-period nil))
+           (setf (gethash (all-of-index planets 0) xs) t)
+           (setf (gethash (all-of-index planets 1) ys) t)
+           (setf (gethash (all-of-index planets 2) zs) t)
+           (loop for i from 0
+                 until (and x-period y-period z-period)
+                 do (next-state planets)
+                    (if (gethash (all-of-index planets 0) xs) (setf x-period (hash-table-count xs)))
+                    (if (gethash (all-of-index planets 1) ys) (setf y-period (hash-table-count ys)))
+                    (if (gethash (all-of-index planets 2) zs) (setf z-period (hash-table-count zs)))
+                    (setf (gethash (all-of-index planets 0) xs) t)
+                    (setf (gethash (all-of-index planets 1) ys) t)
+                    (setf (gethash (all-of-index planets 2) zs) t))
+           (lcm x-period y-period z-period)))
+
+  (defun repeating-state-zero (planets)
+      (let ((xs (all-of-index planets 0))
+            (ys (all-of-index planets 1))
+            (zs (all-of-index planets 2))
+            (x-period nil)
+            (y-period nil)
+            (z-period nil))
+           (loop for i from 0
+                 until (and x-period y-period z-period)
+                 do (next-state planets)
+                    (if (and (not x-period) (equal (all-of-index planets 0) xs)) (setf x-period (1+ i)))
+                    (if (and (not y-period) (equal (all-of-index planets 1) ys)) (setf y-period (1+ i)))
+                    (if (and (not z-period) (equal (all-of-index planets 2) zs)) (setf z-period (1+ i))))
+           (lcm x-period y-period z-period)))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
