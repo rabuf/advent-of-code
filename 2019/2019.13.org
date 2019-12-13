@@ -43,9 +43,9 @@ support for lisp installed you can run this by:
 ** Input
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
-  (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
+    (defun read-input (file)
+      (with-open-file (s file)
+        (map 'vector #'parse-integer (cl-ppcre:split "," (read-line s)))))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -53,16 +53,154 @@ support for lisp installed you can run this by:
     (read-input "input/13.txt"))
 #+END_SRC
 ** Part 1
+Another Intcode day.
+
+We've got space mail!
+
+A bunch of tiles will be drawn, I'll do my standard hash table thing
+for the grid. Output of the machine is a sequence of three values: x,
+y, tile type.
+#+NAME: count-blocks
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun bounds (grid)
+    (iter (for (k v) in-hashtable grid)
+          (maximizing (realpart k) into max-x)
+          (maximizing (imagpart k) into max-y)
+          (minimizing (realpart k) into min-x)
+          (minimizing (imagpart k) into min-y)
+          (finally (return (list min-x max-x min-y max-y)))))
+
+  (defun draw-grid (grid)
+    (destructuring-bind (x- x+ y- y+)
+        (bounds grid)
+      (iter (for y from y- to y+)
+            (iter (for x from x- to x+)
+                  (format t "~[ ~;#~;X~;=~;O~]" (gethash (complex x y) grid 0)))
+            (format t "~%"))))
+  (defun count-blocks (machine)
+    (let ((output nil)
+          (grid (make-hash-table)))
+      (intcode machine :write-fn (lambda (x) (push x output)))
+      (setf output (reverse output))
+      (iter (for x in output by #'cdddr)
+            (for y in (cdr output) by #'cdddr)
+            (for tile in (cddr output) by #'cdddr)
+            (setf (gethash (complex x y) grid) tile))
+      (iter (for (k v) in-hashtable grid)
+            (counting (= 2 v)))))
+#+END_SRC
+I screwed up and lost a *lot* of time by not saving the result of
+=(reverse output)=, that was frustrating.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 13 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 13 A: ~a~%" (count-blocks *input*)))
 #+END_SRC
 ** Part 2
+Now we get to play the game and try to beat it, reporting our
+score.
+#+NAME: play-game
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun render-grid (grid score)
+    (format t "SCORE: ~a~%" score)
+    (draw-grid grid))
+  (defun play-game (machine &optional render)
+    (let ((grid (make-hash-table))
+          x y tile
+          (score 0)
+          (game (copy-seq machine))
+          (paddle 0)
+          (ball 0))
+      (setf (aref game 0) 2)
+      (labels ((joystick ()
+                 (signum (- ball paddle)))
+               (put-x (x-val)
+                 (setf x x-val))
+               (put-y (y-val)
+                 (setf y y-val))
+               (put-tile (t-val)
+                 (setf tile t-val)
+                 (update-grid))
+               (update-grid ()
+                 (cond ((and (= -1 x) (= 0 y))
+                        (setf score tile))
+                       (t (setf (gethash (complex x y) grid) tile)
+                          (case tile
+                            (4 (setf ball x))
+                            (3 (setf paddle x)))))
+                 (when render (render-grid grid score)))
+               (generator ()
+                 (let ((actions (list #'put-x #'put-y #'put-tile)))
+                   (setf (cdr (last actions)) actions)
+                   (lambda (x)
+                     (funcall (pop actions) x)))))
+        (intcode game :read-fn #'joystick :write-fn (generator)))
+      score))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 13 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 13 B: ~a~%" (play-game *input*)))
 #+END_SRC
 ** Putting it all together
+#+NAME: intcode
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun intcode (program &key (read-fn #'read) (write-fn #'write))
+    (let ((memory (make-hash-table))
+          (relative-base 0))
+      (iter (for val in-vector program with-index i)
+            (setf (gethash i memory) val))
+      (flet ((fetch (mode address)
+               (gethash (ecase mode
+                          (0 (gethash address memory 0))
+                          (1 address)
+                          (2 (+ relative-base
+                                (gethash address memory 0))))
+                        memory 0))
+             (store (mode address value)
+               (setf (gethash (ecase mode
+                                (0 (gethash address memory 0))
+                                (2 (+ relative-base
+                                      (gethash address memory 0))))
+                              memory 0)
+                     value)))
+        (iter (with pc = 0)
+              (for op = (fetch 1 pc))
+              (for instr = (mod op 100))
+              (for modes = (floor op 100))
+              (for (m1 m2 m3) = (list (mod modes 10)
+                                      (mod (floor modes 10) 10)
+                                      (mod (floor modes 100) 10)))
+              (for (o1 o2 o3) = (list (+ pc 1) (+ pc 2) (+ pc 3)))
+              (ecase instr
+                (1 (store m3 o3
+                          (+ (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (2 (store m3 o3
+                          (* (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (3 (store m1 o1 (funcall read-fn))
+                   (incf pc 2))
+                (4 (funcall write-fn
+                            (fetch m1 o1))
+                   (incf pc 2))
+                (5 (if (not (zerop (fetch m1 o1)))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (6 (if (zerop (fetch m1 o1))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (7 (store m3 o3
+                          (if (< (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (8 (store m3 o3
+                          (if (= (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (9 (incf relative-base (fetch m1 o1))
+                   (incf pc 2))
+                (99 (return-from intcode)))))))
+#+END_SRC
+
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
 
@@ -71,6 +209,8 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
   <<input>>
+  <<intcode>>
+  <<count-blocks>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.13.lisp
@@ -85,8 +225,8 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 13 A: 260
+: Problem 13 B: 12952
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
