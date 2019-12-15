@@ -1,0 +1,216 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 14
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-14)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-14
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-14)
+#+END_SRC
+** Input
+The input is of the form:
+#+BEGIN_EXAMPLE
+  <number> <NAME> [, <number> <NAME>]* => <number> <NAME>
+#+END_EXAMPLE
+The following should be the right Parseq rules to parse it, let's see:
+#+NAME: parse-line
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule num () (+ digit) (:string) (:function #'parse-integer))
+      (defrule name () (+ alpha) (:string) (:function #'intern))
+      (defrule term () (and num name))
+      (defrule reaction () (and (+ term) "=>" term) (:choose 2 0))
+      (parseq 'reaction (apply #'concatenate 'string (cl-ppcre:split " " (cl-ppcre:regex-replace-all "," line ""))))))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun make-rules (rules)
+    (let ((table (make-hash-table)))
+      (iter (for ((quantity rule-name) inputs) in rules)
+            (setf (gethash rule-name table)
+                  (make-rule :inputs inputs :symbol rule-name :quantity quantity)))
+      table))
+  (defparameter *input*
+    (make-rules (read-input "input/14.txt")))
+#+END_SRC
+** Part 1
+#+BEGIN_EXAMPLE
+  10 ORE => 10 A
+  1 ORE => 1 B
+  7 A, 1 B => 1 C
+  7 A, 1 C => 1 D
+  7 A, 1 D => 1 E
+  7 A, 1 E => 1 FUEL
+#+END_EXAMPLE
+
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun produce (symbol count rules)
+    (let ((used (make-hash-table))
+          (available (make-hash-table)))
+      ;; set the initial need
+      (labels ((recur (n s)
+                 (cond ((equal 'ore s)
+                        (incf (gethash 'ore available 0) n))
+                       ((>= (gethash s available 0) n)
+                        (decf (gethash s available 0) n)
+                        (incf (gethash s used 0) n))
+                       (t
+                        (iter (for (cn cs) in (rule-inputs (gethash s rules)))
+                              (recur cn cs))
+                        (incf (gethash s available 0) (rule-quantity (gethash s rules)))
+                        (recur n s)))))
+        (recur count symbol)
+        (values (+ (gethash 'ore used 0)
+                   (gethash 'ore available 0))
+                (gethash 'ore used 0)
+                (gethash 'ore available 0)))))
+  (defun solve-a (rules)
+    (produce 'fuel 1 rules))
+#+END_SRC
+
+#+NAME: rule-struct
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defstruct rule
+    inputs
+    symbol
+    quantity)
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 14 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** TODO Part 2
+Now we have a cap on how much ore we can use. what's the maximimum
+amount of fuel we can produce, given that we can only use so much ore.
+
+The code above is slow. The code below is fast. It disagrees on the
+answer for part 1, but it got me the answer for part 2...
+
+I did a manual binary search to arrive at the answer.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb :results silent
+  (defun produce-limited (symbol count rules &optional (limit 1000000000000))
+    (let ((used (make-hash-table))
+          (available (make-hash-table)))
+      ;; set the initial need
+      (setf (gethash 'ore available) limit)
+      (labels ((recur (n s)
+                 (let* ((sa (gethash s available 0))
+                        (m (ceiling n (rule-quantity (gethash s rules))))
+                        (rm (ceiling (- n sa) (rule-quantity (gethash s rules)))))
+                   (unless (<= n sa)
+                     (iter (for (cn cs) in (rule-inputs (gethash s rules)))
+                           (for ca = (gethash cs available 0))
+                           (unless (<= (* m cn) ca)
+                             (recur (- (* m cn) ca) cs))
+                           (decf (gethash cs available 0) (* m cn))
+                           (incf (gethash cs used 0) (* m cn))))
+                   (incf (gethash s available 0)
+                         (* m (rule-quantity (gethash s rules)))))))
+        (recur count symbol)
+        (list (gethash 'ore available 0) (gethash 'ore used 0)))))
+  (defun solve-a (rules)
+    (produce-limited 'fuel 1 rules 100))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (identity 3061522)));(solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<rule-struct>>
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
+  <<read-input>>
+  <<input>>
+  <<solve-a>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.14.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 14 A: 483766
+: Problem 14 B: #<HASH-TABLE :TEST EQL :COUNT 56 {10054C53B3}>
+** Test Cases
+I'm not testing exceptional conditions here. I'm only doing happy path
+testing here, there is no error handling in this code.
+
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.14)
+  (in-suite aoc.2019.14)
+
+  (test parser-test
+    (is (equal (list (list '(1 A) '(2 B)) '(1 C))
+               (parse-line "1 A, 2 B => 1 C")))
+    (is (equal (list (list '(1 A)) '(1 B))
+               (parse-line "1 A => 1 B"))))
+
+  (run! 'aoc.2019.14)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2019.14
+:  Running test PARSER-TEST ..
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
