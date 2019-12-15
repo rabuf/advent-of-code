@@ -121,7 +121,7 @@ The following should be the right Parseq rules to parse it, let's see:
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-a () (format t "Problem 14 A: ~a~%" (solve-a *input*)))
 #+END_SRC
-** TODO Part 2
+** Part 2
 Now we have a cap on how much ore we can use. what's the maximimum
 amount of fuel we can produce, given that we can only use so much ore.
 
@@ -144,7 +144,7 @@ I did a manual binary search to arrive at the answer.
                      (iter (for (cn cs) in (rule-inputs (gethash s rules)))
                            (for ca = (gethash cs available 0))
                            (unless (<= (* m cn) ca)
-                             (recur (- (* m cn) ca) cs))
+                             (recur (- (* rm cn) ca) cs))
                            (decf (gethash cs available 0) (* m cn))
                            (incf (gethash cs used 0) (* m cn))))
                    (incf (gethash s available 0)
