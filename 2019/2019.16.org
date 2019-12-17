@@ -177,3 +177,31 @@ Running test suite AOC.2019.16
     Fail: 0 ( 0%)
 #+end_example
 ** Thoughts
+** Series
+Series permits some degree of lazy evaluation, depending on how you
+construct the sequence of functions. I decided to have some fun and
+try to make this work for part 2, I finally got it! It's not very fast
+though. This input executed with my =solve-b= function takes about
+0.05 seconds on my laptop. With Series, it takes 0.22 seconds. It does
+turn out that Series is very fast for a single iteration. But the way
+I've constructed it here, it's not terribly efficient. I /think/ I
+could create a Series function that applies the processing
+recursively, and that may be optimizable. But I haven't gotten to that
+point yet.
+#+BEGIN_SRC lisp
+  (let ((*input* "03036732577212944063491565474664"))
+    (let* ((offset (parse-integer (subseq *input* 0 7)))
+           (limit (- (* 10000 (length *input*)) offset))
+           (inf (reverse (parse-line *input*))))
+      (setf (cdr (last inf)) inf)
+      (print limit)
+      (print offset)
+      (let ((sequence (series:subseries (series:scan 'list inf) 0 limit)))
+        (reverse (series:collect (series:choose (series:mask (series:scan-range :from (- limit 8)))
+                                                (series:collect-fn t (lambda () sequence)
+                                                                   (lambda (result x) x
+                                                                           (series:collecting-fn 'integer (lambda () 0)
+                                                                                                 (lambda (x y) (mod (+ x y) 10))
+                                                                                                 result))
+                                                                   (series:scan-range :upto 99))))))))
+#+END_SRC
