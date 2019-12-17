@@ -1,0 +1,175 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 16
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-16)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-16
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-16)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (first (read-input "input/16.txt")))
+#+END_SRC
+** Part 1
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun make-pattern (n)
+    (let ((base (list 1 0 -1 0)))
+      (loop for i from 0 to (1- (* n (length base)))
+         collect (nth (floor i n) base))))
+  (defun parse-line (s)
+    (loop for c across s
+       collect (- (char-code c) (char-code #\0))))
+
+  (defun apply-pattern (sequence pattern)
+    (let ((inf (copy-seq pattern)))
+      (setf (cdr (last inf)) inf)
+      (abs (rem (loop for s in sequence
+                   for a in inf
+                   sum (* a s))
+                10))))
+
+  (defun solve-a (initial &optional (times 4))
+    (let ((sequence initial)
+          (patterns (loop for i from 1 to (length initial)
+                       collect (make-pattern i))))
+      (loop repeat times
+         do (setf sequence (maplist (lambda (seq pattern) (apply-pattern seq (first pattern))) sequence patterns)))
+      (print (butlast sequence (- (length sequence) 8)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 16 A: ~a~%" (solve-a (parse-line *input*) 100)))
+#+END_SRC
+** Part 2
+The above works for Part 1, but is a bit slow for Part 2.
+
+Several optimizations help here. The first is the insight that only
+the digits from offset forward matter. The second is that, by the time
+of the offset, there's no reason to compute the pattern any more. Each
+number is the sum of itself and all subsequent numbers. Which leads to
+the final optimization. THe sum can be run in reverse, the value plus
+its successor can be added together to compute the next value at a
+location.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (initial &optional (times 100) (repeating 10000))
+    (let* ((offset (reduce (lambda (a b) (+ (* 10 a) b)) (subseq initial 0 7)))
+           (r-length (1+ (- (* repeating (length initial)) offset)))
+           (inf (reverse initial))
+           (result (make-array r-length :initial-element 0)))
+      (setf (cdr (last inf)) inf)
+      ;; initialize array
+      (loop for v in inf
+         for i from (- r-length 2) downto 0
+         do (setf (aref result i) v))
+      (loop repeat times
+         do
+           (loop for i from (- r-length 2) downto 0
+              do (setf (aref result i) (mod (+ (aref result i) (aref result (1+ i))) 10))))
+      (print (subseq result 0 8))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 16 B: ~a~%" (solve-b (parse-line *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<solve-a>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.16.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: 
+: (4 2 9 4 5 1 4 3) Problem 16 A: (4 2 9 4 5 1 4 3)
+: 
+: #(9 9 9 7 4 9 7 0) Problem 16 B: #(9 9 9 7 4 9 7 0)
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.16)
+  (in-suite aoc.2019.16)
+
+  (test part-two-samples
+    (is (equalp #(8 4 4 6 2 0 2 6) (solve-b (parse-line "03036732577212944063491565474664"))))
+    (is (equalp #(7 8 7 2 5 2 7 0) (solve-b (parse-line "02935109699940807407585447034323"))))
+    (is (equalp #(5 3 5 5 3 7 3 1) (solve-b (parse-line "03081770884921959731165446850517"))))
+    (is (equalp #(9 9 9 7 4 9 7 0) (solve-b (parse-line *input*)))))
+  (run! 'aoc.2019.16)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+#+begin_example
+
+Running test suite AOC.2019.16
+ Running test PART-TWO-SAMPLES 
+#(8 4 4 6 2 0 2 6) .
+#(7 8 7 2 5 2 7 0) .
+#(5 3 5 5 3 7 3 1) .
+#(9 9 9 7 4 9 7 0) .
+ Did 4 checks.
+    Pass: 4 (100%)
+    Skip: 0 ( 0%)
+    Fail: 0 ( 0%)
+#+end_example
+** Thoughts
