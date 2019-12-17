@@ -53,23 +53,27 @@ support for lisp installed you can run this by:
     (first (read-input "input/16.txt")))
 #+END_SRC
 ** Part 1
+My solution takes advantage of infinite sequences so I only have to
+compute part of the pattern, and the remainder is found by making a
+circular list. Since these patterns are reused for each iteration, I
+can keep them and only produce them once (at the start). This allows
+my Part 1 to complete in about 0.12 seconds on my laptop.
 #+NAME: solve-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun make-pattern (n)
-    (let ((base (list 1 0 -1 0)))
-      (loop for i from 0 to (1- (* n (length base)))
-         collect (nth (floor i n) base))))
   (defun parse-line (s)
     (loop for c across s
        collect (- (char-code c) (char-code #\0))))
+  (defun make-pattern (n)
+    (let* ((base (list 1 0 -1 0))
+           (pattern (loop for i from 0 to (1- (* n (length base)))
+                       collect (nth (floor i n) base))))
+      (setf (cdr (last pattern)) pattern)))
 
   (defun apply-pattern (sequence pattern)
-    (let ((inf (copy-seq pattern)))
-      (setf (cdr (last inf)) inf)
-      (abs (rem (loop for s in sequence
-                   for a in inf
-                   sum (* a s))
-                10))))
+    (abs (rem (loop for s in sequence
+                 for a in pattern
+                 sum (* a s))
+              10)))
 
   (defun solve-a (initial &optional (times 4))
     (let ((sequence initial)
