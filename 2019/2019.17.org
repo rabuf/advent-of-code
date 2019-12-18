@@ -126,6 +126,115 @@ Via simple search and replace I arrived at this sequence of movements:
   L,4,L,12,R,6,L,10
 #+END_EXAMPLE
 
+All of this works, but I'd like to find the program automatically so
+that I could solve automatically for any input. I'm gonig to make a
+couple new things. One is as struct storing the grid from the initial
+execution (part 1), and the position and direction of the vacuume.
+
+The below is a long ugly sequence of code that does the job. I could
+skip the string-to-list and back stuffs if I add in logic to ensure
+the subsequences break the initial sequence at the right spots, but I
+didn't feel like doing that.
+
+If there is more than one way to divide up the sequence of steps, this
+will find them all.
+
+#+NAME: traverse-scaffold
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defstruct vacuum
+    grid
+    position
+    direction)
+  (defun get-state (program)
+    (let ((vacuum (make-vacuum :grid (make-hash-table)))
+          (x 0)
+          (y 0))
+      (with-slots (grid position direction) vacuum
+        (labels ((camera (c)
+                   (let ((c (code-char c)))
+                     (incf x)
+                     (case c
+                       ((#\^ #\v #\> #\<)
+                        (setf position (complex x y))
+                        (setf (gethash position grid) t))
+                       (#\# (setf (gethash (complex x y) grid) t))
+                       (#\Newline (setf x 0)
+                                  (incf y)))
+                     (case c
+                       (#\^ (setf direction #C(0 -1)))
+                       (#\v (setf direction #C(0 1)))
+                       (#\> (setf direction #C(1 0)))
+                       (#\< (setf direction #C(-1 0)))))))
+          (intcode program :write-fn #'camera)
+          vacuum))))
+  (defun turn-left (d)
+    (* d #C(0 -1)))
+  (defun turn-right (d)
+    (* d #C(0 1)))
+  (defun all-visited-p (grid visited)
+    (iter (for (k v) in-hashtable grid)
+          (always (gethash k visited))))
+  (defun traverse-scaffold (program)
+    (let ((vacuum (get-state program))
+          (visited (make-hash-table))
+          (path nil))
+      (with-slots (grid position direction) vacuum
+        (setf (gethash position visited) t)
+        (iter (until (all-visited-p grid visited))
+              (cond ((gethash (+ position direction) grid)
+                     (cond ((numberp (car path)) (incf (car path)))
+                           (t (push 1 path)))
+                     (incf position direction))
+                    ((gethash (+ position (turn-left direction)) grid)
+                     (setf direction (turn-left direction))
+                     (push 'L path))
+                    ((gethash (+ position (turn-right direction)) grid)
+                     (setf direction (turn-right direction))
+                     (push 'R path)))
+              (setf (gethash position visited) t)))
+      (reverse path)))
+  (defun path-to-string (path)
+    (format nil "~{~A~^,~}" path))
+  (defun is-digits (s)
+    (cl-ppcre:scan "^[0-9]+$" s))
+  (defun string-to-path (string)
+    (iter (for c in (cl-ppcre:split "," string))
+          (collect (if (is-digits c) (parse-integer c)
+                       (intern c)))))
+  (defun compress-path (path)
+    (iter outer
+          (for i from 12 downto 1)
+          (for initial = (path-to-string path))
+          (for A = (path-to-string (subseq path 0 i)))
+          (for main-a = (cl-ppcre:regex-replace-all A initial "A"))
+          (when (<= (length A) 20)
+            (let* ((main-list (string-to-path main-a)))
+              (iter (until (not (eql (car main-list) 'A)))
+                    (pop main-list))
+              (setf main-list (iter (for i in main-list)
+                                    (until (eql i 'A))
+                                    (collect i)))
+              (iter (for i from (length main-list) downto 1)
+                    (for B = (path-to-string (subseq main-list 0 i)))
+                    (for main-b = (cl-ppcre:regex-replace-all B main-a "B"))
+                    (when (<= (length B) 20)
+                      (let ((main-list (string-to-path main-b)))
+                        (iter (while (or (eql 'B (car main-list))
+                                         (eql 'A (car main-list))))
+                              (pop main-list))
+                        (setf main-list (iter (for i in main-list)
+                                              (until (or (eql i 'A) (eql i 'B)))
+                                              (collect i)))
+                        (let* ((C (path-to-string main-list))
+                               (main-c (cl-ppcre:regex-replace-all C main-b "C")))
+                          (when (and (<= (length C) 20)
+                                     (<= (length main-c) 20)
+                                     (every (lambda (c) (member c (list 'A 'B 'C))) (string-to-path main-c)))
+                            (format t "~A~%" main-c)
+                            (format t "~A~%" A)
+                            (format t "~A~%" B)
+                            (format t "~A~%" C))))))))))
+#+END_SRC
 #+NAME: solve-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defvar *path* (list "A,B,B,A,C,A,C,A,C,B"
