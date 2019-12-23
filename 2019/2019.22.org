@@ -163,6 +163,7 @@ anywhere near fast enough, so this should be amusing to let it run for
 a while.
 
 The following allows for the forward computation in a single step:
+#+NAME: fast-shuffle
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun fast-shuffle (n)
     (let ((A 36917093953130)
@@ -228,9 +229,9 @@ By doing some more math, we arrive at the inverse version of this.
 $s^{-m}(n) = A^{-m} * n - B \cdot \frac{1 - A^{-n}}{A - 1}$
 
 From this, the inverse function can be computed using the original
-values of A and B.
+values for A and B.
 
-#+NAME: fast-inverse-shuffle
+#+NAME: fast-shuffle-inverse
 #+BEGIN_SRC lisp :results silent :noweb yes
   (defun fast-shuffle-inverse (n &optional (times 1))
     (let* ((A 36917093953130)
@@ -242,8 +243,7 @@ values of A and B.
                  n)
               (* B
                  A-1-inverse
-                 (- (mod-expt A times D) 1)
-                 (mod-expt A-inverse times D)))
+                 (- 1 (mod-expt A-inverse times D))))
            D)))
 #+END_SRC
 
@@ -263,6 +263,8 @@ values of A and B.
   <<shuffle-actions>>
   <<shuffle>>
   <<mod-expt>>
+  <<fast-shuffle>>
+  <<fast-shuffle-inverse>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.22.lisp
