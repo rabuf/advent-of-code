@@ -173,7 +173,20 @@ The following allows for the forward computation in a single step:
 #+END_SRC
 
 That function was derived by computing shuffle on inputs of 0 and 1. 0
-gave us B, 1 gave us A + B so A could be computed by subtraction.
+gave us B, 1 gave us A + B so A could be computed by
+subtraction. These can be calculated automatically using:
+#+BEGIN_SRC lisp :results silent
+  (defun shuffle-function (deck-size steps)
+    (let* ((B (shuffle-single deck-size 0 steps))
+           (A (mod (- (shuffle-single deck-size 1 steps) B) deck-size)))
+      (lambda (n) (mod (+ (* A n) B) deck-size))))
+#+END_SRC
+
+I'm not going to keep going, but if I were to clean all this up, the
+above would be extended to return two function. The first computes the
+final position of a card after a number of shuffles, and the second
+would compute the inverse (where a card started based on its final
+position).
 
 Modular exponentiation:
 #+NAME: mod-expt
@@ -195,7 +208,7 @@ hand when I tried normal exponentiation with mod at the end.
 
 The modular inverse of A can be found with the following:
 #+BEGIN_SRC lisp
-  (mod-expt 36917093953130 119315717514045 119315717514047)
+  (mod-inv 36917093953130 119315717514047)
 #+END_SRC
 
 #+RESULTS:
