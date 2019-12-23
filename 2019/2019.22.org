@@ -1,0 +1,292 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 22
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-22)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-22
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-22)
+#+END_SRC
+** Input
+The input is a set of card dealing steps. Parsing this will be
+fun. Parseq should help.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule num () (and (? "-") (+ digit)) (:string) (:function #'parse-integer))
+      (defrule cut () (and "cut" " " num) (:function (lambda (a b n) (list :cut n))))
+      (defrule stack () "deal into new stack" (:constant (list :stack 0)))
+      (defrule increment () (and "deal with increment " num) (:function (lambda (a n) (list :increment n))))
+      (defrule deal () (or cut stack increment))
+      (parseq 'deal line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/22.txt"))
+#+END_SRC
+** Part 1
+Alright, parsing is done. The next step is to build the mechanism for
+actually executing the shuffle.
+#+NAME: shuffle-actions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun stack (deck)
+    (reverse deck))
+
+  (defun cut (deck num)
+    (let ((n (length deck)))
+      (cond ((plusp num)
+             (append (last deck (- n num)) (butlast deck (- n num))))
+            ((minusp num)
+             (append (last deck (abs num)) (butlast deck (abs num)))))))
+
+  (defun increment (deck num)
+    (let ((a (make-array (length deck)))
+          (n (length deck))
+          (deck (copy-seq deck)))
+      (iter (for i from 0 below n)
+            (with pos = 0)
+            (setf (aref a pos) (pop deck))
+            (setf pos (mod (+ pos num) n)))
+      (coerce a 'list)))
+#+END_SRC
+
+After a bit of debugging, the above works.
+
+#+NAME: shuffle
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun shuffle (deck-size steps)
+    (let ((deck (iter (for i from 0 below deck-size)
+                      (collect i))))
+      (iter (for (action n) in steps)
+            (setf deck
+                  (ecase action
+                    (:cut (cut deck n))
+                    (:increment (increment deck n))
+                    (:stack (stack deck)))))
+      deck))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 22 A: ~a~%" (position 2019 (shuffle 10007 *input*))))
+#+END_SRC
+** Part 2
+Well, this is fun. The second part has a larger deck (119315717514047)
+and wants to apply the shuffle many times (101741582076661). Then
+return the value of the card at position 2020. The only way to do this
+one is to identify a pattern or the math behind the permutations.
+
+Each shuffle operation is a mathematical function. If I can figure out
+the right way to do taht, then I can compute the result for an
+individual element rather than needing to apply it to the whole list
+(impossible on my machine).
+
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun stack-single (n deck-size)
+    (- deck-size n 1))
+#+END_SRC
+Stack is its own inverse.
+
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun cut-single (n cut deck-size)
+    (mod (- n cut) deck-size))
+  (defun cut-single-inverse (n cut deck-size)
+    (mod (+ n cut) deck-size))
+#+END_SRC
+
+Cut is simply modular subtraction, it's inverse is modular addition..
+
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun increment-single (n step deck-size)
+    (mod (* n step) deck-size))
+  (defun increment-single-inverse (n step deck-size)
+    (iter (for i from 0 below deck-size)
+          (finding i such-that
+                   (= n (mod (* step i) deck-size)))))
+#+END_SRC
+
+Increment is modular multiplication.
+
+#+NAME: shuffle-single
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun shuffle-single (deck-size index steps)
+    (iter (for (action n) in steps)
+          (setf index
+                (ecase action
+                  (:cut (cut-single index n deck-size))
+                  (:increment (increment-single index n deck-size))
+                  (:stack (stack-single index deck-size)))))
+    index)
+#+END_SRC
+
+So the above now computes the final position of a value after
+following all the steps. For Part 2, we need to do this but with the
+inverse of each step. I do not believe that the following will be
+anywhere near fast enough, so this should be amusing to let it run for
+a while.
+
+The following allows for the forward computation in a single step:
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun fast-shuffle (n)
+    (let ((A 36917093953130)
+          (B 115619106397456)
+          (D 119315717514047))
+      (mod (+ (* A n) B) D)))
+#+END_SRC
+
+That function was derived by computing shuffle on inputs of 0 and 1. 0
+gave us B, 1 gave us A + B so A could be computed by subtraction.
+
+Modular exponentiation:
+#+NAME: mod-expt
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun mod-expt (a n m)
+    (iter (with c = 1)
+          (while (plusp n))
+          (if (oddp n) (setf c (mod (* a c) m)))
+          (setf n (floor n 2))
+          (setf a (mod (* a a) m))
+          (finally (return c))))
+
+  (defun mod-inv (n p)
+    (mod-expt n (- p 2) p))
+#+END_SRC
+
+I found I needed this because the numbers were getting a bit out of
+hand when I tried normal exponentiation with mod at the end.
+
+The modular inverse of A can be found with the following:
+#+BEGIN_SRC lisp
+  (mod-expt 36917093953130 119315717514045 119315717514047)
+#+END_SRC
+
+#+RESULTS:
+: 80725416546647
+
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun fast-shuffle-inverse (n)
+    (let ((A 80725416546647)
+          (B 115619106397456)
+          (D 119315717514047))
+      (mod (- (* A n) (* A B)) D)))
+#+END_SRC
+
+Now, this needs to be executed a large number of times, which is
+impractical. 1 billion times takes 112 seconds or so on my laptop.
+
+Let's examine the math of this:
+
+$s(n) = A * n + B$
+
+$s(s(n)) = A (A * n + B) + B = A^2 * n + AB + B$
+
+$s^m(n) = A^m * n + \sum_{i=0}^{m-1} A^i * B$
+
+Courtesy of some quick googling, that becomes:
+
+$s^m(n) = A^m * n + B \cdot \frac{A^m - 1}{A - 1}$
+
+By doing some more math, we arrive at the inverse version of this.
+
+$s^{-m}(n) = A^{-m} * n - B \cdot \frac{1 - A^{-n}}{A - 1}$
+
+From this, the inverse function can be computed using the original
+values of A and B.
+
+#+NAME: fast-inverse-shuffle
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun fast-shuffle-inverse (n &optional (times 1))
+    (let* ((A 36917093953130)
+           (B 115619106397456)
+           (D 119315717514047)
+           (A-inverse (mod-inv A D))
+           (A-1-inverse (mod-inv (1- A) D)))
+      (mod (- (* (mod-expt A-inverse times D)
+                 n)
+              (* B
+                 A-1-inverse
+                 (- (mod-expt A times D) 1)
+                 (mod-expt A-inverse times D)))
+           D)))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 22 B: ~a~%" (fast-shuffle-inverse 2020 101741582076661)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<shuffle-actions>>
+  <<shuffle>>
+  <<mod-expt>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.22.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 22 A: 4284
+: Problem 22 B: 96797432275571
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.22)
+  (in-suite aoc.2019.22)
+
+  (run! 'aoc.2019.22)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
