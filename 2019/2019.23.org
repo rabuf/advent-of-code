@@ -1,0 +1,302 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 23
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-23)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-23
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :lparallel.queue
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-23)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+      (with-open-file (s file)
+        (map 'vector #'parse-integer (cl-ppcre:split "," (read-line s)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/23.txt"))
+#+END_SRC
+** Part 1
+Today's problem requires creating a network of 50 computers.
+
+NB: Reading doesn't block, this can be done using peek-queue.
+
+#+NAME: make-network
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun make-network (program)
+    (let ((queues (make-array 256))
+          (locks (make-array 256)))
+      (iter (for i from 0 below 256)
+            (setf (aref queues i) (make-queue))
+            (push-queue i (aref queues i)))
+      (iter (for i from 0 below 256)
+            (setf (aref locks i) (bt:make-lock)))
+      (labels ((make-sender ()
+                 (let ((state :destination)
+                       (destination 0)
+                       (x 0)
+                       (y 0))
+                   (lambda (n)
+                     (ecase state
+                       (:destination (setf destination n)
+                                     (setf state :x))
+                       (:x (setf x n)
+                           (setf state :y))
+                       (:y (bt:with-lock-held ((aref locks destination))
+                             (setf y n)
+                             (push-queue x (aref queues destination))
+                             (push-queue y (aref queues destination))
+                             (setf state :destination)))))))
+               (make-receiver (n)
+                 (let ((state :unitialized)
+                       (n n))
+                   (lambda ()
+                     (ecase state
+                       (:unitialized (setf state :initialized)
+                                     (pop-queue (aref queues n)))
+                       (:initialized
+                        (cond ((peek-queue (aref queues n))
+                               (pop-queue (aref queues n)))
+                              (t -1)))))))
+               (create-node (n)
+                 (let ((n n))
+                   (lambda ()
+                     (intcode program
+                              :read-fn (make-receiver n)
+                              :write-fn (make-sender))))))
+        (let ((nodes (iter (for i from 0 below 50)
+                           (collect (bt:make-thread (create-node i) :name (format nil "Node: ~A" i))))))
+          (pop-queue (aref queues 255))
+          (pop-queue (aref queues 255))
+          (iter (until (peek-queue (aref queues 255))))
+          (iter (for th in nodes)
+                (bt:destroy-thread th))
+          (pop-queue (aref queues 255))))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 23 A: ~a~%" (make-network *input*)))
+#+END_SRC
+** Part 2
+Now there's a notion of a NAT at address 255. Whenever all the nodes
+are idle, it sends the most recently received packet to address 0.
+
+The answer to this part is the first Y value sent twice. I'll use a
+hash table to store the sent values and return it once it's been
+received twice.
+
+I'll have to ponder this, I'm uncertain how to detect that all nodes
+are idle using the approach I have. If they blocked on read it'd be
+easy.
+#+NAME: nat
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun nat (program)
+    (let ((queues (make-array 256))
+          (locks (make-array 256)))
+      (iter (for i from 0 below 256)
+            (setf (aref queues i) (make-queue)))
+      (iter (for i from 0 below 50)
+            (push-queue i (aref queues i)))
+      (iter (for i from 0 below 256)
+            (setf (aref locks i) (bt:make-lock)))
+      (labels ((make-sender ()
+                 (let ((state :destination)
+                       (destination 0)
+                       (x 0)
+                       (y 0))
+                   (lambda (n)
+                     (ecase state
+                       (:destination (setf destination n)
+                                     (setf state :x))
+                       (:x (setf x n)
+                           (setf state :y))
+                       (:y (bt:with-lock-held ((aref locks destination))
+                             (setf y n)
+                             (push-queue x (aref queues destination))
+                             (push-queue y (aref queues destination))
+                             (setf state :destination)))))))
+               (make-receiver (n)
+                 (let ((state :unitialized)
+                       (n n))
+                   (lambda ()
+                     (ecase state
+                       (:unitialized (setf state :initialized)
+                                     (pop-queue (aref queues n)))
+                       (:initialized
+                        (cond ((peek-queue (aref queues n))
+                               (pop-queue (aref queues n)))
+                              (t -1)))))))
+               (create-node (n)
+                 (let ((n n))
+                   (lambda ()
+                     (intcode program
+                              :read-fn (make-receiver n)
+                              :write-fn (make-sender))))))
+        (let* ((nodes (iter (for i from 0 below 50)
+                            (collect (bt:make-thread (create-node i) :name (format nil "Node: ~A" i)))))
+               (y -1) (x -1) (sent-y -1)
+               (nat (bt:make-thread (lambda ()
+                                      (iter (setf x (pop-queue (aref queues 255)))
+                                            (setf y (pop-queue (aref queues 255))))))))
+          (sleep 5) ;;(print "Time for idle loop.")
+          (iter (for idle = (iter (for i from 0 below 50)
+                                  (never (peek-queue (aref queues i)))))
+                (when idle
+                  (push-queue x (aref queues 0))
+                  (push-queue y (aref queues 0))
+                  ;;(print "Pushed out NAT values.") (print x) (print y)
+                  (if (= y sent-y)
+                      (return)
+                      (setf sent-y y)))
+                (sleep 0.5))
+          (iter (for th in nodes)
+                (bt:destroy-thread th))
+          (bt:destroy-thread nat)
+          sent-y))))
+#+END_SRC
+
+The above works, but it's race-y. I have to tune the time to make sure
+the idle check doesn't return a false positive.
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 23 B: ~a~%" (nat *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: intcode
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun intcode (program &key (read-fn #'read) (write-fn #'write))
+    (let ((memory (make-hash-table))
+          (relative-base 0))
+      (iter (for val in-vector program with-index i)
+            (setf (gethash i memory) val))
+      (flet ((fetch (mode address)
+               (gethash (ecase mode
+                          (0 (gethash address memory 0))
+                          (1 address)
+                          (2 (+ relative-base
+                                (gethash address memory 0))))
+                        memory 0))
+             (store (mode address value)
+               (setf (gethash (ecase mode
+                                (0 (gethash address memory 0))
+                                (2 (+ relative-base
+                                      (gethash address memory 0))))
+                              memory 0)
+                     value)))
+        (iter (with pc = 0)
+              (for op = (fetch 1 pc))
+              (for instr = (mod op 100))
+              (for modes = (floor op 100))
+              (for (m1 m2 m3) = (list (mod modes 10)
+                                      (mod (floor modes 10) 10)
+                                      (mod (floor modes 100) 10)))
+              (for (o1 o2 o3) = (list (+ pc 1) (+ pc 2) (+ pc 3)))
+              (ecase instr
+                (1 (store m3 o3
+                          (+ (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (2 (store m3 o3
+                          (* (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (3 (store m1 o1 (funcall read-fn))
+                   (incf pc 2))
+                (4 (funcall write-fn
+                            (fetch m1 o1))
+                   (incf pc 2))
+                (5 (if (not (zerop (fetch m1 o1)))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (6 (if (zerop (fetch m1 o1))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (7 (store m3 o3
+                          (if (< (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (8 (store m3 o3
+                          (if (= (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (9 (incf relative-base (fetch m1 o1))
+                   (incf pc 2))
+                (99 (return-from intcode)))))))
+#+END_SRC
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<intcode>>
+  <<make-network>>
+  <<nat>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.23.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 23 A: 20372
+: Problem 23 B: 13334
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.23)
+  (in-suite aoc.2019.23)
+
+  (run! 'aoc.2019.23)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
