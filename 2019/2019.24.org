@@ -1,0 +1,393 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 24
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-24)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-24
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-24)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/24.txt"))
+#+END_SRC
+** Part 1
+The problem today starts with a simple cellular automata. The rules
+are simple:
+- A bug dies if it doesn't have exactly one bug neighbor.
+- A space becomes infected if it has one or two bug numbers.
+
+The first thing is to parse the input into a hash table (my usual
+method of storing these things).
+#+NAME: parse-input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-input (lines)
+    (let ((grid (make-hash-table)))
+      (iter (for y from 0)
+            (for l in lines)
+            (iter (for x from 0)
+                  (for c in-string l)
+                  (for pos = (complex x y))
+                  (setf (gethash pos grid) c)))
+      grid))
+#+END_SRC
+
+Now I want to print it, mostly for debugging
+#+NAME: print-grid
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun print-grid (grid)
+    (iter (for y from 0 to 4)
+          (iter (for x from 0 to 4)
+                (for pos = (complex x y))
+                (format t "~C" (gethash pos grid #\.)))
+          (format t "~%")))
+#+END_SRC
+
+Send an updated grid based on the rules described above.
+#+NAME: tick
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun rule-1 (grid pos)
+    (let ((count 0))
+      (iter (for i from 0 to 3)
+            (for d = (expt #C(0 1) i))
+            (when (char= #\# (gethash (+ pos d) grid #\.))
+              (incf count)))
+      (if (= count 1) #\# #\.)))
+
+  (defun rule-2 (grid pos)
+    (let ((count 0))
+      (iter (for i from 0 to 3)
+            (for d = (expt #C(0 1) i))
+            (when (char= #\# (gethash (+ pos d) grid #\.))
+              (incf count)))
+      (if (or (= count 1)
+              (= count 2))
+          #\#
+          #\.)))
+
+
+  (defun tick (grid)
+    (let ((next (make-hash-table)))
+      (iter (for (k v) in-hashtable grid)
+            (setf (gethash k next)
+                  (case v
+                    (#\. (rule-2 grid k))
+                    (#\# (rule-1 grid k)))))
+      next))
+#+END_SRC
+
+#+NAME: biodiversity
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun biodiversity (grid)
+    (iter (for (k v) in-hashtable grid)
+          (for x = (realpart k))
+          (for y = (imagpart k))
+          (when (char= v #\#)
+            (summing (expt 2 (+ (* 5 y) x))))))
+#+END_SRC
+
+Conveniently, each state has a unique representation when biodiversity
+is calculated. The question for part 1, what is the biodiversity of
+the first state seen twice.
+
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-a (input)
+    (let ((grid (parse-input input))
+          (seen (make-hash-table)))
+      (setf (gethash (biodiversity grid) seen) t)
+      (iter (for state initially (tick grid) then (tick state))
+            (for bio = (biodiversity state))
+            (for i from 0)
+            (when (gethash bio seen)
+              (return bio))
+            (setf (gethash bio seen) t))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Now the grid is within a larger grid, which is in a larger grid,
+etc. Its center position <2,2> is also a smaller 5x5 grid. This
+changes the neighborhood calculation, though not the general rules.
+
+I believe that, initially, all other grids are lifeless. The question
+is, how many bugs are there after 200 minutes.
+
+I'm going to remake my grid a bit. Instead of just <x,y> coordinates
+I'll add a depth marker: <x,y,depth>. I can still use my hash table
+for the grid.
+
+#+NAME: recursive-parse
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun parse-input-recursive (lines)
+      (let ((grid (make-hash-table :test #'equal)))
+        (iter (for y from 0)
+              (for l in lines)
+              (iter (for x from 0)
+                    (for c in-string l)
+                    (for pos = (list x y 0))
+                    (setf (gethash pos grid) (if (char= #\# c) 1 0))))
+        (remhash (list 2 2 0) grid)
+        grid))
+#+END_SRC
+
+The recursive depth will be an interesting thing to deal with. I need
+to record the current min and max depth so I know how far to go.
+
+How to know whether to add a higher level? Any cells on the perimeter
+are live on the highest level. These create the potential for the next
+level up to become live.
+
+How to know whether to add a lower level? Any cells adjacent to <2,2>
+are alive on the current lowest level.
+
+This blew up my SLOC. I have 6 new functions to handle going in and
+out. Two functions check if there's a need to add a level.
+
+#+NAME: recursive-tick
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun count-outer-neighbors (grid pos)
+    (destructuring-bind (x y d) pos
+      (+ (cond ((zerop x) (gethash (list 2 1 (1+ d)) grid 0))
+               ((= x 4) (gethash (list 2 3 (1+ d)) grid 0))
+               (t 0))
+         (cond ((zerop y) (gethash (list 1 2 (1+ d)) grid 0))
+               ((= y 4) (gethash (list 3 2 (1+ d)) grid 0))
+               (t 0)))))
+
+  (defun get-inner-neighbors (grid pos)
+    (destructuring-bind (x y d) pos
+      (cond ((or (= y 1) (= y 3))
+             (iter (for j from 0 to 4)
+                   (for i = (if (= y 1) 0 4))
+                   (collect (gethash (list i j (1- d)) grid 0))))
+            (t
+             (iter (for i from 0 to 4)
+                   (for j = (if (= x 1) 0 4))
+                   (collect (gethash (list i j (1- d)) grid 0)))))))
+
+  (defun count-inner-neighbors (grid pos)
+    (reduce #'+ (get-inner-neighbors grid pos)))
+
+  (defun goes-in-p (x y)
+    (or (and (= 1 x) (= 2 y))
+        (and (= 1 y) (= 2 x))
+        (and (= 3 x) (= 2 y))
+        (and (= 3 y) (= 2 x))))
+
+  (defun goes-out-p (x y)
+    (or (= 0 x) (= 0 y)
+        (= 4 x) (= 4 y)))
+
+  (defun count-regular-neighbors (grid pos)
+    (destructuring-bind (x y d) pos
+      (+ (gethash (list x (1+ y) d) grid 0)
+         (gethash (list x (1- y) d) grid 0)
+         (gethash (list (1+ x) y d) grid 0)
+         (gethash (list (1- x) y d) grid 0))))
+
+  (defun recursive-rule-1 (grid pos)
+    (destructuring-bind (x y d) pos
+      (cond ((not (or (goes-in-p x y)
+                      (goes-out-p x y)))
+             (if (= 1 (count-regular-neighbors grid pos)) 1 0))
+            ((goes-in-p x y)
+             (if (= 1 (+ (count-regular-neighbors grid pos)
+                         (count-inner-neighbors grid pos)))
+                 1 0))
+            ((goes-out-p x y)
+             (if (= 1 (+ (count-regular-neighbors grid pos)
+                         (count-outer-neighbors grid pos)))
+                 1 0))
+            (t 0))))
+
+  (defun recursive-rule-2 (grid pos)
+    (destructuring-bind (x y d) pos
+      (cond ((not (or (goes-in-p x y)
+                      (goes-out-p x y)))
+             (if (member (count-regular-neighbors grid pos) '(1 2)) 1 0))
+            ((goes-in-p x y)
+             (if (member (+ (count-regular-neighbors grid pos)
+                            (count-inner-neighbors grid pos))
+                         '(1 2))
+                 1 0))
+            ((goes-out-p x y)
+             (if (member (+ (count-regular-neighbors grid pos)
+                            (count-outer-neighbors grid pos))
+                         '(1 2))
+                 1 0))
+            (t 0))))
+
+  (defun add-inner (grid)
+    (let ((min-d (iter (for ((x y d) v) in-hashtable grid)
+                       (minimizing d))))
+      (when (or (= 1 (gethash (list 2 1 min-d) grid 0))
+                (= 1 (gethash (list 2 3 min-d) grid 0))
+                (= 1 (gethash (list 1 2 min-d) grid 0))
+                (= 1 (gethash (list 3 2 min-d) grid 0)))
+        (iter (for y from 0 to 4)
+              (iter (for x from 0 to 4)
+                    (for pos = (list x y (1- min-d)))
+                    (setf (gethash pos grid 0) 0)))
+        (remhash (list 2 2 (1- min-d)) grid))))
+
+  (defun add-outer (grid)
+    (let ((max-d (iter (for ((x y d) v) in-hashtable grid)
+                       (maximizing d))))
+      (when (or (iter (for y from 0 to 4)
+                      (for x = 0)
+                      (for pos = (list x y max-d))
+                      (thereis (= 1 (gethash pos grid 0))))
+                (iter (for y from 0 to 4)
+                      (for x = 4)
+                      (for pos = (list x y max-d))
+                      (thereis (= 1 (gethash pos grid 0))))
+                (iter (for x from 0 to 4)
+                      (for y = 0)
+                      (for pos = (list x y max-d))
+                      (thereis (= 1 (gethash pos grid 0))))
+                (iter (for x from 0 to 4)
+                      (for y = 4)
+                      (for pos = (list x y max-d))
+                      (thereis (= 1 (gethash pos grid 0)))))
+        (iter (for y from 0 to 4)
+              (iter (for x from 0 to 4)
+                    (for pos = (list x y (1+ max-d)))
+                    (setf (gethash pos grid 0) 0)))
+        (remhash (list 2 2 (1+ max-d)) grid))))
+
+  (defun recursive-tick (grid)
+    (let ((next (make-hash-table :test 'equal)))
+      (add-inner grid)
+      (add-outer grid)
+      (iter (for (k v) in-hashtable grid)
+            (setf (gethash k next)
+                  (case v
+                    (0 (recursive-rule-2 grid k))
+                    (1 (recursive-rule-1 grid k)))))
+      next))
+#+END_SRC
+
+#+NAME: print-recursive
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun print-recursive (grid)
+    (let ((max-d (iter (for ((x y d) v) in-hashtable grid)
+                       (maximizing d)))
+          (min-d (iter (for ((x y d) v) in-hashtable grid)
+                       (minimizing  d))))
+      (iter (for d from max-d downto min-d)
+            (format t "Depth: ~A~%" d)
+            (iter (for y from 0 to 4)
+                  (iter (for x from 0 to 4)
+                        (for pos = (list x y d))
+                        (format t "~A" (gethash pos grid #\?)))
+                  (format t "~%"))
+            (format t "=====~%"))))
+#+END_SRC
+
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun count-alive (grid)
+    (iter (for (k v) in-hashtable grid)
+          (counting (= v 1))))
+  (defun solve-b (input &optional (iterations 200))
+    (let ((grid (parse-input-recursive input)))
+      (iter (for i from 0 below iterations)
+            (setf grid (recursive-tick grid)))
+      ;(print-recursive grid)
+      (count-alive grid)))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<parse-input>>
+  <<print-grid>>
+  <<tick>>
+  <<biodiversity>>
+  <<solve-a>>
+  <<recursive-parse>>
+  <<recursive-tick>>
+  <<print-recursive>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.24.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 24 A: 28781019
+: Problem 24 B: 1939
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.24)
+  (in-suite aoc.2019.24)
+
+  (run! 'aoc.2019.24)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
