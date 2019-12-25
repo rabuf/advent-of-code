@@ -1,0 +1,642 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 25
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2019-25)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2019-25
+    (:use :common-lisp
+          :iterate
+          :lparallel.queue
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2019-25)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+      (with-open-file (s file)
+        (map 'vector #'parse-integer (cl-ppcre:split "," (read-line s)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/25.txt"))
+#+END_SRC
+** Part 1
+I'm going to try this one by hand at first. Thanks to the way my
+input/output work, the following is an easy way to get an ASCII
+capable intcode computer:
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun ascii-computer (program)
+    (intcode program
+             :read-fn (lambda () (char-code (read-char)))
+             :write-fn (lambda (c) (write-char (code-char c)))))
+#+END_SRC
+
+Don't take the (these were fun):
+- escape pod
+- photons
+- molten lava
+- infinite loop
+- giant electromagnet
+
+Mug and shell aren't enough weight.
+
+At some point I'd gathered all of thes:
+- mug
+- sand
+- weather machine
+- festive hat
+- shell
+- whirled peas
+- space heater
+
+That was too much weight. Need to figure out the right weight to move
+on.
+
+Not enough:
+- weather machine
+- space heater
+
+Space heater is the heaviest thing and must be necessary, having
+everything else isn't enough.
+
+Items in your inventory:
+- mug
+- sand
+- festive hat
+- shell
+- space heater
+
+Too much. No whirled peas. They're too much with just the space heater.
+
+So I'm down to 5 things that could be in the inventory in some
+combination:
+- mug
+- weather machine
+- festive hat
+- shell
+- sand
+
+All are too much. Not enough without the mug, sand. Festive hat still
+leaves me too heavy. Found out I'd missed an item, the easter
+egg. Nice.
+
+I want to generate every possible set of items and try them all. There
+are only 256.
+
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun powerset (s) 
+    (if s (mapcan (lambda (x) (list (cons (car s) x) x)) 
+                  (powerset (cdr s)))
+        '(())))
+
+  (format t "~A~%" (length (powerset (list "mug" "weather machine" "festive hat" "shell" "sand" "space heater" "easter egg" "whirled peas"))))
+  (format t "~{~{take ~A~%~}~%south~%drop mug
+  drop weather machine
+  drop festive hat
+  drop shell
+  drop sand
+  drop space heater
+  drop easter egg
+  drop whirled peas~%~}" (powerset (list "mug" "weather machine" "festive hat" "shell" "sand" "space heater" "easter egg" "whirled peas")))
+#+END_SRC
+
+The above generate a lot of text that I pasted in. The necessary components turned out to be:
+- mug
+- sand
+- space heater
+- easter egg
+
+Knowing this, I'll go aheand and write up a script to execute that'll
+automatically run through this last challenge.
+- west
+- south
+- south
+- take sand
+- north
+- north
+- west
+- north
+- take space heater
+- south
+- east
+- east
+- east
+- east
+- take mug
+- east
+- south
+- east
+- south
+- take easter egg
+- north
+- west
+- west
+- south
+- west
+- south
+- south
+
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results output
+  (defun solve-a (program)
+    (let ((script "west
+  south
+  south
+  take sand
+  north
+  north
+  west
+  north
+  take space heater
+  south
+  east
+  east
+  east
+  take mug
+  east
+  east
+  south
+  east
+  south
+  take easter egg
+  north
+  west
+  west
+  south
+  west
+  south
+  south
+  "))
+      (with-input-from-string (*standard-input* script)
+        (ascii-computer program))))
+  (solve-a *input*)
+#+END_SRC
+
+#+RESULTS: solve-a
+#+begin_example
+
+
+
+== Hull Breach ==
+You got in through a hole in the floor here. To keep your ship from also freezing, the hole has been sealed.
+
+Doors here lead:
+- east
+- south
+- west
+
+Command?
+
+
+
+== Hallway ==
+This area has been optimized for something; you're just not quite sure what.
+
+Doors here lead:
+- east
+- south
+- west
+
+Command?
+
+
+
+== Navigation ==
+Status: Stranded. Please supply measurements from fifty stars to recalibrate.
+
+Doors here lead:
+- north
+- east
+- south
+
+Items here:
+- festive hat
+
+Command?
+
+
+
+== Storage ==
+The boxes just contain more boxes.  Recursively.
+
+Doors here lead:
+- north
+
+Items here:
+- sand
+
+Command?
+
+You take the sand.
+
+Command?
+
+
+
+== Navigation ==
+Status: Stranded. Please supply measurements from fifty stars to recalibrate.
+
+Doors here lead:
+- north
+- east
+- south
+
+Items here:
+- festive hat
+
+Command?
+
+
+
+== Hallway ==
+This area has been optimized for something; you're just not quite sure what.
+
+Doors here lead:
+- east
+- south
+- west
+
+Command?
+
+
+
+== Holodeck ==
+Someone seems to have left it on the Giant Grid setting.
+
+Doors here lead:
+- north
+- east
+
+Items here:
+- giant electromagnet
+
+Command?
+
+
+
+== Passages ==
+They're a little twisty and starting to look all alike.
+
+Doors here lead:
+- south
+
+Items here:
+- space heater
+
+Command?
+
+You take the space heater.
+
+Command?
+
+
+
+== Holodeck ==
+Someone seems to have left it on the Giant Grid setting.
+
+Doors here lead:
+- north
+- east
+
+Items here:
+- giant electromagnet
+
+Command?
+
+
+
+== Hallway ==
+This area has been optimized for something; you're just not quite sure what.
+
+Doors here lead:
+- east
+- south
+- west
+
+Command?
+
+
+
+== Hull Breach ==
+You got in through a hole in the floor here. To keep your ship from also freezing, the hole has been sealed.
+
+Doors here lead:
+- east
+- south
+- west
+
+Command?
+
+
+
+== Engineering ==
+You see a whiteboard with plans for Springdroid v2.
+
+Doors here lead:
+- east
+- west
+
+Items here:
+- mug
+
+Command?
+
+You take the mug.
+
+Command?
+
+
+
+== Sick Bay ==
+Supports both Red-Nosed Reindeer medicine and regular reindeer medicine.
+
+Doors here lead:
+- south
+- west
+
+Items here:
+- escape pod
+
+Command?
+
+You can't go that way.
+
+Command?
+
+
+
+== Crew Quarters ==
+The beds are all too small for you.
+
+Doors here lead:
+- north
+- east
+- west
+
+Command?
+
+
+
+== Hot Chocolate Fountain ==
+Somehow, it's still working.
+
+Doors here lead:
+- north
+- south
+- west
+
+Items here:
+- photons
+
+Command?
+
+
+
+== Corridor ==
+The metal walls and the metal floor are slightly different colors. Or are they?
+
+Doors here lead:
+- north
+
+Items here:
+- easter egg
+
+Command?
+
+You take the easter egg.
+
+Command?
+
+
+
+== Hot Chocolate Fountain ==
+Somehow, it's still working.
+
+Doors here lead:
+- north
+- south
+- west
+
+Items here:
+- photons
+
+Command?
+
+
+
+== Crew Quarters ==
+The beds are all too small for you.
+
+Doors here lead:
+- north
+- east
+- west
+
+Command?
+
+
+
+== Warp Drive Maintenance ==
+It appears to be working normally.
+
+Doors here lead:
+- east
+- south
+
+Command?
+
+
+
+== Observatory ==
+There are a few telescopes; they're all bolted down, though.
+
+Doors here lead:
+- north
+- west
+
+Items here:
+- infinite loop
+
+Command?
+
+
+
+== Gift Wrapping Center ==
+How else do you wrap presents on the go?
+
+Doors here lead:
+- east
+- south
+
+Items here:
+- shell
+
+Command?
+
+
+
+== Security Checkpoint ==
+In the next room, a pressure-sensitive floor will verify your identity.
+
+Doors here lead:
+- north
+- south
+
+Command?
+
+
+
+== Pressure-Sensitive Floor ==
+Analyzing...
+
+Doors here lead:
+- north
+
+A loud, robotic voice says "Analysis complete! You may proceed." and you enter the cockpit.
+Santa notices your small droid, looks puzzled for a moment, realizes what has happened, and radios your ship directly.
+"Oh, hello! You should be able to get in by typing 2424308736 on the keypad at the main airlock."
+#+end_example
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 25 A: ~a~%" (identity 2424308736)))
+#+END_SRC
+** Part 2
+There isn't actually a part two for today. The second star is granted
+for completing all the other tasks.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 25 B: ~a~%" (identity 2424308736)))
+#+END_SRC
+** Putting it all together
+#+NAME: intcode
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun intcode (program &key (read-fn #'read) (write-fn #'write))
+    (let ((memory (make-hash-table))
+          (relative-base 0))
+      (iter (for val in-vector program with-index i)
+            (setf (gethash i memory) val))
+      (flet ((fetch (mode address)
+               (gethash (ecase mode
+                          (0 (gethash address memory 0))
+                          (1 address)
+                          (2 (+ relative-base
+                                (gethash address memory 0))))
+                        memory 0))
+             (store (mode address value)
+               (setf (gethash (ecase mode
+                                (0 (gethash address memory 0))
+                                (2 (+ relative-base
+                                      (gethash address memory 0))))
+                              memory 0)
+                     value)))
+        (iter (with pc = 0)
+              (for op = (fetch 1 pc))
+              (for instr = (mod op 100))
+              (for modes = (floor op 100))
+              (for (m1 m2 m3) = (list (mod modes 10)
+                                      (mod (floor modes 10) 10)
+                                      (mod (floor modes 100) 10)))
+              (for (o1 o2 o3) = (list (+ pc 1) (+ pc 2) (+ pc 3)))
+              (ecase instr
+                (1 (store m3 o3
+                          (+ (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (2 (store m3 o3
+                          (* (fetch m1 o1)
+                             (fetch m2 o2)))
+                   (incf pc 4))
+                (3 (store m1 o1 (funcall read-fn))
+                   (incf pc 2))
+                (4 (funcall write-fn
+                            (fetch m1 o1))
+                   (incf pc 2))
+                (5 (if (not (zerop (fetch m1 o1)))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (6 (if (zerop (fetch m1 o1))
+                       (setf pc (fetch m2 o2))
+                       (incf pc 3)))
+                (7 (store m3 o3
+                          (if (< (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (8 (store m3 o3
+                          (if (= (fetch m1 o1) (fetch m2 o2)) 1 0))
+                   (incf pc 4))
+                (9 (incf relative-base (fetch m1 o1))
+                   (incf pc 2))
+                (99 (return-from intcode)))))))
+#+END_SRC
+
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<intcode>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.25.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 25 A: 2424308736
+: Problem 25 B: 2424308736
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2019.25)
+  (in-suite aoc.2019.25)
+
+  (run! 'aoc.2019.25)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
