@@ -141,7 +141,7 @@ The above generate a lot of text that I pasted in. The necessary components turn
 - space heater
 - easter egg
 
-Knowing this, I'll go aheand and write up a script to execute that'll
+Knowing this, I'll go ahead and write up a script to execute that'll
 automatically run through this last challenge.
 - west
 - south
