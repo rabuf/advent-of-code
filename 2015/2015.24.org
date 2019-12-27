@@ -1,0 +1,161 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 24
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-24)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :generators)
+    (ql:quickload "generators"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-24
+    (:shadowing-import-from #:generators #:next)
+    (:use :common-lisp
+          :iterate
+          :generators
+          :cl-permutation
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-24)
+#+END_SRC
+** Input
+The input is a sequence of numbers.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-integer line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/24.txt"))
+#+END_SRC
+** Part 1
+Part 1 is to partition the list of weights into 3 parts of equal
+weight (sum), and calculate the product of the firsT (fewest items)
+partition. The goal is to minimize items first and then QE.
+
+#+NAME: quantum-entanglement
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun quantum-entanglement (list)
+    (reduce #'* list))
+#+END_SRC
+
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun partition (list &optional (partitions 3))
+    (let* ((target-weight (/ (reduce #'+ list) partitions))
+           (min-length (length list))
+           (agen (powerset list))
+           (min-qe (quantum-entanglement list)))
+      (iter outer
+            (for a in-generator agen)
+            (for aw = (reduce #'+ a))
+            (for qa = (quantum-entanglement a))
+            (for al = (length a))
+            (when (> al min-length) (return-from outer))
+            (when (and (<= al min-length)
+                       (= aw target-weight))
+              (setf min-length (min al min-length))
+              (setf min-qe (min min-qe qa))))
+      min-qe))
+#+END_SRC
+
+I clearly didn't think this through. There are $2^29$ possible subsets
+for the first part alone. That's way too many to generate. We can,
+however, switch to a lazy generation approach. I'm going to try the
+=GENERATORS= package.
+
+I'm now generating the powersets lazily, which makes this technically
+feasible (I'm not blowing up my heap). However, I'm still doing a lot
+of duplicate work. Once I've found a valid first partition, I
+shouldn't try it with any other combinations of the second and third
+partitions. Simple solution, once =b= and =c= have the right balance,
+return from the inner loop.
+
+This still takes a long time.
+
+#+NAME: powerset-generator
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun powerset (xs)
+    (let ((n (length xs)))
+      (make-generator ()
+        (iter (for m from 0 to n)
+              (for spec = (make-combination-spec n m))
+              (iter (for i from 0 below (cardinality spec))
+                    (yield (iter (for v in-vector (unrank spec i))
+                                 (for elt in xs)
+                                 (when (zerop v) (collect elt)))))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (partition *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (partition *input* 4)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.24.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 24 A: 11846773891
+: Problem 24 B: 80393059
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2015.24)
+  (in-suite aoc.2015.24)
+
+  (run! 'aoc.2015.24)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
