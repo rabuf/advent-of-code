@@ -1,0 +1,185 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 25
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2015-25)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2015-25
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2015-25)
+#+END_SRC
+** Input
+The input for today is a line in a file, but we only need the numbers.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (iter (for num in (cl-ppcre:all-matches-as-strings "[0-9]+" (read-line in)))
+            (collect (parse-integer num)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/25.txt"))
+#+END_SRC
+** Part 1
+The numbers are coordinates on an infinite grid. The posiiton
+corresponds to a "code" needed to run Santa's weather machine. The
+coordinates correspond to a value to raise a number by. Here's the
+formula:
+
+$f(n) = 20151125 \cdot 252533^n (mod 33554393)$
+
+n can be calculated from the x/y pair as follows:
+
+$n(x,y) = \frac{(x + y - 1) \cdot (x + y - 2)}{2} + y$
+
+#+NAME: diagonal
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun diagonal (x y)
+    (+ (/ (* (+ x y -1)
+             (+ x y -2))
+          2)
+       y))
+#+END_SRC
+
+#+BEGIN_SRC lisp
+  (diagonal 3010 3019)
+#+END_SRC
+
+#+RESULTS:
+: 18168397
+
+#+NAME: code
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun code (x y)
+    (mod (* 20151125
+            (mod-expt 252533 (1- (diagonal x y)) 33554393))
+         33554393))
+#+END_SRC
+
+As I suspected, the exponentiation is slow (it's generating big
+integers and will only mod them at the end).
+
+#+NAME: mod-expt
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun mod-expt (a n m)
+    (iter (with c = 1)
+          (while (plusp n))
+          (if (oddp n) (setf c (mod (* a c) m)))
+          (setf n (floor n 2))
+          (setf a (mod (* a a) m))
+          (finally (return c))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 25 A: ~a~%" (apply #'code *input*)))
+#+END_SRC
+** Part 2
+Part 2 is a freebie on Day 25. I just need to finish all the other
+days which, presently, are days 22 and 24.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 25 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<mod-expt>>
+  <<diagonal>>
+  <<code>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.25.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 25 A: 8997277
+: Problem 25 B: (3010 3019)
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2015.25)
+  (in-suite aoc.2015.25)
+  (test test-diagonal
+    (is (= 1 (diagonal 1 1)))
+    (is (= 2 (diagonal 2 1)))
+    (is (= 16 (diagonal 6 1)))
+    (is (= 18168397 (diagonal 3010 3019))))
+
+  (test qc-mod-expt
+    (for-all ((base (gen-integer :min 0 :max 200))
+              (power (gen-integer :min 0 :max 200))
+              (mod (gen-integer :min 0 :max 200)))
+      (is (= (mod (expt base power) mod) (mod-expt base power mod)))))
+
+  (test qc-code
+    (let ((magic 20151125)
+          (base 252533)
+          (mod 33554393))
+      (for-all ((x (gen-integer :min 1 :max 20))
+                (y (gen-integer :min 1 :max 20)))
+        (is (= (mod (* magic (expt base (1- (diagonal x y)))) mod)
+               (code x y))))))
+
+  (run! 'aoc.2015.25)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2015.25
+:  Running test TEST-DIAGONAL ....
+:  Running test QC-MOD-EXPT .....................................................................................................
+:  Running test QC-CODE .....................................................................................................
+:  Did 6 checks.
+:     Pass: 6 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
