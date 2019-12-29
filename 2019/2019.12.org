@@ -115,9 +115,13 @@ How many steps does it take before a previous state is reached? A
 naive solution would kill me on memory and time. I'll sleep on this
 one and come back to it fresh tomorrow.
 
-This solution works for the first test case, but not the second and
-not my input.
-
+The following is based on the fact that each part (x, y, z) is
+independent of the others. So a cycle on all is the lcm of the cycle
+for each part. Additionally, based on the idea of "what goes up must
+come down", ew actually only need to find out how long it takes to
+reach 0 the first time, this indicates how long it took them to reach
+their most extreme positions before returning to their initial
+state. Doubling that gives the actual period.
 #+NAME: find-orbital-period
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun axis-velocities (planets axis)
