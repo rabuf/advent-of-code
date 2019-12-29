@@ -1,0 +1,179 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 04
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-04)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-04
+    (:use :common-lisp
+          :iterate
+          :priority-queue
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-04)
+#+END_SRC
+** Input
+The input is of the form:
+#+BEGIN_EXAMPLE
+  [a-z]+(-[a-z]+)*-[0-9]+\[[a-z][a-z][a-z][a-z][a-z]\]
+#+END_EXAMPLE
+
+THe last five letters, if it's not a decoy, are the most common
+letters in frequency order, ties broken alphabetically.
+
+#+NAME: parse-line
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-line (line)
+    (let ((parts (cl-ppcre:split "-" line)))
+      (list (apply #'concatenate (cons 'string (butlast parts)))
+            (parse-integer (first (cl-ppcre:all-matches-as-strings "[0-9]+" (first (last parts)))))
+            (first (cl-ppcre:all-matches-as-strings "[a-z]+" (first (last parts)))))))
+#+END_SRC
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/04.txt"))
+#+END_SRC
+** Part 1
+I'm assuming right now that the dashes don't matter, that'll bite me
+in part 2 I'm sure. I need to calculate the most frequent letters. I'm
+going to use a priority queue which will have as a key the frequency
+and the letter. The predicate will sort by frequency, and on a tie by
+character.
+
+#+NAME: checksum
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun checksum (room)
+    (let ((count (make-hash-table))
+          (pq (make-pqueue (lambda (a b)
+                             (destructuring-bind (f0 l0) a
+                               (destructuring-bind (f1 l1) b
+                                 (cond ((> f0 f1) t)
+                                       ((= f0 f1) (char< l0 l1))
+                                       (t nil))))))))
+      (iter (for c in-string (first room))
+            (incf (gethash c count 0)))
+      (iter (for (k v) in-hashtable count)
+            (pqueue-push k (list v k) pq))
+      (concatenate 'string
+                   (iter (repeat 5)
+                         (collect (pqueue-pop pq))))))
+#+END_SRC
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-a (rooms)
+    (iter (for room in rooms)
+          (if (string= (first (last room))
+                       (checksum room))
+              (sum (first (last room 2))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+The sector ID is a shift for a simple shift cipher. I'll need to
+convert the characters to integers, perform the shift modulo 26, and
+then convert back.
+#+NAME: decrypt
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun decrypt (room)
+    (concatenate 'string
+                 (iter (for c in-string (first room))
+                       (with shift = (second room))
+                       (for i = (- (char-code c) (char-code #\a)))
+                       (collect (code-char
+                                 (+ (mod (+ i shift) 26)
+                                    (char-code #\a)))))))
+#+END_SRC
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (rooms)
+    (iter (for room in rooms)
+          (when (string= (third room) (checksum room))
+            (when (cl-ppcre:scan "northpole" (decrypt room))
+              (return (second room))))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<parse-line>>
+  <<checksum>>
+  <<solve-a>>
+  <<decrypt>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.04.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 04 A: 185371
+: Problem 04 B: 984
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.04)
+  (in-suite aoc.2016.04)
+
+  (run! 'aoc.2016.04)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
