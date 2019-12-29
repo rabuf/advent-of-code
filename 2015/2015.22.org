@@ -18,6 +18,8 @@ support for lisp installed you can run this by:
     (ql:quickload "iterate"))
   (unless (find-package :parseq)
     (ql:quickload "parseq"))
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
   (unless (find-package :fiveam)
     (ql:quickload "fiveam"))
 #+END_SRC
@@ -28,6 +30,7 @@ support for lisp installed you can run this by:
   (defpackage :aoc-2015-22
     (:use :common-lisp
           :iterate
+          :priority-queue
           :parseq
           :fiveam)
     (:export :problem-a
@@ -63,23 +66,293 @@ on.
 
 A spell cannot be cast if it's already active (so if the =recharge=
 effect is in place, the spell cannot be cast yet).
+
+I'm going back and forth on how to implement this. I've decided on a
+class to record the game state. I'll just need a copy function for the
+actual search.
+#+NAME: game-state
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defclass game-state ()
+    ((mode :initform nil
+           :initarg :mode
+           :accessor mode)
+     (turn :initform :player
+           :initarg :turn
+           :accessor player)
+     (mana :initform 500
+           :initarg :mana
+           :accessor mana)
+     (mana-spent :initform 0
+           :initarg :mana-spent
+           :accessor mana-spent)
+     (armor :initform 0
+            :initarg :armor
+            :accessor armor)
+     (health :initform 50
+             :initarg :health
+             :accessor health)
+     (boss-health :initform 50
+                  :initarg :boss-health
+                  :accessor boss-health)
+     (boss-damage :initform 9
+                  :initarg :boss-damage
+                  :accessor boss-damage)
+     (effects :initform (make-hash-table)
+              :initarg :effects
+              :accessor effects)
+     (spells :initform nil
+             :initarg :spells
+             :accessor spells)))
+
+  (defun copy-state (state)
+    (with-slots (turn mana mana-spent armor health boss-health boss-damage effects mode spells)
+      state
+      (let ((copy
+             (make-instance 'game-state
+                            :turn turn
+                            :mana mana
+                            :mana-spent mana-spent
+                            :armor armor
+                            :health health
+                            :boss-health boss-health
+                            :boss-damage boss-damage
+                            :mode mode
+                            :spells (copy-seq spells)))
+            (copy-effects (make-hash-table)))
+        (maphash (lambda (k v)
+                   (setf (gethash k copy-effects)
+                         (with-slots (cost duration) v
+                           (make-instance (type-of v) :cost cost :duration duration))))
+                 effects)
+        (setf (effects copy) copy-effects)
+        copy)))
+#+END_SRC
+
+Spells will be classes. This will be used with multimethods to derive
+the result of applying the effect on the game state.
+#+NAME: spells
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defclass spell ()
+    ((cost :initform 0 :initarg :cost :accessor cost)))
+  (defclass effect ()
+     ((duration :initform 0 :initarg :duration :accessor duration)))
+  (defclass magic-missile (spell)
+    ((cost :initform 53)))
+  (defclass drain (spell)
+    ((cost :initform 73)))
+  (defclass shield (effect spell)
+    ((cost :initform 113)
+     (duration :initform 6)))
+  (defclass poison (effect spell)
+    ((cost :initform 173)
+     (duration :initform 6)))
+  (defclass recharge (effect spell)
+    ((cost :initform 229)
+     (duration :initform 5)))
+#+END_SRC
+
+=turn= will apply each effect. Effects remove themselves when their
+duration falls to 0. The default spell on a player's turn is magic
+missile if no other spell is provided. =apply-effect= will handle
+decrementing the duration and removing expired effects. =cast-spell=
+will determine if it's possible, and if it is will handle the state
+changes.
+#+NAME: turn
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defgeneric turn (game-state &optional spell))
+  (defmethod turn (game-state &optional spell)
+    (ecase (player game-state)
+      (:player
+       (cond (spell
+              (cast-spell game-state spell)
+              (push (type-of spell) (spells game-state)))
+             (t (cast-spell game-state (make-instance 'magic-missile)))))
+      (:boss (with-slots (boss-damage armor boss-health) game-state
+               (when (plusp boss-health)
+                 (decf (health game-state) (max 1 (- boss-damage armor))))))))
+  (defmethod turn :around (game-state &optional spell)
+    (declare (ignore spell))
+    (setf (armor game-state) 0)
+    (when (and (mode game-state) (eql :player (player game-state)))
+      (decf (health game-state)))
+    (unless (lossp game-state)
+      (iter (for (name effect) in-hashtable (effects game-state))
+            (apply-effect game-state effect))
+      (call-next-method))
+    (ecase (player game-state)
+      (:player (setf (player game-state) :boss))
+      (:boss (setf (player game-state) :player))))
+#+END_SRC
+
+The player casts a spell on their turn. The effect is determined by
+the type of the spell cast. =drain= and =magic-missile= ar
+instant. The rest are effects so they're added to the effect set, if
+permitted.
+#+NAME: cast-spell
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defgeneric cast-spell (game-state spell))
+
+  (defmethod cast-spell :around (game-state spell)
+    (when (and (>= (mana game-state) (cost spell))
+               (not (gethash (type-of spell) (effects game-state))))
+      (call-next-method)
+      (incf (mana-spent game-state) (cost spell))
+      (decf (mana game-state) (cost spell))))
+
+  (defmethod cast-spell (game-state (spell magic-missile))
+    (decf (boss-health game-state) 4))
+
+  (defmethod cast-spell (game-state (spell drain))
+    (decf (boss-health game-state) 2)
+    (incf (health game-state) 2))
+
+  (defmethod cast-spell (game-state (spell effect))
+    (setf (gethash (type-of spell) (effects game-state)) spell))
+#+END_SRC
+
+Before the turn actually happens, all effects are applied. After
+execution they decrement their durations and then remove themselves
+(if appropriate). Shield will reset armor.
+
+#+NAME: apply-effect
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defgeneric apply-effect (game-state effect))
+
+  (defmethod apply-effect :after (game-state effect)
+    (decf (duration effect))
+    (when (zerop (duration effect))
+      (remhash (type-of effect) (effects game-state))))
+
+  (defmethod apply-effect (game-state (effect shield))
+    (setf (armor game-state) 7))
+
+  (defmethod apply-effect (game-state (effect poison))
+    (decf (boss-health game-state) 3))
+
+  (defmethod apply-effect (game-state (effect recharge))
+    (incf (mana game-state) 101))
+#+END_SRC
+
+The real goal of all of this is to find the cheapest way to win. So we
+need two more functions, one indicating victory and one indicating
+loss. The player loses when their health is at or below 0 or they
+cannot cast any spells. They win when the boss health drops to or
+below 0.
+
+#+NAME: terminal-predicates
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defgeneric can-cast (game-state spell))
+  (defmethod can-cast :around (game-state spell)
+    (cond ((gethash 'recharge (effects game-state))
+           (incf (mana game-state) 101)
+           (call-next-method)
+           (decf (mana game-state) 101))
+          (t (call-next-method))))
+  (defmethod can-cast (game-state (spell spell))
+    (>= (mana game-state) (cost spell)))
+  (defmethod can-cast (game-state (spell effect))
+    (and (>= (mana game-state) (cost spell))
+         (not (gethash (type-of spell) (effects game-state)))))
+
+  (defun victoryp (game-state)
+    (not (plusp (boss-health game-state))))
+  (defun lossp (game-state)
+    (not (plusp (health game-state))))
+#+END_SRC
+
+#+NAME: print-state
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun print-state (game-state)
+    (with-slots (turn mana mana-spent armor health boss-health boss-damage effects spells) game-state
+        (format t "========~%Current turn: ~A
+    Player - HP: ~A, Mana: ~A, Armor: ~A
+    Boss   - HP: ~A, Strength ~A
+    Effects: ~{~A~^, ~}~%
+    Mana Spent: ~A
+    Spells: ~{~A~^, ~}~%" turn health mana armor boss-health boss-damage (iter (for (k v) in-hashtable effects) (collect k)) mana-spent (reverse spells))))
+#+END_SRC
+
+I've written a lot of code that does what I want, but probably not
+entirely the way I want. Anyways, time to do the search.
+
+#+NAME: cheapest-victory
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun cheapest-victory (boss-health boss-damage &optional mode)
+    (let ((state (make-instance 'game-state :boss-health boss-health :boss-damage boss-damage :mode mode))
+          (pq (make-pqueue #'<))
+          (spellbook (list 'drain 'magic-missile 'recharge 'shield 'poison)))
+      (pqueue-push state (mana-spent state) pq)
+      (iter (until (pqueue-empty-p pq))
+            (for state = (pqueue-pop pq))
+            (when (victoryp state)
+              (print-state state)
+              (pqueue-clear pq)
+              (return (mana-spent state)))
+            (case (player state)
+              (:player
+               (iter (for spell in spellbook)
+                     (when (can-cast state (make-instance spell))
+                       (let ((copy (copy-state state)))
+                         (turn copy (make-instance spell))
+                         (unless (lossp copy)
+                           (pqueue-push copy (mana-spent copy) pq))))))
+              (:boss
+               (turn state)
+               (unless (lossp state)
+                 (pqueue-push state (mana-spent state) pq)))))))
+#+END_SRC
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 22 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 22 A: ~a~%" (apply #'cheapest-victory *input*)))
 #+END_SRC
 ** Part 2
+Hard mode introduces a complication. The player now loses one health
+at the start of their turn. I'll add this as a flag in the game state
+and rerun. So it turns out I'm doing something wrong.
+
+I'm going to write a program that'll play a game based on a given set
+of spells. The idea is to help me understand where I've gone wrong by
+showing the actual play through. Maybe I'm not breaking correctly?
+
+I figured it out. I wasn't accounting for =recharge= being active when
+determining if I could cast a spell. I added an around method to take
+care of that issue. Problem: It's still very slow. 2 seconds for the
+first part and 8 for the second. However there seems to be a major 
+
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun play (spells health damage)
+    (iter (with state = (make-instance 'game-state :boss-health health :boss-damage damage))
+          (for spell in spells)
+          (print-state state)
+          (when (victoryp state) (return-from play 'victory))
+          (when (lossp state) (return-from play 'loss))
+          (turn state (make-instance spell))
+          (print-state state)
+          (when (victoryp state) (return-from play 'victory))
+          (when (lossp state) (return-from play 'loss))
+          (turn state)))
+#+END_SRC
+
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 22 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 22 B: ~a~%" (cheapest-victory 51 9 t)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
 #+BEGIN_SRC lisp :noweb yes :results silent
-
+  <<game-state>>
+  <<spells>>
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
+  <<turn>>
+  <<cast-spell>>
+  <<apply-effect>>
+  <<terminal-predicates>>
+  <<print-state>>
+  <<cheapest-victory>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2015.22.lisp
@@ -94,8 +367,26 @@ effect is in place, the spell cannot be cast yet).
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+#+begin_example
+========
+Current turn: BOSS
+  Player - HP: 8, Mana: 105, Armor: 0
+  Boss   - HP: -1, Strength 9
+  Effects: 
+
+  Mana Spent: 900
+  Spells: MAGIC-MISSILE, POISON, RECHARGE, SHIELD, POISON, MAGIC-MISSILE, MAGIC-MISSILE, MAGIC-MISSILE
+Problem 22 A: 900
+========
+Current turn: PLAYER
+  Player - HP: 2, Mana: 294, Armor: 0
+  Boss   - HP: 0, Strength 9
+  Effects: POISON
+
+  Mana Spent: 1216
+  Spells: POISON, DRAIN, RECHARGE, POISON, SHIELD, RECHARGE, POISON, MAGIC-MISSILE
+Problem 22 B: 1216
+#+end_example
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
