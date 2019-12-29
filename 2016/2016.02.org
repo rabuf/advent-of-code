@@ -1,0 +1,184 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 02
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-02)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-02
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-02)
+#+END_SRC
+** Input
+Each character of the input will be turned into a complex number
+corresponding to a movement direction.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect
+              (iter (for c in-string line)
+                    (collect (case c
+                               (#\U #C(0 1))
+                               (#\D #C(0 -1))
+                               (#\L #C(-1 0))
+                               (#\R #C(1 0))))))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/02.txt"))
+#+END_SRC
+** Part 1
+There's a given keypand:
+
+| 1 | 2 | 3 |
+| 4 | 5 | 6 |
+| 7 | 8 | 9 |
+
+Starting on the 5, the directions are followed. But if the directions
+move off the keypad, they're ignored. The final position is a digit in
+the passcode. Go to the next line of directions, starting at the
+previous position, and that's the next digit, repeat.
+
+#+NAME: follow-directions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun square-grid ()
+    (let ((grid (make-hash-table)))
+      (setf (gethash #C(0 2) grid) 1)
+      (setf (gethash #C(1 2) grid) 2)
+      (setf (gethash #C(2 2) grid) 3)
+      (setf (gethash #C(0 1) grid) 4)
+      (setf (gethash #C(1 1) grid) 5)
+      (setf (gethash #C(2 1) grid) 6)
+      (setf (gethash #C(0 0) grid) 7)
+      (setf (gethash #C(1 0) grid) 8)
+      (setf (gethash #C(2 0) grid) 9)
+      grid))
+  (defun follow-directions (grid position directions)
+    (iter (with p = position)
+          (for d in directions)
+          (when (gethash (+ d p) grid)
+            (incf p d))
+          (finally (return p))))
+
+  (defun solve-a (directions)
+    (let ((position #C(1 1))
+          (grid (square-grid)))
+      (iter (for d in directions)
+            (setf position (follow-directions grid position d))
+            (collect (gethash position grid)))))
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+ULL
+RRDDD
+LURDL
+UUUUD
+#+END_EXAMPLE
+
+
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 02 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+My easy solution to the first part won't work here.. I'll do what I'd
+initially considered, produce a grid hash table.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun hex-grid ()
+    (let ((grid (make-hash-table)))
+      (setf (gethash #C(0 2)  grid) 1)
+      (setf (gethash #C(-1 1)  grid) 2)
+      (setf (gethash #C(0 1)  grid) 3)
+      (setf (gethash #C(1 1)  grid) 4)
+      (setf (gethash -2 grid) 5)
+      (setf (gethash -1 grid) 6)
+      (setf (gethash 0 grid) 7)
+      (setf (gethash 1 grid) 8)
+      (setf (gethash 2 grid) 9)
+      (setf (gethash #C(-1 -1)  grid) #\A)
+      (setf (gethash #C(0 -1)  grid) #\B)
+      (setf (gethash #C(1 -1)  grid) #\C)
+      (setf (gethash #C(0 -2)  grid) #\D)
+      grid))
+  (defun solve-b (directions)
+    (let ((position -2)
+          (grid (hex-grid)))
+      (iter (for d in directions)
+            (setf position (follow-directions grid position d))
+            (collect (gethash position grid)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 02 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.02.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 02 A: (3 3 4 4 4)
+: Problem 02 B: (4 4 6 A 6)
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.02)
+  (in-suite aoc.2016.02)
+
+  (run! 'aoc.2016.02)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
