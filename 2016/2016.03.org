@@ -1,0 +1,135 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 03
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-03)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-03
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-03)
+#+END_SRC
+** Input
+Today's input is 3 pairs of integers per line. Easy enough to parse.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "[0-9]+" line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/03.txt"))
+#+END_SRC
+** Part 1
+#+NAME: possible-triangle
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun possible-triangle (a b c)
+    (and (> (+ a b) c)
+         (> (+ a c) b)
+         (> (+ b c) a)))
+#+END_SRC
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-a (list)
+    (count-if #'(lambda (x) (apply #'possible-triangle x)) list))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 03 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Same problem, but now we have to split them into threes by column, the
+rows are irrelevant. This doesn't change much, but it does make it
+harder to do. I'm going to make one pass, but it'll be a bit more
+awkward. Iterate allows specifying the function used to compute the
+next iteration.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (list)
+    (iter (for (a0 a1 a2) in list by #'cdddr)
+          (for (b0 b1 b2) in (cdr list) by #'cdddr)
+          (for (c0 c1 c2) in (cddr list) by #'cdddr)
+          (counting (possible-triangle a0 b0 c0))
+          (counting (possible-triangle a1 b1 c1))
+          (counting (possible-triangle a2 b2 c2))))
+  
+
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 03 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<possible-triangle>>
+  <<solve-a>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.03.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 03 A: 1032
+: Problem 03 B: 1838
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.03)
+  (in-suite aoc.2016.03)
+
+  (run! 'aoc.2016.03)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
