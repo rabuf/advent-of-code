@@ -1,10 +1,10 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* TODO Advent of Code 2016 [0/25]
-** TODO [[file:2016.01.org][Day 1]]
-** TODO [[file:2016.02.org][Day 2]]
-** TODO [[file:2016.03.org][Day 3]]
-** TODO [[file:2016.04.org][Day 4]]
+* TODO Advent of Code 2016 [4/25]
+** DONE [[file:2016.01.org][Day 1]]
+** DONE [[file:2016.02.org][Day 2]]
+** DONE [[file:2016.03.org][Day 3]]
+** DONE [[file:2016.04.org][Day 4]]
 ** TODO [[file:2016.05.org][Day 5]]
 ** TODO [[file:2016.06.org][Day 6]]
 ** TODO [[file:2016.07.org][Day 7]]

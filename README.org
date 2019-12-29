@@ -9,8 +9,15 @@ Each year has its own org file (linked below). From there you can get
 to my code and write up for each of the problems I've solved for that
 year.
 * Events
-** [[file:2019/aoc2019.org][Advent of Code 2019]]
-** [[file:2018/aoc2018.org][Advent of Code 2018]]
-** [[file:2017/aoc2017.org][Advent of Code 2017]]
-** [[file:2016/aoc2016.org][Advent of Code 2016]]
-** [[file:2015/aoc2015.org][Advent of Code 2015]]
+** TODO [[file:2019/aoc2019.org][Advent of Code 2019]]
+| M | T | W | R | F | S | S |
+|---+---+---+---+---+---+---|
+|   |   |   |   |   |   | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | 0 | X | 0 | 1 | X |
+| X | X | 1 |   |   |   |   |
+** DONE [[file:2018/aoc2018.org][Advent of Code 2018]]
+** TODO [[file:2017/aoc2017.org][Advent of Code 2017]]
+** TODO [[file:2016/aoc2016.org][Advent of Code 2016]]
+** DONE [[file:2015/aoc2015.org][Advent of Code 2015]]
