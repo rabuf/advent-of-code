@@ -1,0 +1,204 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 08
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-08)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-08
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-08)
+#+END_SRC
+** Input
+This input has one of three froms:
+- rect AxB :: turns on a rectangle that is A-wide by B-tall starting
+              at <0,0> (NB: top-left corner is <0,0>)
+- rotate row y=A by B :: rotates all values in the row right by B
+     spaces.
+- rotate column x=A by B :: rotate all values in the column down by B
+
+#+NAME: parse-line
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule coordinate () (+ digit) (:flatten) (:string) (:function #'parse-integer))
+      (defrule rect () (and "rect " coordinate "x" coordinate) (:lambda (a b c d)
+                                                                        (declare (ignore a c))
+                                                                        (list :rect b d)))
+      (defrule row () (and "rotate row y=" coordinate " by " coordinate) (:lambda (a b c d)
+                                                                                  (declare (ignore a c))
+                                                                                  (list :row b d)))
+      (defrule column () (and "rotate column x=" coordinate " by " coordinate) (:lambda (a b c d)
+                                                                                        (declare (ignore a c))
+                                                                                        (list :column b d)))
+      (defrule line () (or rect row column))
+      (parseq 'line line)))
+#+END_SRC
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/08.txt"))
+#+END_SRC
+** Part 1
+#+NAME: screen-utilities
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun print-screen (screen)
+    (iter (for j from 0 below 6)
+          (iter (for i from 0 below 50)
+                (format t "~:[ ~;#~]" (aref screen i j)))
+          (format t "~%")))
+
+  (defun blank-screen ()
+    (make-array '(50 6) :initial-element nil))
+#+END_SRC
+
+#+NAME: screen-operations
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun rect (screen a b)
+    (iter (for i from 0 below a)
+          (iter (for j from 0 below b)
+                (setf (aref screen i j) t)))
+    screen)
+
+  (defun rotate-row (screen a b)
+    (let ((new-row (make-array 50 :initial-element nil)))
+      (iter (for i from 0 below 50)
+            (setf (aref new-row (mod (+ i b) 50)) (aref screen i a)))
+      (iter (for i from 0 below 50)
+            (setf (aref screen i a) (aref new-row i)))
+      screen))
+
+  (defun rotate-column (screen a b)
+    (let ((new-column (make-array 6 :initial-element nil)))
+      (iter (for i from 0 below 6)
+            (setf (aref new-column (mod (+ i b) 6)) (aref screen a i)))
+      (iter (for i from 0 below 6)
+            (setf (aref screen a i) (aref new-column i)))
+      screen))
+#+END_SRC
+Now that all the operations are done parsed and implemented, we can
+apply all of them in series to generate the output. For Part 1 we need
+the count of lit pixels.
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-a (rules)
+    (iter (for (rule a b) in rules)
+          (with screen = (blank-screen))
+          (case rule
+            (:rect (rect screen a b))
+            (:row (rotate-row screen a b))
+            (:column (rotate-column screen a b)))
+          (finally (return
+                     (iter outer
+                           (for i from 0 below 50)
+                           (iter (for j from 0 below 6)
+                                 (in outer
+                                     (counting (aref screen i j)))))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 08 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+For part 2 we need the output of running it.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (rules)
+    (iter (for (rule a b) in rules)
+          (with screen = (blank-screen))
+          (case rule
+            (:rect (rect screen a b))
+            (:row (rotate-row screen a b))
+            (:column (rotate-column screen a b)))
+          (finally (print-screen screen))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 08 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
+  <<read-input>>
+  <<input>>
+  <<screen-utilities>>
+  <<screen-operations>>
+  <<solve-a>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.08.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 08 A: 121
+: ###  #  # ###  #  #  ##  ####  ##  ####  ### #    
+: #  # #  # #  # #  # #  # #    #  # #      #  #    
+: #  # #  # #  # #  # #    ###  #  # ###    #  #    
+: ###  #  # ###  #  # #    #    #  # #      #  #    
+: # #  #  # # #  #  # #  # #    #  # #      #  #    
+: #  #  ##  #  #  ##   ##  ####  ##  ####  ### #### 
+: Problem 08 B: NIL
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.08)
+  (in-suite aoc.2016.08)
+
+  (run! 'aoc.2016.08)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
