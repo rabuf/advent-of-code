@@ -318,7 +318,11 @@ showing the actual play through. Maybe I'm not breaking correctly?
 I figured it out. I wasn't accounting for =recharge= being active when
 determining if I could cast a spell. I added an around method to take
 care of that issue. Problem: It's still very slow. 2 seconds for the
-first part and 8 for the second. However there seems to be a major 
+first part and 8 for the second. If I were to spend more time on this
+I'd find a way to reduce the amount of duplicate (or near duplicate)
+states. For instance, casting Magic Missile, then Recharge, then Magic
+Missile until Recharge is expired, is practically the same as starting
+with Recharge. There should be no reason to consider both options.
 
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun play (spells health damage)
