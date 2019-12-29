@@ -1,0 +1,149 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 09
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-09)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-09
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-09)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/09.txt"))
+#+END_SRC
+** Part 1
+Objective: Compute decompressed file size, not counting whitespace.
+
+#+NAME: decompress-line
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun decompress (line)
+    (iter outer
+          (with i = 0)
+          (with c = (char line i))
+          (while (< i (length line)))
+          (finally (return-from outer (concatenate 'string result)))
+          (setf c (char line i))
+          (cond ((char/= #\( c)
+                 (collect c into result)
+                 (incf i))
+                (t
+                 (let* ((rule-end (position #\) line :start i))
+                        (rule (subseq line i (1+ rule-end)))
+                        (dimensions (cl-ppcre:all-matches-as-strings "[0-9]+" rule)))
+                   (setf i (+ 1 rule-end (parse-integer (first dimensions))))
+                   (iter (repeat (parse-integer (second dimensions)))
+                         (iter (for j from (1+ rule-end) below i)
+                               (in outer
+                                   (collect (char line j) into result)))))))))
+
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 09 A: ~a~%" (reduce #'+ (mapcar #'length (mapcar #'decompress *input*)))))
+#+END_SRC
+** Part 2
+Decompression is now recursive. This will consume way too much memory
+to actually decompress each line. Instaed, I'll need to tally the
+count as I decompress.
+
+#+NAME: decompressed-length
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun decompressed-length (line)
+    (iter (with i = 0)
+          (with c = (char line i))
+          (with result = 0)
+          (finally (return result))
+          (while (< i (length line)))
+          (setf c (char line i))
+          (unless (char= #\( c) (incf result) (incf i))
+          (when (char= #\( c)
+            (let* ((rule-end (position #\) line :start i))
+                   (rule (subseq line i (1+ rule-end)))
+                   (dimensions (mapcar #'parse-integer
+                                       (cl-ppcre:all-matches-as-strings "[0-9]+" rule))))
+              (setf i (+ 1 rule-end (first dimensions)))
+              (incf result (* (second dimensions)
+                              (decompressed-length (subseq line (1+ rule-end) i))))))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 09 B: ~a~%" (reduce #'+ (mapcar #'decompressed-length *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<decompress-line>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.09.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 09 A: 70186
+: Problem 09 B: 10915059201
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.09)
+  (in-suite aoc.2016.09)
+
+  (run! 'aoc.2016.09)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
