@@ -1,0 +1,176 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 07
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-07)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-07
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-07)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/07.txt"))
+#+END_SRC
+** Part 1
+The task is to identify which "IP7" addresses support TLS. An IP7
+address supports TLS if:
+- There is a sequence of the form "ABBA" (A and B are any character,
+  but A /= B) is present.
+- No "ABBA" is present within square brackets.
+
+I wanted to do this with regular expressions, but I couldn't figure
+out how. Instead I'll use a stack. Each character will be pushed to a
+stack.
+#+NAME: supports-tls
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun abba-p (chars)
+    (and (char= (elt chars 0) (elt chars 3))
+         (char= (elt chars 1) (elt chars 2))
+         (char/= (elt chars 0) (elt chars 1))))
+
+  (defun supports-tls-p (string)
+    (iter (for c in-string string)
+          (with stack = nil)
+          (with in-brackets = nil)
+          (with valid = nil)
+          (push c stack)
+          (when (char= #\[ c) (setf stack nil) (setf in-brackets t))
+          (when (char= #\] c) (setf stack nil) (setf in-brackets nil))
+          (when (>= (length stack) 4)
+            (when (and in-brackets (abba-p stack))
+              (return nil))
+            (when (abba-p stack)
+              (setf valid t)))
+          (finally (return valid))))
+#+END_SRC
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-a (ip-addresses)
+    (iter (for ip in ip-addresses)
+          (counting (supports-tls-p ip))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 07 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Similar, but now we want to find those that support SSL. An address
+supports SSL if there's an ABA pattern outside the brackets and a
+corresponding BAB inside. Since each line can have multiple bracketed
+sections this is a bit harder. I'm going to split the input string
+into non-bracketed sections and bracketed sections.
+#+NAME: supports-ssl
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun aba-p (chars)
+    (and (char= (elt chars 0) (elt chars 2))
+         (char/= (elt chars 0) (elt chars 1))))
+  (defun supports-ssl-p (address)
+    (let ((unbracketed (cl-ppcre:split "\\[[a-z]*\\]" address))
+          (bracketed (cl-ppcre:all-matches-as-strings "\\[[a-z]*\\]" address))
+          (patterns nil))
+      (iter outer
+            (for part in unbracketed)
+            (iter (for c in-string part)
+                  (with stack = nil)
+                  (push c stack)
+                  (when (and (>= (length stack) 3)
+                             (aba-p stack))
+                    (push (format nil "~C~C~C" (second stack) (first stack) (second stack))
+                          patterns))))
+      (iter (for part in bracketed)
+            (iter (for pattern in patterns)
+                  (when (cl-ppcre:scan pattern part)
+                    (return-from supports-ssl-p t))))
+      nil))
+#+END_SRC
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (addresses)
+    (count-if #'supports-ssl-p addresses))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 07 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<supports-tls>>
+  <<solve-a>>
+  <<supports-ssl>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.07.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 07 A: 118
+: Problem 07 B: 260
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.07)
+  (in-suite aoc.2016.07)
+
+  (run! 'aoc.2016.07)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
