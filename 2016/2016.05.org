@@ -1,0 +1,164 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 05
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-05)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-05
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-05)
+  (require :sb-md5)
+#+END_SRC
+** Input
+Today's input is a fixed string.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* "cxdnnyjw")
+#+END_SRC
+** Part 1
+The challenge is to find the first 8 cases where the MD5 checksum of
+the string + a number (starting at 0, appended to the string) starts
+with 5 0s.
+
+This solution takes about a minute on my laptop.
+#+NAME: interesting-hash-p
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun interesting-hash-p (hash)
+      (string= "00000" (subseq hash 0 5)))
+#+END_SRC
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun hash (string number)
+    (format nil "~{~2,'0X~}" (coerce (sb-md5:md5sum-string (format nil "~A~A" string number)) 'list)))
+  (defun solve-a (string)
+    (iter (for i from 0)
+          (for hash = (hash string i))
+          (with count = 0)
+          (until (= 8 count))
+          (finally (return (coerce password 'string)))
+          (when (interesting-hash-p hash)
+            (incf count)
+            (collect (char hash 5) into password))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 05 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Well, this will be interetsing. The 7th character is now the passcode
+character, and its position is determined by the 6th. The first time a
+position is found it should be filled, all later instances
+ignored. The password is found when all 8 positions are found.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun password-to-string (password)
+    (iter (for i from 0 to 7)
+          (with pass = (make-string 8 :initial-element #\_))
+          (when (gethash i password)
+            (setf (char pass i) (gethash i password)))
+          (finally (return pass))))
+  (defun solve-b (string)
+    (iter (for i from 0)
+          (for hash = (hash string i))
+          (with password = (make-hash-table))
+          (for position = (- (char-code (char hash 5)) (char-code #\0)))
+          (for value = (char hash 6))
+          (until (= 8 (hash-table-count password)))
+          (finally (return (password-to-string password)))
+          (when (and (<= 0 position 7)
+                     (not (gethash position password))
+                     (interesting-hash-p hash))
+            (setf (gethash position password) value)
+            (print (password-to-string password)))))
+#+END_SRC
+
+Again, this is very slow. I suspect it's the way I'm converting each
+md5 checksum into a string. In 2015 there's another, similar, problem
+and I was able to handle about 1,000,000 checksums per second so this
+really should be a lot faster. I don't feel like optimizing this one,
+but I'll look into it if another MD5 checksum problem comes up.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 05 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<interesting-hash>>
+  <<solve-a>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.05.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 05 A: F77A0E6E
+
+"_______C" 
+"9______C" 
+"9_____EC" 
+"9___2_EC" 
+"9_9_2_EC" 
+"9_982_EC" 
+"9_9828EC" 
+"999828EC" Problem 05 B: 999828EC
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.05)
+  (in-suite aoc.2016.05)
+
+  (run! 'aoc.2016.05)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
