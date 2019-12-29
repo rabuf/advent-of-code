@@ -1,0 +1,142 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 01
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-01)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-01
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-01)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (let* ((line (read-line in))
+             (nums (cl-ppcre:all-matches-as-strings "[0-9]+" line))
+             (dirs (cl-ppcre:all-matches-as-strings "R|L" line)))
+        (iter (for n in nums)
+              (for c in dirs)
+              (collect (case (char c 0)
+                         (#\R (list #C(0 -1) (parse-integer n)))
+                         (#\L (list #C(0 1) (parse-integer n)))))))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/01.txt"))
+#+END_SRC
+** Part 1
+First part is to determine the Manhattan distance from the start (so
+just the sub of the abs of the final x and y coordinates).
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun manhattan (position)
+    (+ (abs (realpart position))
+       (abs (imagpart position))))
+
+  (defun solve-a (directions)
+    (iter (with direction = #C(0 1))
+          (with position = 0)
+          (for (turn distance) in directions)
+          (setf direction (* direction turn))
+          (incf position (* direction distance))
+          (finally (return (manhattan position)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 01 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+The first place visited twice is the location of Bunny HQ.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun solve-b (directions)
+    (let ((seen (make-hash-table)))
+      (setf (gethash 0 seen) t)
+      (iter (with direction = #C(0 1))
+            (with position = 0)
+            (for (turn distance) in directions)
+            (setf direction (* direction turn))
+            (iter (repeat distance)
+                  (incf position direction)
+                  (when (gethash position seen)
+                    (return-from solve-b (manhattan position)))
+                  (setf (gethash position seen) t))
+            (finally (return (manhattan position))))))
+
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 01 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.01.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<solve-a>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 01 A: 299
+: Problem 01 B: 181
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.01)
+  (in-suite aoc.2016.01)
+
+  (run! 'aoc.2016.01)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
