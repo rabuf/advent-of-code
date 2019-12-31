@@ -1,0 +1,492 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 11
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-11)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-11
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :priority-queue
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-11)
+#+END_SRC
+** Input
+I thought of parsing, but I'm going to scrap that and just manually
+create the input.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (list (list (list :generator :polonium)
+                (list :generator :thulium)
+                (list :microchip :thulium)
+                (list :generator :promethium)
+                (list :generator :ruthenium)
+                (list :microchip :ruthenium)
+                (list :generator :cobalt)
+                (list :microchip :cobalt))
+          (list (list :microchip :polonium)
+                (list :microchip :promethium))
+          nil
+          nil))
+  (defparameter *test-input* '(((:microchip :hydrogen) (:microchip :lithium))
+                               ((:generator :hydrogen))
+                               ((:generator :lithium))
+                               nil))
+#+END_SRC
+** Part 1
+Starting at the first floor, what is the minimum number of steps to
+move everything to the fourth?
+
+Movement rules: Chips cannot be on the same floor as other generators
+unless their generator is on that floor as well. Two objects can be
+moved at the same time. At least one object must be in the eleverator
+at a time. Can only move one floor at a time. That does help restrict
+things. I'll write a function which determines if a floor is safe.
+
+How many states have to be considered? THere are 10 objects, each
+capable of being on one of 4 floors. So 1,048,576 possible states.
+
+A floor is safe if either, there are no generators or every chip on
+the floor has a corresponding generator. So the test is simple:
+- set of generators is null
+- set of chips less generators is null
+#+NAME: safe-p
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun safe-p (floor)
+    (let ((chips (iter (for (type element) in floor)
+                       (when (eql :microchip type)
+                         (collect element))))
+          (generators (iter (for (type element) in floor)
+                            (when (eql :generator type)
+                              (collect element)))))
+      (or (null generators)
+          (null (set-difference chips generators)))))
+#+END_SRC
+I'll use cl-permutation to generate all possible moves (taking 1 or 2
+objects). Then, based on the floor, attempt to move them up or down
+one floor. A hash table will be used to record all seen states.
+
+Bleh. I'm tired of working on this one. I know what I want to do. Take
+each object, if it's safe, move it up or down a floor. If that's safe
+and that state has never been seen, register it and queue it. Then
+repeat taking two objects.
+#+NAME: search
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun finished (floors)
+    (and (null (first floors))
+         (null (second floors))
+         (null (third floors))))
+  (defun obj-to-string (obj)
+    (concatenate 'string (symbol-name (first obj)) (symbol-name (second obj))))
+  (defun sort-floor (floor)
+    (sort floor
+          (lambda (a b)
+            (string-lessp (obj-to-string a) (obj-to-string b)))))
+  (defun solve-a (state)
+    (let ((seen (make-hash-table :test #'equalp))
+          (pq (make-pqueue #'<=)))
+      (setf state (iter (for floor in (copy-tree state))
+                        (collect (sort-floor floor))))
+      (pqueue-push (list state 0) (heuristic state) pq)
+      (setf (gethash (list state 0) seen) 0)
+      (iter (for (floors elevator) = (pqueue-pop pq))
+            (for steps = (gethash (list floors elevator) seen))
+            (for some-number from 0)
+            (when (zerop (mod some-number 10000))
+              (print some-number)
+              (multiple-value-bind (seconds minutes hours) (get-decoded-time)
+                  (format t "~A:~A:~A~%" hours minutes seconds)))
+            (When (finished floors)
+              (return (gethash (list floors elevator) seen)))
+            (iter (with floor = (elt floors elevator))
+                  (for i from 0 below (length floor))
+                  (for obj = (elt floor i))
+                  (iter (for diff in '(1 -1))
+                        (when (<= 0 (+ elevator diff) 3)
+                          (let ((next (copy-tree floors)))
+                            (setf (elt next elevator)
+                                  (remove obj floor :test #'equalp))
+                            (push obj (elt next (+ elevator diff)))
+                            (setf next (iter (for floor in next)
+                                             (collect (sort-floor floor))))
+                            (when (and (every #'safe-p next)
+                                       (not (gethash (list next (+ elevator diff)) seen)))
+                              (pqueue-push (list next (+ elevator diff)) (+ 1 steps (heuristic next)) pq)
+                              (setf (gethash (list next (+ elevator diff)) seen)
+                                    (1+ steps)))))))
+            ;; remove two objects
+            (iter (with floor = (elt floors elevator))
+                  (for i from 0 below (1- (length floor)))
+                  (for obj1 = (elt floor i))
+                  ;; grab second object
+                  (iter (for j from (1+ i) below (length floor))
+                        (for obj2 = (elt floor j))
+                        ;; grabbing the current floor, enqueue each variation
+                        (iter (for diff in '(1))
+                              ;; skip states pushing us outside the building
+                              (when (<= 0 (+ elevator diff) 3)
+                                ;; copy the current set of floors
+                                (let ((next (copy-tree floors)))
+                                  ;; remove the element under question
+                                  (setf (elt next elevator)
+                                        (set-difference floor (list obj1 obj2) :test #'equalp))
+                                  ;; add it to the new floor
+                                  (push obj1 (elt next (+ elevator diff)))
+                                  (push obj2 (elt next (+ elevator diff)))
+                                  (setf next (iter (for floor in next)
+                                                   (collect (sort-floor floor))))
+                                  ;; check that it's safe and unique
+                                  (when (and (every #'safe-p next)
+                                             (not (gethash (list next (+ elevator diff)) seen)))
+                                    (pqueue-push (list next (+ elevator diff)) (+ 1 steps (heuristic next)) pq)
+                                    (setf (gethash (list next (+ elevator diff)) seen)
+                                          (1+ steps)))))))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 11 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+The above algorithm takes about 2.5 minutes on the first data set. For
+part 2 there are some extra components. I need to rework my
+algorithm. It's just horribly inefficient. Some things I saw in the
+Reddit discussion were about skipping certain backward movements, or
+prioritizing forward movements. For instance, it's usually not worth
+it to move two objects back. I may have to experiment with that. I
+suspect my approach is attempting the creation of too many bad states
+which wastes a lot of time. There are a couple small efficiencies that
+add up. I could create the updated present, above, and below floors in
+one pass and check each for safety. (Rather than checking the whole
+state for safety, since they're the only ones changing.) But I'm not
+sure how much that'll really help.
+
+So a thought on improving the performance. Priority could be modified
+based on distance from the goal. If there's a formula that establishes
+an estimate on the number of steps needed, I can add that to the
+current steps taken and use that as the key for the priority
+queue. This means that certain backward movements would get
+deprioritized without needing special handling, and they should come
+up once the higher priority forward movement cases are exhausted (if
+they lead to dead ends).
+
+A lower bound is simply the distance of each object from the
+top. That's way low becaues it doesn't count the necessary backwards
+movement. Time to review A*. Great, so I had forgotten this part [[https://en.wikipedia.org/wiki/A*_search_algorithm][(from
+Wikipedia)]]:
+#+BEGIN_QUOTE
+If the heuristic function is admissible, meaning that it never
+overestimates the actual cost to get to the goal, A* is guaranteed to
+return a least-cost path from start to goal.
+#+END_QUOTE
+
+So this estimation method would be perfect for my needs, I could
+perhaps find a tighter lower bound but if this performs better then we
+won't worry. So now it's not working for Part 1 with that heuristic
+added, on the plus side it was *much* faster for the test case. Now,
+though, the queue is starving for work. Which doesn't make sense to
+me.
+
+There was an issue in my sorting where I didn't take into account the
+fact that sort is destructive. Starting things off by making a copy of
+the input so I don't accidentalyl change it. IT worked fine on first
+run, broke on second.
+
+However, this heuristic is apparently not speeding things up which has
+me confused again. First, let's recompile and make sure I wasn't
+running old code. I just realized that this heuristic may overshoot
+the target. It assumes that each object travels separately. I should
+halve this as objects can be taken in pairs.
+
+#+NAME: heuristic
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun heuristic-1 (floors)
+    (iter (for floor in floors)
+          (for i from 3 downto 0)
+          (sum (* i (length floor)))))
+  (defun heuristic (floors)
+    (floor (iter (for floor in floors)
+                 (for i from 3 downto 0)
+                 (sum (* i (length floor))))
+           2))
+#+END_SRC
+
+#+NAME: solve-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input-b*
+    (list (list (list :generator :polonium)
+                (list :generator :thulium)
+                (list :microchip :thulium)
+                (list :generator :promethium)
+                (list :generator :ruthenium)
+                (list :microchip :ruthenium)
+                (list :generator :cobalt)
+                (list :microchip :cobalt)
+                (list :generator :elerium)
+                (list :microchip :elerium)
+                (list :generator :dilithium)
+                (list :microchip :dilithium))
+          (list (list :microchip :polonium)
+                (list :microchip :promethium))
+          nil
+          nil))
+#+END_SRC
+
+I'm doing a lot of conversions, copies, and set operations on lists. I
+have an idea for a more compact representation. Parse the input (list
+provided, not the text file) and assign each element a unique
+number. Each floor will be a pair of bit vectors, for each element, if
+the bit vector is 1 at the corresponding element then the element is
+present. The safety test becomes a simple logical operation: Either
+the generator vector is all 0s, or (chip xor (negate generators) is 0.
+
+Movement will be slightly more complicated (though not
+terribly). Iterate over each of the vectors taking one element out and
+moving it up/down a floor. Move across each vector taking two elements
+out and moving them up/down a floor. Move over both vectors.
+
+I'm going to let this code continue to run. When it finishes I'll
+spend some time working on an alternate data representation. Lists of
+lists just aren't effecient.
+
+I'm giving up on the above code. It's just too slow for the second
+part. I'ts been running for almoust 3 hours now and still hasn't
+provided a result. I'll leave it running, but now I'll start on a more
+compact representation.
+#+NAME: faster
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun compact-representation (floors)
+    (let ((elements (make-hash-table)))
+      (iter (for floor in floors)
+            (with id = 0)
+            (iter (for (type element) in floor)
+                  (unless (gethash element elements)
+                    (setf (gethash element elements) id)
+                    (incf id))))
+      (iter (for floor in floors)
+            (collect
+                (iter (for (type element) in floor)
+                      (with microchips = 0)
+                      (with generators = 0)
+                      (finally (return (list microchips generators)))
+                      (case type
+                        (:microchip (setf microchips (logior (expt 2 (gethash element elements)) microchips)))
+                        (:generator (setf generators (logior (expt 2 (gethash element elements)) generators)))))))))
+  (defun compact-finished-p (floors)
+    (iter (for (c g) in floors)
+          (for i from 0 to 2)
+          (always (= 0 c g))))
+  (defun compact-safe-p (floors)
+    (iter (for (c g) in floors)
+          (always (or (= 0 g)
+                      (= c (logand c g))))))
+  (defun compact-move-1 (floors elevator diff bit c-or-g)
+    (let* ((result (copy-tree floors))
+           (from (elt result elevator))
+           (to (elt result (+ elevator diff))))
+      (case c-or-g
+        (:microchip (setf (car from) (logxor (car from) (expt 2 bit)))
+                    (setf (car to) (logxor (car to) (expt 2 bit))))
+        (:generator (setf (cadr from) (logxor (cadr from) (expt 2 bit)))
+                    (setf (cadr to) (logxor (cadr to) (expt 2 bit)))))
+      result))
+  (defun compact-move-2 (floors elevator diff bit-1 c-or-g-1 bit-2 c-or-g-2)
+    (let* ((result (copy-tree floors))
+           (from (elt result elevator))
+           (to (elt result (+ elevator diff))))
+      (case c-or-g-1
+        (:microchip (setf (car from) (logxor (car from) (expt 2 bit-1)))
+                    (setf (car to) (logxor (car to) (expt 2 bit-1))))
+        (:generator (setf (cadr from) (logxor (cadr from) (expt 2 bit-1)))
+                    (setf (cadr to) (logxor (cadr to) (expt 2 bit-1)))))
+      (case c-or-g-2
+        (:microchip (setf (car from) (logxor (car from) (expt 2 bit-2)))
+                    (setf (car to) (logxor (car to) (expt 2 bit-2))))
+        (:generator (setf (cadr from) (logxor (cadr from) (expt 2 bit-2)))
+                    (setf (cadr to) (logxor (cadr to) (expt 2 bit-2)))))
+      result))
+  (defun compact-heuristic (floors)
+    (floor (iter outer
+                 (for (c g) in floors)
+                 (for f from 0)
+                 (iter (for i from 0)
+                       (for mask = (expt 2 i))
+                       (while (or (<= mask c)
+                                  (<= mask g)))
+                       (when (plusp (logand mask c))
+                         (in outer (sum (- 3 f))))
+                       (when (plusp (logand mask g))
+                         (in outer (sum (- 3 f))))))
+           2))
+  (defun compact-solve (floors)
+    (let ((floors (compact-representation floors))
+          (pq (make-pqueue #'<))
+          (seen (make-hash-table :test #'equal)))
+      (setf (gethash (compactify floors 0) seen) 0)
+      (pqueue-push (list floors 0) (compact-heuristic floors) pq)
+      (iter (for (floors elevator) = (pqueue-pop pq))
+            (for steps = (gethash (compactify floors elevator) seen))
+            (until (compact-finished-p floors))
+            (finally (print floors) (print elevator) (return steps))
+            (iter (for diff in '(1 -1))
+                  (with (c g) = (elt floors elevator))
+                  (unless (<= 0 (+ elevator diff) 3) (next-iteration))
+                  ;; try to move one object
+                  (iter (for bit from 0)
+                        (for mask = (expt 2 bit))
+                        (while (or (<= mask c)
+                                   (<= mask g)))
+                        (when (plusp (logand c mask))
+                          (let ((next (compact-move-1 floors elevator diff bit :microchip)))
+                            (unless (or (not (compact-safe-p next))
+                                        (gethash (compactify next (+ elevator diff)) seen))
+                              (setf (gethash (compactify next (+ elevator diff)) seen) (1+ steps))
+                              (pqueue-push (list next (+ elevator diff)) (+ 1 steps (compact-heuristic next)) pq))))
+                        (when (plusp (logand g mask))
+                          (let ((next (compact-move-1 floors elevator diff bit :generator)))
+                            (unless (or (not (compact-safe-p next))
+                                        (gethash (compactify next (+ elevator diff)) seen))
+                              (setf (gethash (compactify next (+ elevator diff)) seen) (1+ steps))
+                              (pqueue-push (list next (+ elevator diff)) (+ 1 steps (compact-heuristic next)) pq)))))
+                  ;; try to move two same-type objects
+                  (iter (for bit-1 from 0)
+                        (for mask = (expt 2 bit-1))
+                        (while (or (<= mask c)
+                                   (<= mask g)))
+                        (when (plusp (logand c mask))
+                          (iter (for bit-2 from (1+ bit-1))
+                                (for mask = (expt 2 bit-2))
+                                (while (<= mask c))
+                                (when (plusp (logand c mask))
+                                  (let ((next (compact-move-2 floors elevator diff bit-1 :microchip bit-2 :microchip)))
+                                    (unless (or (not (compact-safe-p next))
+                                                (gethash (compactify next (+ elevator diff)) seen))
+                                      (setf (gethash (compactify next (+ elevator diff)) seen) (1+ steps))
+                                      (pqueue-push (list next (+ elevator diff)) (+ 1 steps (compact-heuristic next)) pq))))))
+                        (when (plusp (logand g mask))
+                          (iter (for bit-2 from (1+ bit-1))
+                                (for mask = (expt 2 bit-2))
+                                (while (<= mask g))
+                                (when (plusp (logand g mask))
+                                  (let ((next (compact-move-2 floors elevator diff bit-1 :generator bit-2 :generator)))
+                                    (unless (or (not (compact-safe-p next))
+                                                (gethash (compactify next (+ elevator diff)) seen))
+                                      (setf (gethash (compactify next (+ elevator diff)) seen) (1+ steps))
+                                      (pqueue-push (list next (+ elevator diff)) (+ 1 steps (compact-heuristic next)) pq))))))
+                        (when (and (plusp (logand c mask))
+                                   (plusp (logand g mask)))
+                          (let ((next (compact-move-2 floors elevator diff bit-1 :microchip bit-1 :generator)))
+                            (unless (or (not (compact-safe-p next))
+                                        (gethash (compactify next (+ elevator diff)) seen))
+                              (setf (gethash (compactify next (+ elevator diff)) seen) (1+ steps))
+                              (pqueue-push (list next (+ elevator diff)) (+ 1 steps (compact-heuristic next)) pq)))))))))
+#+END_SRC
+
+This works fantastically for part 1. Down to about 3 seconds. Part 2,
+however, runs out of memory. I need an even more compact form for
+storing things. Each element/type has 4 possible states. The following
+will turn it into a number:
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun compactify (floors elevator)
+    (+ elevator
+       (ash (iter outer
+                  (for floor from 0 to 3)
+                  (iter (with (c g) = (elt floors floor))
+                        (for bit from 0)
+                        (for mask = (expt 2 bit))
+                        (while (or (<= mask c)
+                                   (<= mask g)))
+                        (when (plusp (logand mask c))
+                          (in outer
+                              (sum (* floor (expt 16 bit)))))
+                        (when (plusp (logand mask g))
+                          (in outer
+                              (sum (* floor 4 (expt 16 bit)))))))
+            2)))
+#+END_SRC
+
+This finally did the job. It takes about 2.5 minutes to do part 2
+now. I should really clean all this up, but whatever. It works now.
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (solve-a *input-b*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<safe-p>>
+  <<heuristic>>
+  <<search>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2016.11.lisp
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 11 A: 47
+: Problem 11 B: 71
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.11)
+  (in-suite aoc.2016.11)
+
+  (run! 'aoc.2016.11)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
