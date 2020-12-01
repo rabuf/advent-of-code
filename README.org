@@ -9,6 +9,7 @@ Each year has its own org file (linked below). From there you can get
 to my code and write up for each of the problems I've solved for that
 year.
 * Events
+** TODO [[file:2020/aoc2020.org][Advent of Code 2020]]
 ** TODO [[file:2019/aoc2019.org][Advent of Code 2019]]
 | M | T | W | R | F | S | S |
 |---+---+---+---+---+---+---|
