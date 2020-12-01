@@ -14,8 +14,8 @@ package body Day01 is
    function Solve_01 return Integer is
       Result : Integer := -1;
    begin
-      for I in Input.First_Index .. Input.Last_Index loop
-         for J in I .. Input.Last_Index loop
+      for I in Input.First_Index .. (Input.Last_Index - 1) loop
+         for J in (I + 1) .. Input.Last_Index loop
             if Input (I) + Input (J) = 2020
             then
                return Input (I) * Input (J);
@@ -28,9 +28,9 @@ package body Day01 is
    function Solve_02 return Integer is
       Result : Integer := -1;
    begin
-      for I in Input.First_Index .. Input.Last_Index loop
-         for J in I .. Input.Last_Index loop
-            for K in J .. Input.Last_Index loop
+      for I in Input.First_Index .. (Input.Last_Index - 2) loop
+         for J in (I + 1) .. (Input.Last_Index - 1) loop
+            for K in (J + 1) .. Input.Last_Index loop
                if Input (I) + Input (J) + Input (K) = 2020
                then
                   return Input (I) * Input (J) * Input (K);
