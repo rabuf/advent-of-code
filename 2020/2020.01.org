@@ -132,6 +132,7 @@ more loop.
 ** Thoughts
 Straightforward, as expected for Day 1. Now I'm going to attempt it in
 Ada. Which also wasn't bad.
+** Ada
 #+BEGIN_SRC ada :tangle ada/day01.ads
   with Ada.Containers.Vectors;
 
