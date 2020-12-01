@@ -206,7 +206,7 @@ Ada. Which also wasn't bad.
 In order to run this you have to "tangle" the code first using =C-c
 C-v C-t=.
 
-#+BEGIN_SRC shell :tangle no :results output
+#+BEGIN_SRC shell :tangle no :results output :exports both
   cd ada
   gnatmake main
   ./main
