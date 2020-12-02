@@ -29,12 +29,9 @@ problems with Common Lisp.
 ** TODO [[file:2020.24.org][Day 24]]
 ** TODO [[file:2020.25.org][Day 25]]
 * Some helper stuff
-This is the runner for the Ada code. I'm keeping it simple, launching
-the solvers is handled in the package created for each day. I may add
-something smarter to this so that I don't have to run every task in
-order to run some, but this will work for now.
+This is the runner for the Ada code. It will run every days' tasks.
 #+BEGIN_SRC ada :tangle ada/main.adb
-  with Day01;
+  with AOC2020.Day01;
   procedure Main is
   begin
      null;

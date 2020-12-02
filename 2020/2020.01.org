@@ -133,54 +133,53 @@ more loop.
 Straightforward, as expected for Day 1. Now I'm going to attempt it in
 Ada. Which also wasn't bad.
 ** Ada
-#+BEGIN_SRC ada :tangle ada/day01.ads
+#+BEGIN_SRC ada :tangle ada/aoc2020-day01.ads
   with Ada.Containers.Vectors;
 
-  package Day01 is
+  package AOC2020.Day01 is
      function Solve_01 return Integer;
      function Solve_02 return Integer;
-  end Day01;
+  end AOC2020.Day01;
 #+END_SRC
 
-#+BEGIN_SRC ada :tangle ada/day01.adb
-  with Ada.Containers.Vectors;
+#+BEGIN_SRC ada :tangle ada/aoc2020-day01.adb
+  with Ada.Containers.Hashed_Sets;
   with Text_IO; use Text_IO;
   with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 
-  package body Day01 is
+  package body AOC2020.Day01 is
 
-     package Integer_Vectors is new Ada.Containers.Vectors
-       (Index_Type => Natural,
-        Element_Type => Integer);
-     use Integer_Vectors;
+     function Hash (Value : Integer) return Ada.Containers.Hash_Type is
+       (Ada.Containers.Hash_Type'Mod(Value));
+     package Integer_Sets is new Ada.Containers.Hashed_Sets
+       (Element_Type => Integer,
+        Hash => Hash,
+        Equivalent_Elements => "=");
+     use Integer_Sets;
 
-     Input : Vector;
+     Input : Set;
 
      function Solve_01 return Integer is
         Result : Integer := -1;
      begin
-        for I in Input.First_Index .. (Input.Last_Index - 1) loop
-           for J in (I + 1) .. Input.Last_Index loop
-              if Input (I) + Input (J) = 2020
-              then
-                 return Input (I) * Input (J);
-              end if;
-           end loop;
+        for I in Input.Iterate loop
+           if Input.Contains(2020 - Input(I))
+           then
+              return Input(I) * (2020 - Input(I));
+           end if;
         end loop;
         return Result;
      end Solve_01;
-   
+
      function Solve_02 return Integer is
         Result : Integer := -1;
      begin
-        for I in Input.First_Index .. (Input.Last_Index - 2) loop
-           for J in (I + 1) .. (Input.Last_Index - 1) loop
-              for K in (J + 1) .. Input.Last_Index loop
-                 if Input (I) + Input (J) + Input (K) = 2020
-                 then
-                    return Input (I) * Input (J) * Input (K);
-                 end if;
-              end loop;
+        for I in Input.Iterate loop
+           for J in Input.Iterate loop
+              if Input.Contains (2020 - Input(I) - Input(J))
+              then
+                 return (2020 - Input(I) - Input(J)) * Input(I) * Input(J);
+              end if;
            end loop;
         end loop;
         return Result;
@@ -195,11 +194,20 @@ Ada. Which also wasn't bad.
         loop
            exit when end_of_file (input_file);
            Get (input_file, Line);
-           Input.Append (Line);
+           Input.Insert (Line);
         end loop;
      end;
+     Put_Line("Advent of Code 2020 - Day 01:"); New_Line;
      Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
      Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+  end AOC2020.Day01;
+#+END_SRC
+
+#+BEGIN_SRC ada :tangle ada/day01.adb
+  with AOC2020.Day01;
+  procedure Day01 is
+  begin
+    null;
   end Day01;
 #+END_SRC
 
@@ -208,10 +216,12 @@ C-v C-t=.
 
 #+BEGIN_SRC shell :tangle no :results output :exports both
   cd ada
-  gnatmake main
-  ./main
+  gnatmake day01
+  ./day01
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2020 - Day 01:
+: 
 : The result for part 1 is:  982464
 : The result for Part 2 is:  162292410
