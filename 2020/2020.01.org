@@ -133,9 +133,12 @@ more loop.
 Straightforward, as expected for Day 1. Now I'm going to attempt it in
 Ada. Which also wasn't bad.
 ** Ada
+Originally I solved this with a quadratic and cubic version for each
+part. Based on a suggestion from reznikmm and various posts on
+r/adventofcode I replaced the vector implementation with a set. This
+improved perfrormance substantially as each part lost one loop over
+the vector, which was replaced with a simple call to =Contains=.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day01.ads
-  with Ada.Containers.Vectors;
-
   package AOC2020.Day01 is
      function Solve_01 return Integer;
      function Solve_02 return Integer;
