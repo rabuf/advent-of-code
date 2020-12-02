@@ -59,7 +59,7 @@ coherent:
       (defrule numbers () (+ digit) (:string) (:function #'parse-integer))
       (defrule letter () (char "a-z"))
       (defrule password () (+ (char "a-z")) (:string))
-      (defrule line () (and numbers "-" numbers " " letter ": " string)
+      (defrule line () (and numbers "-" numbers " " letter ": " password)
         (:choose 0 2 4 6))
       (parseq 'line line)))
 #+END_SRC
