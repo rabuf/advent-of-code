@@ -41,13 +41,31 @@ support for lisp installed you can run this by:
   (in-package :aoc-2020-02)
 #+END_SRC
 ** Input
-#+NAME: read-input
-#+BEGIN_SRC lisp :results silent
+I wrote tw versions of the parser. The first, a hack just splitting
+the string on spaces and then doing some cleanup:
+#+BEGIN_SRC lisp :tangle no :results silent
   (defun parse-input (line)
     (let ((split (cl-ppcre:split " " line)))
       (list (mapcar #'parse-integer (cl-ppcre:split "-" (first split)))
             (char (second split) 0)
             (third split))))
+#+END_SRC
+The second using the =parseq= package to write something a bit more
+coherent:
+#+NAME: parse-input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-input (line)
+    (with-local-rules
+      (defrule numbers () (+ digit) (:string) (:function #'parse-integer))
+      (defrule letter () (char "a-z"))
+      (defrule password () (+ (char "a-z")) (:string))
+      (defrule line () (and numbers "-" numbers " " letter ": " string)
+        (:choose 0 2 4 6))
+      (parseq 'line line)))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-input>>
   (defun read-input (file)
     (iter (for line in-file file using #'read-line)
           (collect (parse-input line))))
@@ -58,18 +76,23 @@ support for lisp installed you can run this by:
     (read-input "input/02.txt"))
 #+END_SRC
 ** Part 1
+The task is to count how many passwords are valid. Each line of input
+contains the minimum and maximum number of times a character (after
+the numbers) should appear in the following password.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun old-is-valid (password-and-rule)
-    (destructuring-bind ((min max) char password) password-and-rule
+    (destructuring-bind (min max char password) password-and-rule
       (<= min (count char password) max)))
   (defun problem-a () (format t "Problem 02 A: ~a~%" (count-if #'old-is-valid *input*)))
 #+END_SRC
 ** Part 2
+Turns out those aren't counts, but positions. And the character should
+only appear in one of them.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun new-is-valid (password-and-rule)
-    (destructuring-bind ((first second) char password) password-and-rule
+    (destructuring-bind (first second char password) password-and-rule
       (or (and (not (char= char (char password (1- first))))
                (char= char (char password (1- second))))
           (and (not (char= char (char password (1- second))))
