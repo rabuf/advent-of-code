@@ -83,12 +83,9 @@ right.
 #+BEGIN_SRC lisp :results silent
   (defun traverse-grid (grid &optional (slope (complex 3 1)))
     (loop for coord = 0 then (incf coord slope)
-       with trees = 0
        with mod-x = (array-dimension grid 0)
        while (< (imagpart coord) (array-dimension grid 1))
-       finally (return trees)
-       if (char= #\# (aref grid (mod (realpart coord) mod-x) (imagpart coord)))
-       do (incf trees)))
+       count (char= #\# (aref grid (mod (realpart coord) mod-x) (imagpart coord)))))
 #+END_SRC
 
 #+NAME: problem-a
