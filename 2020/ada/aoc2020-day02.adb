@@ -45,9 +45,7 @@ package body AOC2020.Day02 is
 
    function New_Valid(P : Password) return Boolean is
    begin
-      return (Element (P.P, P.Min_Or_Pos) = P.C and Element (P.P, P.Max_Or_Pos) /= P.C)
-        or
-        (Element (P.P, P.Min_Or_Pos) /= P.C and Element (P.P, P.Max_Or_Pos) = P.C);
+      return (Element (P.P, P.Min_Or_Pos) = P.C xor Element (P.P, P.Max_Or_Pos) = P.C);
    end New_Valid;
    function Solve_02 return Integer is
       Result : Integer := 0;
