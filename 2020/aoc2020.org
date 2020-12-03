@@ -32,6 +32,7 @@ problems with Common Lisp.
 This is the runner for the Ada code. It will run every days' tasks.
 #+BEGIN_SRC ada :tangle ada/main.adb
   with AOC2020.Day01;
+  with AOC2020.Day02;
   procedure Main is
   begin
      null;
