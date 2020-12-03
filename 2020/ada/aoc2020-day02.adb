@@ -1,5 +1,6 @@
 with Ada.Containers.Vectors;
 with Text_Io; use Text_Io;
+with GNAT.Regpat; use GNAT.Regpat;
 with Ada.Text_Io.Unbounded_Io; use Ada.Text_Io.Unbounded_Io;
 with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
@@ -60,17 +61,18 @@ package body AOC2020.Day02 is
    end Solve_02;
 
    procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+      Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+      Re : constant Pattern_Matcher := Compile(Pattern);
+      Matches : Match_Array (0..4);
       Pass : Unbounded_String;
-      I,J : Positive;
       P0, P1 : Positive;
       C : Character;
    begin
-      I := Index(Line, "-");
-      J := Index(Line, " ");
-      P0 := Integer'Value(Slice(Line, 1, I-1));
-      P1 := Integer'Value(Slice(Line, I+1, J-1));
-      C := Element(Line, J+1);
-      Pass := To_Unbounded_String(Slice(Line, J+4, Length(Line)));
+      Match(Re, To_String(Line), Matches);
+      P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+      P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+      C := Element(Line, Matches(3).First);
+      Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
       P := (Min_Or_Pos => P0,
             Max_Or_Pos => P1,
             C => C,
