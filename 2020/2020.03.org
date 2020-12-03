@@ -1,12 +1,12 @@
 #+STARTUP: indent contents
 #+OPTIONS: num:nil toc:nil
-* Day DAY
+* Day 03
 ** Executing this code
 If you have a lisp installation, emacs, org-mode, and org-babel
 support for lisp installed you can run this by:
 1. Starting slime (=M-x slime=)
 2. Typing =C-c C-c= in the block [[initialize][initialize]].
-3. In the repl type =(in-package :aoc-YEAR-DAY)=
+3. In the repl type =(in-package :aoc-2020-03)=
 4. Typing =C-c C-c= in the block [[answers][answers]]
 ** Initial stuffs
 *** Packages to load
@@ -31,36 +31,87 @@ support for lisp installed you can run this by:
 #+NAME: initialize
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<packages>>
-  (defpackage :aoc-YEAR-DAY
+  (defpackage :aoc-2020-03
     (:use :common-lisp
           :iterate
           :parseq
           :fiveam)
     (:export :problem-a
              :problem-b))
-  (in-package :aoc-YEAR-DAY)
+  (in-package :aoc-2020-03)
 #+END_SRC
 ** Input
+#+NAME: parse-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-input (input)
+    "Returns an array of the grid."
+    (let ((grid (make-array (list (length (first input)) (length input)))))
+      (loop
+         for row in input
+         for j from 0
+         do (loop
+               for c across row
+               for i from 0
+               do (setf (aref grid i j) c)))
+      grid))
+
+  (defun print-grid (grid)
+    (loop
+       for j from 0 below (array-dimension grid 1)
+       do (loop
+             for i from 0 below (array-dimension grid 0)
+             do (format t "~A" (aref grid i j)))
+         (format t "~%")))
+#+END_SRC
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
+    (parse-input
+     (iter (for line in-file file using #'read-line)
+           (collect line))))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/DAY.txt"))
+    (read-input "input/03.txt"))
 #+END_SRC
 ** Part 1
+Determine how many trees are encountered when starting at the top left
+=<0,0>= and traveling down 1 and right 3. The grid repeats to the
+right.
+#+NAME: traverse-grid
+#+BEGIN_SRC lisp :results silent
+  (defun traverse-grid (grid &optional (slope (complex 3 1)))
+    (let ((trees 0))
+      (loop with coord = (complex 0 0)
+         with mod-x = (array-dimension grid 0)
+           while (< (imagpart coord) (array-dimension grid 1))
+         do (when (char= #\# (aref grid (realpart coord) (imagpart coord)))
+              (incf trees))
+           (incf coord slope)
+           (setf coord (complex (mod (realpart coord) mod-x) (imagpart coord))))
+      trees))
+#+END_SRC
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem DAY A: ~a~%" (identity *input*)))
+  <<traverse-grid>>
+  (defun problem-a () (format t "Problem 03 A: ~a~%" (traverse-grid *input*)))
 #+END_SRC
 ** Part 2
+Repeat the above with additional slopes and multiply the result:
+- =<1,1>=
+- =<3,1>=
+- =<5,1>=
+- =<7,1>=
+- =<1,2>=
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem DAY B: ~a~%" (identity *input*)))
+  (defun problem-b ()
+    (format t "Problem 03 B: ~a~%"
+            (reduce #'* (mapcar #'(lambda (slope)
+                                    (traverse-grid *input* slope))
+                                (list (complex 1 1) (complex 3 1) (complex 5 1) (complex 7 1) (complex 1 2))))))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -69,11 +120,12 @@ support for lisp installed you can run this by:
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-input>>
   <<read-input>>
   <<input>>
 #+END_SRC
 #+NAME: answers
-#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle YEAR.DAY.lisp
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2020.03.lisp
   <<initialize>>
   <<structs>>
   <<functions>>
@@ -85,40 +137,40 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 03 A: 272
+: Problem 03 B: 3898725600
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
-  (def-suite aoc.YEAR.DAY)
-  (in-suite aoc.YEAR.DAY)
+  (def-suite aoc.2020.03)
+  (in-suite aoc.2020.03)
 
-  (run! 'aoc.YEAR.DAY)
+  (run! 'aoc.2020.03)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
 ** Ada
 Simple runner.
-#+BEGIN_SRC ada :tangle ada/dayDAY.adb
-  with AOCYEAR.DayDAY;
-  procedure DayDAY is
+#+BEGIN_SRC ada :tangle ada/day03.adb
+  with AOC2020.Day03;
+  procedure Day03 is
   begin
     null;
-  end DayDAY;
+  end Day03;
 #+END_SRC
 Specification for solution.
-#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.ads
-  package AOCYEAR.DayDAY is
+#+BEGIN_SRC ada :tangle ada/aoc2020-day03.ads
+  package AOC2020.Day03 is
      function Solve_01 return Integer;
      function Solve_02 return Integer;
-  end AOCYEAR.DayDAY;
+  end AOC2020.Day03;
 #+END_SRC
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.adb
+#+BEGIN_SRC ada :tangle ada/aoc2020-day03.adb
   with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
-  package body AOCYEAR.DayDAY is
+  package body AOC2020.Day03 is
      -- Used as an example of matching regular expressions
      procedure Parse_Line (Line : Unbounded_String; P : out Password) is
         Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
@@ -140,7 +192,7 @@ Actual implementation body.
      end Parse_Line;
   begin
      null;
-  end AOCYEAR.DayDAY;
+  end AOC2020.Day03;
 #+END_SRC
 
 In order to run this you have to "tangle" the code first using =C-c
@@ -148,8 +200,8 @@ C-v C-t=.
 
 #+BEGIN_SRC shell :tangle no :results output :exports both
   cd ada
-  gnatmake dayDAY
-  ./dayDAY
+  gnatmake day03
+  ./day03
 #+END_SRC
 
 #+RESULTS:
