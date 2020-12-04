@@ -43,9 +43,20 @@ support for lisp installed you can run this by:
 ** Input
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
+  (defun gather-fields (lines)
+    (loop for l in lines
+       with result = nil
+       with entry = ""
+       do (cond ((string= "" l)
+                 (push entry result)
+                 (setf entry ""))
+                (t (setf entry (concatenate 'string entry " " l))))
+       finally (push entry result)
+         (return result)))
   (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
+    (gather-fields
+     (iter (for line in-file file using #'read-line)
+           (collect line))))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -53,14 +64,70 @@ support for lisp installed you can run this by:
     (read-input "input/04.txt"))
 #+END_SRC
 ** Part 1
+#+NAME: validate-passport
+#+BEGIN_SRC lisp :tangle no
+  (defun validate-passport (passport)
+    (let ((needed '("byr" "hgt" "iyr" "eyr" "hcl" "ecl" "pid")))
+      (every (lambda (field) (cl-ppcre:scan field passport)) needed)))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 04 A: ~a~%" (identity *input*)))
+  <<validate-passport>>
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (count-if #'validate-passport *input*)))
 #+END_SRC
 ** Part 2
+I *could* spend some time and fix up my parser to split out each
+part. But I won't. I'll split it using =cl-ppcre= on spaces, then scan
+each one and add a validator for each field prefix.
+#+NAME: properly-validate
+#+BEGIN_SRC lisp :results silent
+  (defun get-field (field entry)
+    (assoc field entry :test #'string=))
+  (defun validate-byr (field)
+    (and field
+         (cl-ppcre:scan "[0-9]{4}" (second field))
+         (<= 1920 (parse-integer (second field)) 2002)))
+  (defun validate-iyr (field)
+    (and field
+         (cl-ppcre:scan "[0-9]{4}" (second field))
+         (<= 2010 (parse-integer (second field)) 2020)))
+  (defun validate-eyr (field)
+    (and field
+         (cl-ppcre:scan "[0-9]{4}" (second field))
+         (<= 2020 (parse-integer (second field)) 2030)))
+  (defun validate-hgt (field)
+    (and field
+         (let ((s (second field)))
+           (or (and (string= "cm" (subseq s (- (length s) 2)))
+                    (<= 150 (parse-integer s :junk-allowed t) 193))
+               (and (string= "in" (subseq s (- (length s) 2)))
+                    (<= 59 (parse-integer s :junk-allowed t) 76))))))
+  (defun validate-hcl (field)
+    (and field
+         (cl-ppcre:scan "#[0-9a-f]{6}" (second field))))
+  (defun validate-ecl (field)
+    (and field
+         (some (lambda (c) (string= c (second field)))
+               '("amb" "blu" "brn" "gry" "grn" "hzl" "oth"))))
+  (defun validate-pid (field)
+    (and field
+         (cl-ppcre:scan "^[0-9]{9}$" (second field))))
+  (defun properly-validate (entry)
+    (let ((fields (mapcar (lambda (e) (cl-ppcre:split ":" e))
+                          (rest (cl-ppcre:split " " entry)))))
+      (and (<= 7 (length fields) 8)
+           (validate-byr (get-field "byr" fields))
+           (validate-iyr (get-field "iyr" fields))
+           (validate-eyr (get-field "eyr" fields))
+           (validate-hgt (get-field "hgt" fields))
+           (validate-hcl (get-field "hcl" fields))
+           (validate-ecl (get-field "ecl" fields))
+           (validate-pid (get-field "pid" fields)))))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 04 B: ~a~%" (identity *input*)))
+  <<properly-validate>>
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (count-if #'properly-validate *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -85,8 +152,6 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
