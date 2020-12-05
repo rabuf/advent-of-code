@@ -125,7 +125,7 @@ Simple runner.
   with AOC2020.Day05;
   procedure Day05 is
   begin
-    null;
+    AOC2020.Day05.Run;
   end Day05;
 #+END_SRC
 Specification for solution.
@@ -136,32 +136,70 @@ Specification for solution.
 #+END_SRC
 Actual implementation body.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day05.adb
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Integer_Text_IO; use Ada.Integer_Text_Io;
+  with Ada.Containers.Vectors;
   package body AOC2020.Day05 is
+     package Integer_Vectors is new Ada.Containers.Vectors
+       (Element_Type => Integer, Index_Type => Natural);
+     package Integer_Vectors_Sorting is new Integer_Vectors.Generic_Sorting;
+     use Integer_Vectors; use Integer_Vectors_Sorting;
      -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
+
+     function BSP_To_Number (BSP : String) return Integer is
+        Result : Integer := 0;
      begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
-   
-     procedure Run is
+        for C of BSP loop
+           case C is
+              when 'F' | 'L' =>
+                Result := Result * 2;
+              when 'B' | 'R' =>
+                 Result := Result * 2 + 1;
+              when others =>
+                 null;
+           end case;
+        end loop;
+        return Result;
+     end BSP_To_Number;
+
+     procedure Gather_Input(Passes : out Vector) is
+        Fin : File_Type;
+        Line : String(1..11);
+        Length : Natural;
      begin
+        Open (Fin, In_File, "../input/05.txt");
+        loop
+           exit when End_Of_File(Fin);
+           Get_Line(Fin, Line, Length);
+           Passes.Append(BSP_To_Number(Line));
+        end loop;
+        Close(Fin);
         null;
+     end Gather_Input;
+
+     procedure Run is
+        Passes : Vector;
+        Max : Integer := Integer'First;
+        My_Seat : Integer;
+     begin
+        Gather_Input(Passes);
+        for C in Passes.Iterate loop
+           if Passes(C) > Max
+           then
+              Max := Passes(C);
+           end if;
+        end loop;
+        Sort(Passes);
+        for C in Passes.Iterate loop
+           exit when Next(C) = No_Element;
+           if Passes(Next(C)) - Passes(C) = 2
+           then
+              My_Seat := Passes(C) + 1;
+           end if;
+        end loop;
+        Put_Line("Advent of Code 2020 - Day 05:"); New_Line;
+        Put_Line("The result for part 1 is: " & Max'Image);
+        Put_Line("The result for Part 2 is: " & My_Seat'Image);
      end Run;
   end AOC2020.Day05;
 #+END_SRC
