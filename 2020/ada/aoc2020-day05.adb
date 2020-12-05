@@ -45,13 +45,8 @@ package body AOC2020.Day05 is
       My_Seat : Integer;
    begin
       Gather_Input(Passes);
-      for C in Passes.Iterate loop
-         if Passes(C) > Max
-         then
-            Max := Passes(C);
-         end if;
-      end loop;
       Sort(Passes);
+      Max := Last_Element(Passes);
       for C in Passes.Iterate loop
          exit when Next(C) = No_Element;
          if Passes(Next(C)) - Passes(C) = 2
