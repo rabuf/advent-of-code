@@ -40,19 +40,21 @@ package body AOC2020.Day01 is
       return Result;
    end Solve_02;
 
-begin
-   declare
-      input_file : file_type;
-      line : integer;
+   procedure Run is
    begin
-      Open (Input_File, in_file, "../input/01.txt");
-      loop
-         exit when end_of_file (input_file);
-         Get (input_file, Line);
-         Input.Insert (Line);
-      end loop;
-   end;
-   Put_Line("Advent of Code 2020 - Day 01:"); New_Line;
-   Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
-   Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+      declare
+         input_file : file_type;
+         line : integer;
+      begin
+         Open (Input_File, in_file, "../input/01.txt");
+         loop
+            exit when end_of_file (input_file);
+            Get (input_file, Line);
+            Input.Insert (Line);
+         end loop;
+      end;
+      Put_Line("Advent of Code 2020 - Day 01:"); New_Line;
+      Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
+      Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+   end Run;
 end AOC2020.Day01;

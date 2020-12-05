@@ -145,14 +145,13 @@ A simple runner for Day 2.
   with AOC2020.Day02;
   procedure Day02 is
   begin
-    null;
+    AOC2020.Day02.Run;
   end Day02;
 #+END_SRC
 Specification file for the actual solution.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day02.ads
   package AOC2020.Day02 is
-     function Solve_01 return Integer;
-     function Solve_02 return Integer;
+     procedure Run;
   end AOC2020.Day02;
 #+END_SRC
 #+BEGIN_SRC ada :tangle ada/aoc2020-day02.adb
@@ -236,25 +235,26 @@ Specification file for the actual solution.
               C => C,
               P => Pass);
      end Parse_Line;
-
-  begin
-     declare
-        Input_File : file_type;
-        Line : Unbounded_String;
-        P : Password;
-
+     procedure Run is
      begin
-        Open (Input_File, in_file, "../input/02.txt");
-        loop
-           exit when end_of_file (Input_File);
-           Get_Line (input_file, Line);
-           Parse_Line(Line, P);
-           Input.Append (P);
-        end loop;
-     end;
-     Put_Line("Advent of Code 2020 - Day 02:"); New_Line;
-     Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
-     Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+        declare
+           Input_File : file_type;
+           Line : Unbounded_String;
+           P : Password;
+
+        begin
+           Open (Input_File, in_file, "../input/02.txt");
+           loop
+              exit when end_of_file (Input_File);
+              Get_Line (input_file, Line);
+              Parse_Line(Line, P);
+              Input.Append (P);
+           end loop;
+        end;
+        Put_Line("Advent of Code 2020 - Day 02:"); New_Line;
+        Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
+        Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+     end Run;
   end AOC2020.Day02;
 #+END_SRC
 

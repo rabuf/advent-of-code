@@ -140,8 +140,7 @@ improved perfrormance substantially as each part lost one loop over
 the vector, which was replaced with a simple call to =Contains=.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day01.ads
   package AOC2020.Day01 is
-     function Solve_01 return Integer;
-     function Solve_02 return Integer;
+     procedure Run;
   end AOC2020.Day01;
 #+END_SRC
 
@@ -187,22 +186,24 @@ the vector, which was replaced with a simple call to =Contains=.
         end loop;
         return Result;
      end Solve_02;
-
-  begin
-     declare
-        input_file : file_type;
-        line : integer;
+   
+     procedure Run is
      begin
-        Open (Input_File, in_file, "../input/01.txt");
-        loop
-           exit when end_of_file (input_file);
-           Get (input_file, Line);
-           Input.Insert (Line);
-        end loop;
-     end;
-     Put_Line("Advent of Code 2020 - Day 01:"); New_Line;
-     Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
-     Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+        declare
+           input_file : file_type;
+           line : integer;
+        begin
+           Open (Input_File, in_file, "../input/01.txt");
+           loop
+              exit when end_of_file (input_file);
+              Get (input_file, Line);
+              Input.Insert (Line);
+           end loop;
+        end;
+        Put_Line("Advent of Code 2020 - Day 01:"); New_Line;
+        Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
+        Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+     end Run;
   end AOC2020.Day01;
 #+END_SRC
 
@@ -210,7 +211,7 @@ the vector, which was replaced with a simple call to =Contains=.
   with AOC2020.Day01;
   procedure Day01 is
   begin
-    null;
+    AOC2020.Day01.Run;
   end Day01;
 #+END_SRC
 

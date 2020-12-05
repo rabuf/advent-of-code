@@ -78,23 +78,24 @@ package body AOC2020.Day02 is
             C => C,
             P => Pass);
    end Parse_Line;
-
-begin
-   declare
-      Input_File : file_type;
-      Line : Unbounded_String;
-      P : Password;
-
+   procedure Run is
    begin
-      Open (Input_File, in_file, "../input/02.txt");
-      loop
-         exit when end_of_file (Input_File);
-         Get_Line (input_file, Line);
-         Parse_Line(Line, P);
-         Input.Append (P);
-      end loop;
-   end;
-   Put_Line("Advent of Code 2020 - Day 02:"); New_Line;
-   Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
-   Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+      declare
+         Input_File : file_type;
+         Line : Unbounded_String;
+         P : Password;
+
+      begin
+         Open (Input_File, in_file, "../input/02.txt");
+         loop
+            exit when end_of_file (Input_File);
+            Get_Line (input_file, Line);
+            Parse_Line(Line, P);
+            Input.Append (P);
+         end loop;
+      end;
+      Put_Line("Advent of Code 2020 - Day 02:"); New_Line;
+      Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
+      Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02));
+   end Run;
 end AOC2020.Day02;

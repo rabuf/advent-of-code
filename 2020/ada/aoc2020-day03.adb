@@ -2,6 +2,7 @@ with Text_IO; use Text_IO;
 package body AOC2020.Day03 is
    type Col_Size is mod 31;
    type Row_Size is mod 323;
+   type Unsigned_Integer is mod 2**32;
 
    type Grid is array (Row_Size, Col_Size) of Boolean;
 
@@ -62,10 +63,11 @@ package body AOC2020.Day03 is
       end loop;
       Close (Input_File);
    end Parse_Input;
-
-begin
-   Parse_Input;
-   Put_Line("Advent of Code 2020 - Day 03:"); New_Line;
-   Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
-   Put_Line("The result for Part 2 is: " & Unsigned_Integer'Image(Solve_02));
+   procedure Run is
+   begin
+      Parse_Input;
+      Put_Line("Advent of Code 2020 - Day 03:"); New_Line;
+      Put_Line("The result for part 1 is: " & Integer'Image(Solve_01));
+      Put_Line("The result for Part 2 is: " & Unsigned_Integer'Image(Solve_02));
+   end Run;
 end AOC2020.Day03;
