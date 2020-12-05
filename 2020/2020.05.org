@@ -56,22 +56,19 @@ support for lisp installed you can run this by:
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun to-row-number (row)
-    (let ((min 0)
-          (max 127))
-      (loop for c across row
-         do (cond ((char= c #\F)
-                   (setf max (floor (+ max min) 2)))
-                  (t (setf min (floor (+ max min) 2)))))
-      max))
+    (loop for c across row
+       with number = 0
+       finally (return number)
+       do (cond ((char= c #\F)
+                 (setf number (* 2 number)))
+                (t (setf number (1+ (* 2 number)))))))
   (defun to-seat-number (seat)
-    (let ((min 0)
-          (max 7))
-      (loop for c across seat
-         do (cond ((char= c #\L)
-                   (setf max (floor (+ max min) 2)))
-                  (t (setf min (floor (+ max min) 2)))))
-      max))
-
+    (loop for c across seat
+       with number = 0
+       finally (return number)
+       do (cond ((char= c #\L)
+                 (setf number (* 2 number)))
+                (t (setf number (1+ (* 2 number)))))))
   (defun to-number (seat)
     (let ((row (subseq seat 0 7))
           (seat (subseq seat 7)))
