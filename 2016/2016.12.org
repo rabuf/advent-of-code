@@ -1,0 +1,190 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 12
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-12)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-12
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-12)
+#+END_SRC
+** Input
+The input today is an assembunny program. I know this will be
+revisited in future puzzles (I'm writing this in 2020, I have the
+benefit of being able to look ahead). For now, though, I'll interpret
+the code line by line. The only "optimizations" I've made are to put
+the instructions into a vector (faster access times than lists) and
+pre-split each line.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (coerce
+     (iter (for line in-file file using #'read-line)
+           (collect (cl-ppcre:split " " line)))
+     'vector))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/12.txt"))
+#+END_SRC
+** Part 1
+Details of the computer:
+- Registers :: There are four: =a=, =b=, =c=, =d=. Initialized to 0
+               and holding any integer.
+- =copy x y= :: Copies =x= to integer =y=. =x= may be a register or integer.
+- =inc x= :: Increments the value in register =x=.
+- =dec x= :: Decrements the value in register =y=.
+- =jnz x y= :: Jumps to an instruction =y= away (relative offset) if
+               =x= is non-zero.
+
+It is not clear to me yet whether the jump can be a computed
+value. Probably can be, but in my input it's a constant for all
+cases so I won't worry about it.
+
+Having done a lot of similar puzzles in other years I have a good idea
+of the basic structure for this. It can be made more efficient, but
+it's functional.
+#+NAME: assembunny
+#+BEGIN_SRC lisp :results silent
+  (defun assembunny-sim (program &optional (state (make-hash-table :test #'equal)))
+    (labels ((copy (x y)
+               (let ((n (parse-integer x :junk-allowed t)))
+                 (cond (n (setf (gethash y state) n))
+                       (t (setf (gethash y state) (gethash x state 0))))))
+             (inc (x)
+               (incf (gethash x state 0)))
+             (dec (x)
+               (decf (gethash x state 0)))
+             (jnz (x offset)
+               (let ((n (parse-integer x :junk-allowed t)))
+                 (if (or (and (integerp n) (not (zerop n)))
+                         (not (zerop (gethash x state 0))))
+                   (incf (gethash "pc" state 0) (parse-integer offset))
+                   (inc "pc")))))
+      (loop
+         for (op x y) = (elt program (gethash "pc" state 0))
+         finally (format t "(~a) ~a ~a ~a: ~a ~a ~a ~a ~%"
+                         (gethash "pc" state 0)
+                         op x y
+                         (gethash "a" state 0)
+                         (gethash "b" state 0)
+                         (gethash "c" state 0)
+                         (gethash "d" state 0))
+
+         do (cond ((string= op "cpy")
+                   (copy x y)
+                   (inc "pc"))
+                  ((string= op "inc")
+                   (inc x)
+                   (inc "pc"))
+                  ((string= op "dec")
+                   (dec x)
+                   (inc "pc"))
+                  ((string= op "jnz")
+                   (jnz x y)))
+         until (>= (gethash "pc" state 0) (length program))))
+    state)
+
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<assembunny>>
+  (defun problem-a () (format t "Problem 12 A: ~a~%" (gethash "a" (assembunny-sim *input*))))
+#+END_SRC
+** Part 2
+Amusingly I got the answer to part 2 because of an error in my
+program. If =jnz= doesn't handle a constant for =x= but always assumes
+it's a register (like mine did) and gets the default value (0 for me)
+then part 1 generates the answer to part 2.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b ()
+    (let ((state (make-hash-table :test #'equal)))
+      (setf (gethash "c" state) 1)
+      (format t "Problem 12 B: ~a~%"
+              (gethash "a" (assembunny-sim *input* state)))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: (23) jnz c -5: 318117 196418 0 0 
+: Problem 12 A: 318117
+: (23) jnz c -5: 9227771 5702887 0 0 
+: Problem 12 B: 9227771
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.12)
+  (in-suite aoc.2016.12)
+  (defparameter *test-input*
+    (with-input-from-string (s "cpy 41 a
+  inc a
+  inc a
+  dec a
+  jnz a 2
+  dec a")
+      (coerce
+       (iter (for line in-stream s using #'read-line)
+          (collect (cl-ppcre:split " " line)))
+       'vector)))
+  (run! 'aoc.2016.12)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2016.12
+:  Didn't run anything...huh?
+** Thoughts
