@@ -1,12 +1,12 @@
 #+STARTUP: indent contents
 #+OPTIONS: num:nil toc:nil
-* Day DAY
+* Day 05
 ** Executing this code
 If you have a lisp installation, emacs, org-mode, and org-babel
 support for lisp installed you can run this by:
 1. Starting slime (=M-x slime=)
 2. Typing =C-c C-c= in the block [[initialize][initialize]].
-3. In the repl type =(in-package :aoc-YEAR-DAY)=
+3. In the repl type =(in-package :aoc-2020-05)=
 4. Typing =C-c C-c= in the block [[answers][answers]]
 ** Initial stuffs
 *** Packages to load
@@ -31,14 +31,14 @@ support for lisp installed you can run this by:
 #+NAME: initialize
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<packages>>
-  (defpackage :aoc-YEAR-DAY
+  (defpackage :aoc-2020-05
     (:use :common-lisp
           :iterate
           :parseq
           :fiveam)
     (:export :problem-a
              :problem-b))
-  (in-package :aoc-YEAR-DAY)
+  (in-package :aoc-2020-05)
 #+END_SRC
 ** Input
 #+NAME: read-input
@@ -50,17 +50,49 @@ support for lisp installed you can run this by:
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/DAY.txt"))
+    (read-input "input/05.txt"))
 #+END_SRC
 ** Part 1
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem DAY A: ~a~%" (identity *input*)))
+  (defun to-row-number (row)
+    (let ((min 0)
+          (max 127))
+      (loop for c across row
+         do (cond ((char= c #\F)
+                   (setf max (floor (+ max min) 2)))
+                  (t (setf min (floor (+ max min) 2)))))
+      max))
+  (defun to-seat-number (seat)
+    (let ((min 0)
+          (max 7))
+      (loop for c across seat
+         do (cond ((char= c #\L)
+                   (setf max (floor (+ max min) 2)))
+                  (t (setf min (floor (+ max min) 2)))))
+      max))
+
+  (defun to-number (seat)
+    (let ((row (subseq seat 0 7))
+          (seat (subseq seat 7)))
+      (+ (* 8 (to-row-number row)) (to-seat-number seat))))
+  (defun maximum-seat (passes)
+    (iter (for p in passes)
+          (maximizing (to-number p))))
+  (defun problem-a () (format t "Problem 05 A: ~a~%" (maximum-seat *input*)))
 #+END_SRC
 ** Part 2
+Now that we have a way to identify seats, find a gap of 3, the middle
+one is our seat.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem DAY B: ~a~%" (identity *input*)))
+  (defun find-my-seat (passes)
+    (let ((seats (sort (loop for p in passes collect (to-number p)) #'<)))
+      (loop for i in seats
+         for j in (cdr seats)
+         until (= 2 (- j i))
+         finally (return (1+ i)))))
+  (defun problem-b () (format t "Problem 05 B: ~a~%" (find-my-seat *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -85,39 +117,39 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 05 A: 913
+: Problem 05 B: 717
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
-  (def-suite aoc.YEAR.DAY)
-  (in-suite aoc.YEAR.DAY)
+  (def-suite aoc.2020.05)
+  (in-suite aoc.2020.05)
 
-  (run! 'aoc.YEAR.DAY)
+  (run! 'aoc.2020.05)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
 ** Ada
 Simple runner.
-#+BEGIN_SRC ada :tangle ada/dayDAY.adb
-  with AOCYEAR.DayDAY;
-  procedure DayDAY is
+#+BEGIN_SRC ada :tangle ada/day05.adb
+  with AOC2020.Day05;
+  procedure Day05 is
   begin
     null;
-  end DayDAY;
+  end Day05;
 #+END_SRC
 Specification for solution.
-#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.ads
-  package AOCYEAR.DayDAY is
+#+BEGIN_SRC ada :tangle ada/aoc2020-day05.ads
+  package AOC2020.Day05 is
      procedure Run;
-  end AOCYEAR.DayDAY;
+  end AOC2020.Day05;
 #+END_SRC
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.adb
+#+BEGIN_SRC ada :tangle ada/aoc2020-day05.adb
   with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
-  package body AOCYEAR.DayDAY is
+  package body AOC2020.Day05 is
      -- Used as an example of matching regular expressions
      procedure Parse_Line (Line : Unbounded_String; P : out Password) is
         Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
@@ -137,11 +169,12 @@ Actual implementation body.
               C => C,
               P => Pass);
      end Parse_Line;
+   
      procedure Run is
      begin
         null;
      end Run;
-  end AOCYEAR.DayDAY;
+  end AOC2020.Day05;
 #+END_SRC
 
 In order to run this you have to "tangle" the code first using =C-c
@@ -149,8 +182,8 @@ C-v C-t=.
 
 #+BEGIN_SRC shell :tangle no :results output :exports both
   cd ada
-  gnatmake dayDAY
-  ./dayDAY
+  gnatmake day05
+  ./day05
 #+END_SRC
 
 #+RESULTS:
