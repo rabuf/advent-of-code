@@ -76,11 +76,11 @@ one is our seat.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun find-my-seat (passes)
-    (let ((seats (sort (loop for p in passes collect (to-number p)) #'<)))
-      (loop for i in seats
-         for j in (cdr seats)
-         until (= 2 (- j i))
-         finally (return (1+ i)))))
+    (let ((seats (sort (iter (for p in passes) (collect (to-number p))) #'<)))
+      (iter (for i in seats)
+            (for j in (cdr seats))
+            (until (= 2 (- j i)))
+            (finally (return (1+ i))))))
   (defun problem-b () (format t "Problem 05 B: ~a~%" (find-my-seat *input*)))
 #+END_SRC
 ** Putting it all together
