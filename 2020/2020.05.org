@@ -55,20 +55,12 @@ support for lisp installed you can run this by:
 ** Part 1
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
+  (defun bsp-to-number (s &optional (zero #\F) (one #\B))
+    (parse-integer (substitute #\0 zero (substitute #\1 one s)) :radix 2))
   (defun to-row-number (row)
-    (loop for c across row
-       with number = 0
-       finally (return number)
-       do (cond ((char= c #\F)
-                 (setf number (* 2 number)))
-                (t (setf number (1+ (* 2 number)))))))
+    (bsp-to-number row))
   (defun to-seat-number (seat)
-    (loop for c across seat
-       with number = 0
-       finally (return number)
-       do (cond ((char= c #\L)
-                 (setf number (* 2 number)))
-                (t (setf number (1+ (* 2 number)))))))
+    (bsp-to-number seat #\L #\R))
   (defun to-number (seat)
     (let ((row (subseq seat 0 7))
           (seat (subseq seat 7)))
