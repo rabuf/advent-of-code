@@ -61,7 +61,7 @@ find at what time to drop a ball. The ball drops through each disk in
 1 second, it needs to pass through each disk when it's at position 0.
 
 I'll solve this with a loop, counting up from time 0. The answer will
-be $t$ such that for each disk $t+d+p \equiv 0 (\mod s)$ where d is
+be $t$ such that for each disk $t+d+p \equiv 0 \pmod{s}$ where d is
 the disk number, p its position at time 0, and s its size.
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
