@@ -73,7 +73,7 @@ I'm going to represent the game with a simple struct: three hashtables
 and the max x and y coordinates from the input (useful for printing
 out). I've added =round= to the =game= struct so that I can resume
 execution. This was from a general "lessons learned" over the past
-couple weeks. Infiite loops happen, so now I put an upper-bound
+couple weeks. Infinite loops happen, so now I put an upper-bound
 whether it's needed or not. In this case it worked out for me.
 
 By keeping the round I was able to execute smaller numbers of the main
@@ -185,7 +185,7 @@ Some rules for the game:
 1. Attacks only happen horizontally and vertically. Preference to
    *lowest health*, and then reading order.
 2. Movement only happens horizontally and vertically, preference to
-   reading order when there are mulitple options.
+   reading order when there are multiple options.
 3. If a combatant is adjacent to an enemy at the start of their turn,
    they attack.
 4. If no adjacent combatants, the creature will:
@@ -248,7 +248,7 @@ over.
 
 This is the part that stumped me before. I had parts of it, but it was
 too cumbersome to debug. The problem I ran into was that I was letting
-the players get caught up in loops with poor pathfinding. They need to
+the players get caught up in loops with poor path finding. They need to
 actually move along a path towards the enemy, not just to the closest
 position (which is what I did the first time). I tore that all out,
 here's v2.
@@ -439,14 +439,14 @@ and do a binary search.
 
 7: Lost after 132 rounds.
 
-8: Won after 85 round swith 442 HP.
+8: Won after 85 round with 442 HP.
 
 Dammit. The problem is actually: Without a *single* death. Starting
 back at 50.
 
 50: All elves lived, 19 rounds and 1799 HP
 
-25: All elves lived, 27 rounds nad 1628 HP
+25: All elves lived, 27 rounds and 1628 HP
 
 12: One elf died
 
@@ -698,7 +698,7 @@ Goblin HP: 301
 #+END_SRC
 
 Expected: The Goblin moves one south, and is attacked on that same
-round by the ELf. This gives the Elf the advantage of first attack and
+round by the Elf. This gives the Elf the advantage of first attack and
 he wins after 67 rounds.
 #+RESULTS: single-movement
 #+begin_example

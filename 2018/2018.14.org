@@ -152,7 +152,7 @@ improvement for Emacs Lisp and Common Lisp.
 "Fri Dec 14 18:07:07 2018"
 #+end_example
 
-Alright, so I'm going to reimplement everything in Common Lisp now.
+Alright, so I'm going to re-implement everything in Common Lisp now.
 
 #+NAME: solve-b
 #+BEGIN_SRC lisp :results silent

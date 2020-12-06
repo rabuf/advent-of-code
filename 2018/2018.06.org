@@ -206,14 +206,14 @@ We need to find the size of the region containing points whose *total*
 distance to all coordinates is < 10,000.
 
 This function will, given a coordinate, sum up the distance to all of
-the poitns.
+the points.
 #+NAME: total-distance
 #+BEGIN_SRC lisp
   (defun total-distance (coordinate points)
     (iter (for p in points)
           (sum (manhattan-distance coordinate p))))
 #+END_SRC
-Another optino may have been to use =reduce= and =mapcar=.
+Another option may have been to use =reduce= and =mapcar=.
 #+BEGIN_SRC lisp
   (reduce #'+ (mapcar (lambda (p) (manhattan-distance p coordinate)) points))
 #+END_SRC

@@ -122,7 +122,7 @@ at which point it wasn't going to improve again. I saw that 14 was the
 max and just used it above to get the printout below. I should revisit
 this and figure out how to make it run faster. I believe that I can
 reduce the total grid size by creating partial sums along the way (so
-that at size 300 it's just adding the 300th rows and colums to
+that at size 300 it's just adding the 300th rows and columns to
 location (1,1)). But I'm not sure how to code that up right now.
 
 #+NAME: problem-b
@@ -202,7 +202,7 @@ Here are some more example power levels:
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
-Ok, so there's an algorithm out there called [[https://en.wikipedia.org/wiki/Summed-area_table][Summed-area table]] which
+OK, so there's an algorithm out there called [[https://en.wikipedia.org/wiki/Summed-area_table][Summed-area table]] which
 is pretty much exactly what I was trying to think of last night.
 
 #+NAME: summed-area-table
@@ -235,7 +235,7 @@ The next thing we need is the sum of a region. The table generated
 above gives us a relatively fast way of doing that.
 
 Pass in the same kind of coordinates that we want for the answer
-(specify the upper left corrner of the range). This function will
+(specify the upper left corner of the range). This function will
 convert properly but does *no* bounds checking. Give it bad
 coordinates and size and it'll bring you to the debugger.
 #+NAME: area-sum
@@ -257,7 +257,7 @@ to represent all 2D coordinates. It's just so much more convenient.
 #+NAME: max-square-fast
 #+BEGIN_SRC lisp :results silent
   (defun max-square-fast (grid &optional (size 3))
-    "Unlike the original, this one requries a summed-area table version of the battery grid."
+    "Unlike the original, this one requires a summed-area table version of the battery grid."
     (iter outer
           (for x from 1 to (- 300 (1- size))) ;; stop short so we don't
                                               ;; go out of bounds

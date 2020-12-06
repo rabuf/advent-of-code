@@ -237,7 +237,7 @@ will detect a cycle in the values of register 5 and return a hash
 table with each value of register 5 and at what iteration it was
 reached (could by off-by-one, but that number doesn't matter). The two
 desired values can be found by examining the printout or storing the
-hash table and querying it for which keys correpsonded to the min/max
+hash table and querying it for which keys corresponded to the min/max
 iteration value.
 
 I managed to shave off a few seconds by moving =symbol-function= to

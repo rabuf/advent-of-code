@@ -159,7 +159,7 @@ falls, it can't be more than one outside those bounds.
                     (count (gethash (complex x y) (wt-water wt)))))))
 #+END_SRC
 
-Ok, now the hard part. We have to fill the water table.
+OK, now the hard part. We have to fill the water table.
 
 I'll use 3 recursive functions: go-left, go-right, and go-down. The
 functions will return t or nil. t will indicate that it has reached

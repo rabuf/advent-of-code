@@ -77,7 +77,7 @@ implement =insert-marble=.
           (unless (= i position) (collect m))))
 #+END_SRC
 
-Ok, so to play the game we need to track which elf's turn it is (to
+OK, so to play the game we need to track which elf's turn it is (to
 track their score). Track the current position of the last placed
 marble. And then insert all the marbles.
 #+NAME: play-game
@@ -118,7 +118,7 @@ So to improve things I have an idea, I'll work on this while the above
 code executes for the x100 case.
 
 Rather than putting stuff into the list, we'll keep a front and
-back. Position no longer needs to be tracked. WHenever any movement
+back. Position no longer needs to be tracked. Whenever any movement
 causes us to move beyond the front or back we just reverse the other
 and swap them.
 #+NAME: play-game-fast

@@ -193,7 +193,7 @@ group). Accounting for immunity (if immune, 0 damage) and weaknesses
 (if weak, double damage).
 
 Each defender can be selected by only one opponent. This is important
-and handy. I'm going to create a hashtable of all the armies and use
+and handy. I'm going to create a hash table of all the armies and use
 gensym to create a unique identifier.
 
 #+NAME: simulate
@@ -334,7 +334,7 @@ I'll just experiment with various boosts and record the results here:
 |    65 | Infection     |
 |    67 | Infection     |
 
-69 causes an infinite laop (I haven't printed out the circumstances,
+69 causes an infinite loop (I haven't printed out the circumstances,
 but I guess groups that are immune to each other are left and so no
 progress is made).
 #+NAME: problem-b

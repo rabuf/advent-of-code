@@ -36,7 +36,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Input
 This is an interesting problem. The input is given as a regular
-expression style description of the directionsq through a complex. I'm
+expression style description of the directions through a complex. I'm
 going to make use of parseq to separate this into a tree structure.
 #+NAME: parse-input
 #+BEGIN_SRC lisp :results silent

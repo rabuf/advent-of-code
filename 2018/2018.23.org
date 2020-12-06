@@ -39,7 +39,7 @@ support for lisp installed you can run this by:
 ** Input
 Each entry is a list of 4 numbers. 3 representing the position of a
 nanobot and the 4th its range. All numbers are integers, distances are
-manhattan distance.
+Manhattan distance.
 
 Let's make this a bit more convenient, a struct containing the
 position and range.

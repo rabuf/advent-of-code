@@ -76,7 +76,7 @@ Need to compute the geologic index of a region.
       index))
 #+END_SRC
 
-Ok, I think that works. Now we need the sum of each location from
+OK, I think that works. Now we need the sum of each location from
 (0,0) to (10,715) mod 3.
 
 #+NAME: risk-level-a
@@ -96,7 +96,7 @@ Ok, I think that works. Now we need the sum of each location from
                                 (risk-level-a index 10 715 3339))))
 #+END_SRC
 ** Part 2
-The second part is a pathfinding task.
+The second part is a path finding task.
 #+BEGIN_QUOTE
 As you leave, he hands you some tools: a torch and some climbing
 gear. You can't equip both tools at once, but you can choose to use
@@ -172,7 +172,7 @@ The graph to search is not actually just the positions, but rather
 (cost of 1) or the equipment can change (cost of 7).
 
 The heuristic will be the Manhattan distance. If we overestimate the
-distance to the target then A* may not find the best poth. Manhattan
+distance to the target then A* may not find the best path. Manhattan
 distance is the lower bound in our case.
 
 #+NAME: manhattan-distance
@@ -182,7 +182,7 @@ distance is the lower bound in our case.
        (abs (imagpart (- p1 p2)))))
 #+END_SRC
 
-Playing around with clasess, because why not. =defmethod= specializes
+Playing around with classes, because why not. =defmethod= specializes
 on the class types of all parameters. If there's no specialized
 version, the default (returning =nil=) is called, otherwise the
 specialized versions (returning =t=) will be called.

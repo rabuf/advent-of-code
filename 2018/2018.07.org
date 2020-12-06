@@ -66,11 +66,11 @@ character. Each line contains a step followed by its successor step.
 
 ** Part 1
 The problem is just a topological sort. Now, let's see if I can
-remember how to do this. If I'd chosen erlang, =topsort= is backed
+remember how to do this. If I'd chosen Erlang, =topsort= is backed
 into the digraph library.
 
 I guess my first step will be to setup a better data structure than we
-have right now. I will create a hashtable of dependencies. The key is
+have right now. I will create a hash table of dependencies. The key is
 a step, the value is all steps that must happen first.
 #+NAME: dependency-table
 #+BEGIN_SRC lisp :results none
@@ -124,7 +124,7 @@ table. My algorithm is simple:
 
 Identify all keys that have nil dependencies. Take the first,
 alphabetically. Remove that entry from the table. Then remove that
-element from each entry left in the table. Repeat until the hashtable
+element from each entry left in the table. Repeat until the hash table
 is empty. This may not be the best way, but it is a way and it'll work.
 #+NAME: topsort
 #+BEGIN_SRC lisp :results none

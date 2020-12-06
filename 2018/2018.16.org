@@ -308,7 +308,7 @@ opcode part.
 #+END_SRC
 
 So all the operations and their respective predicates exist. Let's
-hope I wrote that all correctly, no tests so this'll be fun.
+hope I wrote that all correctly, no tests so this will be fun.
 #+NAME: solve-a
 #+BEGIN_SRC lisp :results silent
   (defun solve-a (to-test)

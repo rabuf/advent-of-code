@@ -9,7 +9,7 @@ Each line of the input file had the format:
 I didn't want to parse that, so I had emacs transform that into a list
 of the form:
 #+BEGIN_EXAMPLE
-  ((id (left top) (witdth height) ...)
+  ((id (left top) (width height) ...)
 #+END_EXAMPLE
 A single read of the input file is all that's needed to parse it
 thanks to CL's reader.
@@ -41,7 +41,7 @@ times. The maximum size is 1000x1000 based on evaluating the claims.
 ** Part 2
 So the logic above mostly works for what we need now. However, instead
 of counting the claims we will mark each space with the various
-claims, this'll just be a list. nil will represent unclaimed
+claims, this will just be a list. nil will represent unclaimed
 spaces. At the end, we just need to find one claim which is fully its
 own. To do that, we iterate over the space of each claim. If it has
 any spaces which are shared, we skip it and go to the next one. If we
@@ -81,7 +81,7 @@ get to the very end of the cut and there's no overlap, we return that.
 : Problem 3a: 110546
 : Problem 3b: (819)
 ** Thoughts
-I'm not going to clean up this code, it's ok as is. But I did make an
+I'm not going to clean up this code, it's OK as is. But I did make an
 error in my thoughts on #2. The first loop didn't need to be changed
 from the original, because ultimately I'm counting (via =length=) the
 same thing that was produced in the first loop in #1 (each cell in the

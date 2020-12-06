@@ -169,7 +169,7 @@ The carts don't move simultaneously, instead they move one at a time
 based on the sorted order. Each cart gets popped off the sorted list
 one at a time. If there is no collision, it is kept in the result. If
 there is a collision (on either side) all carts in that position are
-removed from both the result and the sored list.
+removed from both the result and the sorted list.
 #+NAME: tick
 #+BEGIN_SRC lisp :results silent
   (defun has-collision (carts)

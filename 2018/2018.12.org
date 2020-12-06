@@ -126,7 +126,7 @@ of generations and I don't have the patience for it. I have an idea
 though. Iterate until a steady state exists. That is, I'll create the
 next generation and see if the same series of potted plants exist (but
 shifted). The score difference between the two generations can be
-multiplied by the number of generations remaninig to hit
+multiplied by the number of generations remaining to hit
 50,000,000,000.
 
 Simpler, let's just keep track of the score differences. Once it's

@@ -156,7 +156,7 @@ one once I got the parsing issues out of the way.
 
 #+END_SRC
 #+NAME: functions
-#+BEGIN_SRC lisp :noweb yes :results silentn
+#+BEGIN_SRC lisp :noweb yes :results silent
   <<parse-line>>
   <<read-input>>
   <<print-lights>>
@@ -248,6 +248,6 @@ one once I got the parsing issues out of the way.
 #+END_SRC
 ** Thoughts
 A couple things come to mind. I should add an optional parameter to my
-increment-light sfunction to let it fast-forward to a specific time
+increment-light function to let it fast-forward to a specific time
 (multiplier). No reason to loop 10k times when one series of
 multiplies can accomplish the same thing.
