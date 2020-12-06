@@ -61,7 +61,7 @@ corresponding to a movement direction.
     (read-input "input/02.txt"))
 #+END_SRC
 ** Part 1
-There's a given keypand:
+There's a given keypad:
 
 | 1 | 2 | 3 |
 | 4 | 5 | 6 |

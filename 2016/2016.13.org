@@ -41,7 +41,7 @@ support for lisp installed you can run this by:
   (in-package :aoc-2016-13)
 #+END_SRC
 ** Input
-Today's input is just a number so I'm hardcoding it here rather than
+Today's input is just a number so I'm hard coding it here rather than
 loading from a file.
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent

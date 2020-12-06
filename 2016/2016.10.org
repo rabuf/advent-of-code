@@ -55,7 +55,7 @@ Lines are of the form:
 #+END_EXAMPLE
 
 I need to construct something out of this. My mental model is that
-these form a network. I guess first I could parse thsi and see how
+these form a network. I guess first I could parse this and see how
 many unique values and bots there are. There are 210 unique bots. Each
 bot has its own line. That is helpful information.
 

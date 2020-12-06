@@ -78,11 +78,11 @@ move everything to the fourth?
 
 Movement rules: Chips cannot be on the same floor as other generators
 unless their generator is on that floor as well. Two objects can be
-moved at the same time. At least one object must be in the eleverator
+moved at the same time. At least one object must be in the elevator
 at a time. Can only move one floor at a time. That does help restrict
 things. I'll write a function which determines if a floor is safe.
 
-How many states have to be considered? THere are 10 objects, each
+How many states have to be considered? There are 10 objects, each
 capable of being on one of 4 floors. So 1,048,576 possible states.
 
 A floor is safe if either, there are no generators or every chip on
@@ -209,7 +209,7 @@ up once the higher priority forward movement cases are exhausted (if
 they lead to dead ends).
 
 A lower bound is simply the distance of each object from the
-top. That's way low becaues it doesn't count the necessary backwards
+top. That's way low because it doesn't count the necessary backwards
 movement. Time to review A*. Great, so I had forgotten this part [[https://en.wikipedia.org/wiki/A*_search_algorithm][(from
 Wikipedia)]]:
 #+BEGIN_QUOTE
@@ -227,7 +227,7 @@ me.
 
 There was an issue in my sorting where I didn't take into account the
 fact that sort is destructive. Starting things off by making a copy of
-the input so I don't accidentalyl change it. IT worked fine on first
+the input so I don't accidentally change it. IT worked fine on first
 run, broke on second.
 
 However, this heuristic is apparently not speeding things up which has
@@ -285,10 +285,10 @@ out and moving them up/down a floor. Move over both vectors.
 
 I'm going to let this code continue to run. When it finishes I'll
 spend some time working on an alternate data representation. Lists of
-lists just aren't effecient.
+lists just aren't efficient.
 
 I'm giving up on the above code. It's just too slow for the second
-part. I'ts been running for almoust 3 hours now and still hasn't
+part. It's been running for almost 3 hours now and still hasn't
 provided a result. I'll leave it running, but now I'll start on a more
 compact representation.
 #+NAME: faster

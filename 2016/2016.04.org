@@ -49,7 +49,7 @@ The input is of the form:
   [a-z]+(-[a-z]+)*-[0-9]+\[[a-z][a-z][a-z][a-z][a-z]\]
 #+END_EXAMPLE
 
-THe last five letters, if it's not a decoy, are the most common
+The last five letters, if it's not a decoy, are the most common
 letters in frequency order, ties broken alphabetically.
 
 #+NAME: parse-line

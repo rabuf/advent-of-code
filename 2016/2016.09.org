@@ -53,7 +53,7 @@ support for lisp installed you can run this by:
     (read-input "input/09.txt"))
 #+END_SRC
 ** Part 1
-Objective: Compute decompressed file size, not counting whitespace.
+Objective: Compute decompressed file size, not counting white space.
 
 #+NAME: decompress-line
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -84,7 +84,7 @@ Objective: Compute decompressed file size, not counting whitespace.
 #+END_SRC
 ** Part 2
 Decompression is now recursive. This will consume way too much memory
-to actually decompress each line. Instaed, I'll need to tally the
+to actually decompress each line. Instead, I'll need to tally the
 count as I decompress.
 
 #+NAME: decompressed-length

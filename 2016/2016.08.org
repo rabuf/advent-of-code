@@ -41,7 +41,7 @@ support for lisp installed you can run this by:
   (in-package :aoc-2016-08)
 #+END_SRC
 ** Input
-This input has one of three froms:
+This input has one of three forms:
 - rect AxB :: turns on a rectangle that is A-wide by B-tall starting
               at <0,0> (NB: top-left corner is <0,0>)
 - rotate row y=A by B :: rotates all values in the row right by B

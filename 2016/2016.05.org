@@ -77,7 +77,7 @@ This solution takes about a minute on my laptop.
   (defun problem-a () (format t "Problem 05 A: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
-Well, this will be interetsing. The 7th character is now the passcode
+Well, this will be interesting. The 7th character is now the passcode
 character, and its position is determined by the 6th. The first time a
 position is found it should be filled, all later instances
 ignored. The password is found when all 8 positions are found.
