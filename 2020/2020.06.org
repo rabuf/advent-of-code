@@ -1,0 +1,225 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 06
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-06)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-06
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-06)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/06.txt"))
+#+END_SRC
+** Part 1
+The input consists of series of question answers from multiple
+people. I will take their answers, put them into a hash table (so
+duplicates aren't double counted) and then total answers given over
+all groups.
+#+NAME: split-groups
+#+BEGIN_SRC lisp :results silent
+  (defun split-groups (raw)
+    (loop for s in raw
+       with total = nil
+       with current = ""
+       do (cond ((string= "" s)
+                 (push current total)
+                 (setf current ""))
+                (t (setf current (concatenate 'string current s))))
+       finally (return (push current total))))
+#+END_SRC
+#+NAME: count-anyone-answers
+#+BEGIN_SRC lisp :results silent
+  (defun count-anyone-answers (s)
+    (loop for c across s
+       with h = (make-hash-table)
+       do (setf (gethash c h) t)
+       finally (return (hash-table-count h))))
+#+END_SRC
+#+NAME: tally-anyone-answers
+#+BEGIN_SRC lisp :results silent
+  (defun tally-anyone-answers (groups)
+    (reduce #'+ (mapcar #'count-anyone-answers groups)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<split-groups>>
+  <<count-anyone-answers>>
+  <<tally-anyone-answers>>
+  (defun problem-a () (format t "Problem 06 A: ~a~%" (tally-anyone-answers (split-groups *input*))))
+#+END_SRC
+** Part 2
+Instead of questions *anyone* answers yes to, we need the count of
+ones they *all* answered yes to. Same tally across all groups, but now
+the way we tally changes.
+#+NAME: gather-groups
+#+BEGIN_SRC lisp :results silent
+  (defun gather-groups (raw)
+    (loop for s in raw
+       with total = nil
+       with current = nil
+       do (cond ((string= "" s)
+                 (push current total)
+                 (setf current nil))
+                (t (push s current)))
+       finally (return (push current total))))
+#+END_SRC
+
+#+NAME: count-everyone-answers
+#+BEGIN_SRC lisp :results silent
+  (defun count-everyone-answers (group)
+    (let ((letters "abcdefghijklmnopqrstuvwxyz"))
+      (loop for s in group
+         with l = letters
+         do (loop for c across letters
+               do (unless (position c s)
+                    (setf l (remove c l))))
+         finally (return (length l)))))
+#+END_SRC
+#+NAME: tally-everyone-answers
+#+BEGIN_SRC lisp :results silent
+  (defun tally-everyone-answers (groups)
+    (reduce #'+ (mapcar #'count-everyone-answers groups)))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<gather-groups>>
+  <<count-everyone-answers>>
+  <<tally-everyon-answers>>
+  (defun problem-b ()
+    (format t "Problem 06 B: ~a~%"
+            (tally-everyone-answers (gather-groups *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 06 A: 6249
+: Problem 06 B: 3103
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.06)
+  (in-suite aoc.2020.06)
+
+  (run! 'aoc.2020.06)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day06.adb
+  with AOC2020.Day06;
+  procedure Day06 is
+  begin
+    null;
+  end Day06;
+#+END_SRC
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day06.ads
+  package AOC2020.Day06 is
+     procedure Run;
+  end AOC2020.Day06;
+#+END_SRC
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day06.adb
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+  package body AOC2020.Day06 is
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        null;
+     end Run;
+  end AOC2020.Day06;
+#+END_SRC
+
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day06
+  ./day06
+#+END_SRC
+
+#+RESULTS:
