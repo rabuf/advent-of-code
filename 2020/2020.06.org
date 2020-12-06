@@ -126,7 +126,7 @@ the way we tally changes.
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<gather-groups>>
   <<count-everyone-answers>>
-  <<tally-everyon-answers>>
+  <<tally-everyone-answers>>
   (defun problem-b ()
     (format t "Problem 06 B: ~a~%"
             (tally-everyone-answers (gather-groups *input*))))

@@ -41,7 +41,7 @@ support for lisp installed you can run this by:
   (in-package :aoc-2020-02)
 #+END_SRC
 ** Input
-I wrote tw versions of the parser. The first, a hack just splitting
+I wrote two versions of the parser. The first, a hack just splitting
 the string on spaces and then doing some cleanup:
 #+BEGIN_SRC lisp :tangle no :results silent
   (defun parse-input (line)

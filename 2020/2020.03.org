@@ -148,7 +148,7 @@ Repeat the above with additional slopes and multiply the result:
 ** Ada
 I see no reason to use a majorly different algorithm than above. I'm
 making some assumptions based on my input regarding ranges and
-sizes. Like, I know there are 31 columns and 323 rows so I'll hardcode
+sizes. Like, I know there are 31 columns and 323 rows so I'll hard code
 those into places.
 #+BEGIN_SRC ada :tangle ada/day03.adb
   with AOC2020.Day03;

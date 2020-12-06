@@ -136,7 +136,7 @@ Ada. Which also wasn't bad.
 Originally I solved this with a quadratic and cubic version for each
 part. Based on a suggestion from reznikmm and various posts on
 r/adventofcode I replaced the vector implementation with a set. This
-improved perfrormance substantially as each part lost one loop over
+improved performance substantially as each part lost one loop over
 the vector, which was replaced with a simple call to =Contains=.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day01.ads
   package AOC2020.Day01 is
