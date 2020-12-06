@@ -41,7 +41,6 @@ package body AOC2020.Day06 is
       C : Character;
    begin
       Open (F, In_File, "../input/06.txt");
-      --Open (F, In_File, "test6.txt");
       loop
          if End_Of_Line (F) or End_Of_File (F)
          then
