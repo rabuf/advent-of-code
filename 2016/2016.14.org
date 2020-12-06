@@ -1,0 +1,164 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 14
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-14)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+  (unless (find-package :sb-md5)
+    (ql:quickload "sb-md5"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-14
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-14)
+#+END_SRC
+** Input
+Today's input is just a string so skipping reading a file.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* "jlmsuwbz")
+#+END_SRC
+** Part 1
+This one will be a bit tedious. Taking the input, append a number
+starting at 0, and calculate the checksum.
+
+If it contains a digit repeated 3 times in a row, look to the next
+1000 checksums and see if that same digit is repeated *5* times in a
+row. If it is, we have a key. If not, we don't. Find the index of the
+64th key.
+
+I'm trying to think of a good way to do this without doing a ton of
+repeat work. I'll search through looking for triples and
+quintuples. All triples will be marked as potentials. When a quintuple
+is found within the right time (1000 indexes) then the potential will
+be moved to a list of keys. Once there are 64 of them, we're done.
+#+NAME: find-keys
+#+BEGIN_SRC lisp :results silent
+  (defun md5hash (string)
+    (format nil "~{~(~2,'0x~)~}"
+            (coerce (sb-md5:md5sum-string string) 'list)))
+  (defun possible-key (string)
+    (let ((matches (cl-ppcre:all-matches-as-strings "((.)\\2\\2)" string)))
+      (when matches
+        (first (loop for m in matches
+                  collect (char m 0))))))
+
+  (defun possible-confirmation (string)
+    (let ((matches (cl-ppcre:all-matches-as-strings "((.)\\2\\2\\2\\2)" string)))
+      (when matches
+        (loop for m in matches
+           collect (char m 0)))))
+
+  (defun find-keys (string &key (limit 10) (stretching 0))
+    (loop for i from 0 to 100000
+       for k = (loop for j from 0 below stretching
+                  with hash = (md5hash (format nil "~A~A" string i))
+                  do (setf hash (md5hash hash))
+                  finally (return hash))
+       for p = (possible-key k)
+       for c = (possible-confirmation k)
+       for min-viable = (- i 1000)
+       with possible = (make-hash-table)
+       with keys = (make-array 100 :fill-pointer 0)
+       do (remhash (- i 1001) possible) ;; minimizes the set of possibles
+       if c
+       do (loop for j being the hash-keys in possible using (hash-value v)
+             if (and (< (- i 1000) j i)
+                     (member v c))
+             do (vector-push-extend j keys)
+               ;;(format t "~A is a key ~a verified by ~A ~a~%" j v i c)
+               (remhash j possible))
+         (sort keys #'<)
+       if p
+       do (setf (gethash i possible) p)
+       while (or (< (length keys) limit)
+                 (<= min-viable (aref keys (1- limit))))
+       finally (return (values (aref keys (1- limit)) (length keys) keys))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<find-keys>>
+  (defun problem-a () (format t "Problem 14 A: ~a~%" (find-keys *input* :limit 64)))
+#+END_SRC
+** Part 2
+This part uses key stretching (repeated md5sums). I'm sure I could
+make this faster somehow, but I'm not going to. I'm just happy to be
+done with it.
+
+I had an issue in part 1 where I got lucky with the answer. The item
+at index (in the array) 64 was the correct answer because I had an
+extra item earlier. I should have been retrieving the value from
+index 63. The extra item was there because I missed a line in the
+spec: only the first triple in a possible key should be used for
+verifying it, not any triple in the key. Removing that one and fixing
+the indexing means my solution is now actually correct, though very
+slow for part 2 because of the repeated hashing.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (find-keys *input* :limit 64 :stretching 2016)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 14 A: 35186
+: Problem 14 B: 22429
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.14)
+  (in-suite aoc.2016.14)
+
+  (run! 'aoc.2016.14)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
