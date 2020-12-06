@@ -160,7 +160,7 @@ library for some parts which should be more efficient.
   (defun problem-a () (format t "Problem 10 A: ~a~%" (best-visibility *input*)))
 #+END_SRC
 ** Part 2
-Well, this'll be interesting. The challeng is to destroy all
+Well, this will be interesting. The challenge is to destroy all
 asteroids. Or, really, identify which would be the 200th destroyed
 asteroid.
 

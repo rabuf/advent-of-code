@@ -114,7 +114,7 @@ return the value of the card at position 2020. The only way to do this
 one is to identify a pattern or the math behind the permutations.
 
 Each shuffle operation is a mathematical function. If I can figure out
-the right way to do taht, then I can compute the result for an
+the right way to do that, then I can compute the result for an
 individual element rather than needing to apply it to the whole list
 (impossible on my machine).
 

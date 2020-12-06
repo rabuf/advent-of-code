@@ -119,7 +119,7 @@ effort involved in the DFS I intend to use for the actual solution.
                     (graph:add-edge graph (list k (+ d k))))))
       graph))
   (defun clear-path (objects path)
-    "If the PATH consistns only of empty spaces, returns T. If the path
+    "If the PATH consists only of empty spaces, returns T. If the path
   is a single edge, returns T. Otherwise, NIL."
     (cond ((= 1 (length path)) t)
           ((and (gethash (caar path) objects)
@@ -173,7 +173,7 @@ effort involved in the DFS I intend to use for the actual solution.
       (remove '@ start :count nil)))
 #+END_SRC
 
-I've way overcomplicated my solution. I think. Anyways, the above will
+I've way over complicated my solution. I think. Anyways, the above will
 produce a map of just the keys, entrance, and doors. It takes 14
 seconds, oops. The last loop is what actually takes so long.
 #+NAME: problem-a

@@ -75,7 +75,7 @@ Don't take the (these were fun):
 
 Mug and shell aren't enough weight.
 
-At some point I'd gathered all of thes:
+At some point I'd gathered all of these:
 - mug
 - sand
 - weather machine
@@ -112,7 +112,7 @@ combination:
 - sand
 
 All are too much. Not enough without the mug, sand. Festive hat still
-leaves me too heavy. Found out I'd missed an item, the easter
+leaves me too heavy. Found out I'd missed an item, the Easter
 egg. Nice.
 
 I want to generate every possible set of items and try them all. There

@@ -35,7 +35,7 @@ support for lisp installed you can run this by:
   (in-package :aoc-2019-05)
 #+END_SRC
 ** Input
-Another Intcode prorgam. It's one line of comma separated values.
+Another Intcode program. It's one line of comma separated values.
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)

@@ -123,14 +123,14 @@ It's another Intcode program. I'll borrow some snippets from Day 5.
               (99 (return-from intcode))))))
 #+END_SRC
 
-Ok, so the program today is an Apmlifier. There need to be 5 instances
+OK, so the program today is an Amplifier. There need to be 5 instances
 of them, run in series. Each takes two inputs:
 - Phase Setting :: [0-4] each is used once.
 - Input :: The input for the first amplifier is 0, then the rest
            receive the output of the preceding amplifier.
 
 I have an idea of making this fully automatic with using I/O streams
-shared between the different aplifiers, but I'll go easy on myself.
+shared between the different amplifiers, but I'll go easy on myself.
 #+NAME: amplifiers
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun amplifiers (program)
@@ -283,7 +283,7 @@ Threads.
         (pop-queue (first queues)))))
 #+END_SRC
 
-Ok, now that that's done, let's rewrite part 1 using this version of
+OK, now that that's done, let's rewrite part 1 using this version of
 amplifiers:
 #+NAME: amplifiers
 #+BEGIN_SRC lisp :noweb yes :results silent

@@ -56,7 +56,7 @@ support for lisp installed you can run this by:
 Input to the drone is a pair of numbers (X and Y coordinates, positive
 ranging from $[0-50]$ each. The output is 0 or 1 depending on whether
 the tractor beam affects the drone at that location. I'm not sure if
-the program loops forever or not, going ot run it real quick.
+the program loops forever or not, going OT run it real quick.
 
 The intcode program terminates immediately. So this is a simple loop
 to test all 2500 locations.

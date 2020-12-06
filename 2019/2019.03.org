@@ -61,7 +61,7 @@ wires.
     (read-input "input/03.txt"))
 #+END_SRC
 ** Part 1
-Find the intersection point nearest (manhattan distance) the starting
+Find the intersection point nearest (Manhattan distance) the starting
 point of the two wires.
 #+NAME: solve-a
 #+BEGIN_SRC lisp :noweb yes :results silent

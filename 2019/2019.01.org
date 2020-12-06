@@ -68,7 +68,7 @@ the amount of fuel for all modules.
 
 I had explored [[https://www.cs.cmu.edu/Groups/AI/html/cltl/clm/node347.html][Series]] in the past but not gotten far, just didn't have
 suitable problems to play with. I saw a Haskell solution and realized
-that Series allowed for a simlilarly compact, yet clear,
+that Series allowed for a similarly compact, yet clear,
 solution. Here it is:
 #+BEGIN_SRC lisp :noweb yes
   (time (series:collect-sum (series:map-fn t #'calc-fuel (series:scan-file "input/01.txt"))))

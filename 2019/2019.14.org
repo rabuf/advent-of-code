@@ -122,7 +122,7 @@ The following should be the right Parseq rules to parse it, let's see:
   (defun problem-a () (format t "Problem 14 A: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
-Now we have a cap on how much ore we can use. what's the maximimum
+Now we have a cap on how much ore we can use. what's the maximum
 amount of fuel we can produce, given that we can only use so much ore.
 
 The code above is slow. The code below is fast. It disagrees on the

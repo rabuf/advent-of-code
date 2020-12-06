@@ -94,7 +94,7 @@ Several optimizations help here. The first is the insight that only
 the digits from offset forward matter. The second is that, by the time
 of the offset, there's no reason to compute the pattern any more. Each
 number is the sum of itself and all subsequent numbers. Which leads to
-the final optimization. THe sum can be run in reverse, the value plus
+the final optimization. The sum can be run in reverse, the value plus
 its successor can be added together to compute the next value at a
 location.
 #+NAME: solve-b

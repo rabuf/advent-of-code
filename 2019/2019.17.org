@@ -127,9 +127,9 @@ Via simple search and replace I arrived at this sequence of movements:
 #+END_EXAMPLE
 
 All of this works, but I'd like to find the program automatically so
-that I could solve automatically for any input. I'm gonig to make a
+that I could solve automatically for any input. I'm going to make a
 couple new things. One is as struct storing the grid from the initial
-execution (part 1), and the position and direction of the vacuume.
+execution (part 1), and the position and direction of the vacuum.
 
 The below is a long ugly sequence of code that does the job. I could
 skip the string-to-list and back stuffs if I add in logic to ensure
