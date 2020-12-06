@@ -167,7 +167,7 @@ identified by the input number, and then calculate it's distance to 1
 
 Now we have to convert the input into a position. It's helpful to note
 that all *odd* perfect squares occur on a diagonal moving
-down-and-right from 1. All *even* perfect squares occor on a diagonal
+down-and-right from 1. All *even* perfect squares occur on a diagonal
 moving up-and-left from 4. If we know which two perfect squares are
 nearest the input then we can identify it's precise location by moving
 along the path from (lower square) to (upper square).
