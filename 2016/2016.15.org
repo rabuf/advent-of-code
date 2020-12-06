@@ -1,0 +1,122 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 15
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-15)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-15
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-15)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/15.txt"))
+#+END_SRC
+** Part 1
+The input is a set of rotating disks. Each has a particular rotation
+rate (2nd number) and current position (4th number). The task is to
+find at what time to drop a ball. The ball drops through each disk in
+1 second, it needs to pass through each disk when it's at position 0.
+
+I'll solve this with a loop, counting up from time 0. The answer will
+be $t$ such that for each disk $t+d+p \equiv 0 (\mod s)$ where d is
+the disk number, p its position at time 0, and s its size.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun safe-time-p (time disk)
+    (destructuring-bind (d s _ p) disk
+      (zerop (mod (+ time d p) s))))
+  (defun first-drop-time (disks)
+    (loop for time from 0
+       if (every #'(lambda (d) (safe-time-p time d)) disks)
+       do (return time)))
+  (defun problem-a () (format t "Problem 15 A: ~a~%" (first-drop-time *input*)))
+#+END_SRC
+** Part 2
+A new disk has been placed at the end of all the disks, and we need to
+know what the new proper drop time will be.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun add-disk (disks size time position)
+    (let ((d (list (1+ (length disks)) size time position)))
+      (append disks (list d))))
+  (defun problem-b () (format t "Problem 15 B: ~a~%" (first-drop-time (add-disk *input* 11 0 0))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 15 A: 121834
+: Problem 15 B: 3208099
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.15)
+  (in-suite aoc.2016.15)
+
+  (run! 'aoc.2016.15)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
