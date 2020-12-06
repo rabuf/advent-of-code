@@ -49,7 +49,7 @@ The input is a list of numbers, so parsing is easy enough. I'll change
     (read-input "input/17.txt"))
 #+END_SRC
 ** Part 1
-The task is to fit 150 liters of egg nog into the containers in the
+The task is to fit 150 liters of eggnog into the containers in the
 input (their sizes are the numbers from the input file). The task is
 to count all the ways to store 150 liters in the provided containers.
 

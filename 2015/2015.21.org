@@ -47,7 +47,7 @@ support for lisp installed you can run this by:
     (read-input "input/21.txt"))
 #+END_SRC
 ** Part 1
-The input is actually just the start. There're are three data sets
+The input is actually just the start. There are three data sets
 that also need to be used.
 #+BEGIN_EXAMPLE
   Weapons:    Cost  Damage   Armor
@@ -73,7 +73,7 @@ that also need to be used.
   Defense +3   80     0       3
 #+END_EXAMPLE
 
-The player starts with 0 attack or damage and 100 hitpoints. The
+The player starts with 0 attack or damage and 100 hit points. The
 question is, what's the minimum they need to spend to ensure victory
 over their opponent. From the input file the game's boss has HP 100,
 Damage 8, Armor 2.

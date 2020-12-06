@@ -23,7 +23,7 @@ support for lisp installed you can run this by:
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
-#+BEGIN_SRC lisp :noweb yes :results silent
+#+BEGIN_SRC lisp :Web yes :results silent
   <<packages>>
   (defpackage :aoc-2015-19
     (:use :common-lisp
@@ -180,7 +180,7 @@ Perfect, just 4 like we wanted.
 #+END_SRC
 ** Part 2
 Part 2 has us start with just a single symbol "e" and try to produce
-the target string in the fewest possible subsitutions. I figure a
+the target string in the fewest possible substitutions. I figure a
 breadth first search? Apply each rule to the current string, see if
 any of them match. Repeat with each of the newly generated strings but
 increase the depth to track how many times rules have been applied.

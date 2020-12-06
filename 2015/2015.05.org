@@ -120,6 +120,6 @@ Now, a nice string is one with all of the following properties:
 : Problem 05 B: 55
 ** Thoughts
 =iter= has been very handy for solving lots of problems, but sometimes
-it's overkill (or longwinded) compared to using built-ins like
+it's overkill (or long-winded) compared to using built-ins like
 =count-if=. I need to start trying to use those functions for a while
 to relearn them.

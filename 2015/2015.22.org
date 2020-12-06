@@ -55,7 +55,7 @@ boss using the least mana.
 
 The spells:
 - Magic Missile :: Cost 53, 4 damage, Duration 0
-- Drain :: Cost 73, 2 damage, 2 healng, duration 0
+- Drain :: Cost 73, 2 damage, 2 healing, duration 0
 - Shield :: Cost 113, armor +7, duration 6
 - Poison :: Cost 173, 3 damage/turn, duration 6
 - Recharge :: Cost 229, 101 mana/turn, duration 5
@@ -185,7 +185,7 @@ changes.
 #+END_SRC
 
 The player casts a spell on their turn. The effect is determined by
-the type of the spell cast. =drain= and =magic-missile= ar
+the type of the spell cast. =drain= and =magic-missile= are
 instant. The rest are effects so they're added to the effect set, if
 permitted.
 #+NAME: cast-spell

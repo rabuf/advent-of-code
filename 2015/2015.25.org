@@ -55,7 +55,7 @@ The input for today is a line in a file, but we only need the numbers.
     (read-input "input/25.txt"))
 #+END_SRC
 ** Part 1
-The numbers are coordinates on an infinite grid. The posiiton
+The numbers are coordinates on an infinite grid. The position
 corresponds to a "code" needed to run Santa's weather machine. The
 coordinates correspond to a value to raise a number by. Here's the
 formula:

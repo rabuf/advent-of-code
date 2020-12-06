@@ -113,7 +113,7 @@ That was easy enough. Now we need to actually parse this.
 ** Part 1
 The input is now converted to a useful set of information. Each input
 is a list containing a command (first element) and a sink. I will move
-everything into a hashtable using the sink as the key.
+everything into a hash table using the sink as the key.
 #+NAME: wiring-table
 #+BEGIN_SRC lisp :results none
   (defun wiring-table (wiring)
@@ -122,7 +122,7 @@ everything into a hashtable using the sink as the key.
             (setf (gethash sink table) cmd))
       table))
 #+END_SRC
-Alright, so now everything is directly queryable. I'm going to
+Alright, so now everything is directly query-able. I'm going to
 recursively call over this table. The challenge problem is to know the
 value of the wire 'a' based on the wiring diagram. So we will start there.
 #+NAME: wire-value

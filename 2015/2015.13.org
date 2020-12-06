@@ -73,7 +73,7 @@ support for lisp installed you can run this by:
     (read-input "input/13.txt"))
 #+END_SRC
 ** Part 1
-Every pair has an associated happiness madifiers. In my input, Alice
+Every pair has an associated happiness modifiers. In my input, Alice
 goes up in happiness if she's next to Bob (by 2) but down if she's
 next to Eric (by -75).
 
@@ -100,7 +100,7 @@ Now we need to make every permutation of these.
                append (mapcar (lambda (l) (cons element l))
                               (all-permutations (remove element list)))))))
 #+END_SRC
-Ok, so now we can iterate over those and calculate the best order for
+OK, so now we can iterate over those and calculate the best order for
 maximum happiness.
 #+NAME: maximum-happiness
 #+BEGIN_SRC lisp :results silent

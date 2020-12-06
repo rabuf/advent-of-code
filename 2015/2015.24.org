@@ -60,7 +60,7 @@ The input is a sequence of numbers.
 #+END_SRC
 ** Part 1
 Part 1 is to partition the list of weights into 3 parts of equal
-weight (sum), and calculate the product of the firsT (fewest items)
+weight (sum), and calculate the product of the first (fewest items)
 partition. The goal is to minimize items first and then QE.
 
 #+NAME: quantum-entanglement
