@@ -1,93 +1,68 @@
 #+STARTUP: indent contents
 #+OPTIONS: num:nil toc:nil
-* Day 01
-** Executing this code
-If you have a lisp installation, emacs, org-mode, and org-babel
-support for lisp installed you can run this by:
-1. Starting slime (=M-x slime=)
-2. Typing =C-c C-c= in the block [[initialize][initialize]].
-3. In the repl type =(in-package :aoc-2017-01)=
-4. Typing =C-c C-c= in the block [[answers][answers]]
-** Initial stuffs
-*** Packages to load
-#+NAME: packages
-#+BEGIN_SRC lisp :results silent
-  (unless (find-package :cl-ppcre)
-    (ql:quickload "cl-ppcre"))
-  (unless (find-package :iterate)
-    (ql:quickload "iterate"))
-  (unless (find-package :parseq)
-    (ql:quickload "parseq"))
-  (unless (find-package :fiveam)
-    (ql:quickload "fiveam"))
-#+END_SRC
-*** Create package for this day
-#+NAME: initialize
-#+BEGIN_SRC lisp :noweb yes :results silent
-  <<packages>>
-  (defpackage :aoc-2017-01
-    (:use :common-lisp
-          :iterate
-          :parseq
-          :fiveam)
-    (:export :problem-a
-             :problem-b))
-  (in-package :aoc-2017-01)
-#+END_SRC
+* Day 1
 ** Input
-#+NAME: read-input
-#+BEGIN_SRC lisp :results silent
-  (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
-#+END_SRC
-#+NAME: input
-#+BEGIN_SRC lisp :noweb yes :results silent
-  (defparameter *input*
-    (read-input "input/01.txt"))
+The input is a sequence of numbers, all entered on one line. For ease
+of solving this problem, it's best to interpret this as a string and
+split it into a list of individual numbers.
+#+NAME: day1-input
+#+BEGIN_SRC lisp
+  (defvar *input-2017-1*
+    (with-open-file (s "input/1.txt")
+      (let ((input (read-line s)))
+        (loop for c across input
+              collect (- (char-int c) 48)))))
 #+END_SRC
 ** Part 1
-#+NAME: problem-a
-#+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 01 A: ~a~%" (identity *input*)))
+To solve this, I take the input and create a rotated version (first
+digit becomes last).
+
+Then compare each digit with its successor. If they match, keep that
+value, otherwise, keep 0.
+#+NAME: simple-captcha
+#+BEGIN_SRC lisp
+  (defun simple-captcha (digits)
+    (let ((rotated (append (rest digits) (list (first digits)))))
+      (reduce #'+  (mapcar (lambda (a b)
+                             (if (= a b) a 0))
+                           digits rotated))))
+#+END_SRC
+#+NAME: problem-1a
+#+BEGIN_SRC lisp :noweb yes
+  <<simple-captcha>>
+  (defun problem-2017-1a ()
+    (format t "Problem 1a: ~a~%" (simple-captcha *input-2017-1*)))
 #+END_SRC
 ** Part 2
-#+NAME: problem-b
-#+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 01 B: ~a~%" (identity *input*)))
+For part 2, we need to split the digits into two halves rather than a
+simple rotation.
+#+NAME: complex-captcha
+#+BEGIN_SRC lisp
+  (defun complex-captcha (digits)
+    (let* ((n (/ (length digits) 2))
+           (front (reverse (nthcdr n (reverse digits))))
+           (back (nthcdr n digits))
+           (rotated (append back front)))
+      (reduce #'+  (mapcar (lambda (a b)
+                             (if (= a b) a 0))
+                           digits rotated))))
+#+END_SRC
+#+NAME: problem-1b
+#+BEGIN_SRC lisp :noweb yes
+  <<complex-captcha>>
+  (defun problem-2017-1b ()
+    (format t "Problem 1b: ~a~%" (complex-captcha *input-2017-1*)))
 #+END_SRC
 ** Putting it all together
-#+NAME: structs
-#+BEGIN_SRC lisp :noweb yes :results silent
-
-#+END_SRC
-#+NAME: functions
-#+BEGIN_SRC lisp :noweb yes :results silent
-  <<read-input>>
-#+END_SRC
-#+NAME: answers
-#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2017.01.lisp
-  <<initialize>>
-  <<structs>>
-  <<functions>>
-  <<input>>
-  <<problem-a>>
-  <<problem-b>>
-  (problem-a)
-  (problem-b)
+#+NAME: day1
+#+BEGIN_SRC lisp :noweb no-export :results output :exports both
+  <<day1-input>>
+  <<problem-1a>>
+  <<problem-1b>>
+  (problem-2017-1a)
+  (problem-2017-1b)
 #+END_SRC
 ** Answer
-#+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
-** Test Cases
-#+NAME: test-cases
-#+BEGIN_SRC lisp :results output :exports both
-  (def-suite aoc.2017.01)
-  (in-suite aoc.2017.01)
-
-  (run! 'aoc.2017.01)
-#+END_SRC
-** Test Results
-#+RESULTS: test-cases
-** Thoughts
+#+RESULTS: day1
+: Problem 1a: 1144
+: Problem 1b: 1194
