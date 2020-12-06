@@ -1,0 +1,199 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 13
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-13)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-13
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-13)
+#+END_SRC
+** Input
+Today's input is just a number so I'm hardcoding it here rather than
+loading from a file.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* 1362)
+#+END_SRC
+** Part 1
+We're in a maze of cubicles. There's a formula for calculating whether
+a space is a wall or open.
+
+The formula is : $x*x+3*x+2*x*y+y+y*y+input$. Count the number of 1
+bits in the binary representation (=logcount= in Common Lisp). If this
+is odd, it's a wall; if this is even, it's open.
+
+From there we have to find the shortest route to =(31,39)=.
+
+I'll represent the grid with a hash table, complex numbers for keys
+(it's convenient). Starting from the first space =(1,1)= marked as a
+distance of 0, I'll start a search through the maze using a breadth
+first search. A DFS runs the risk of going off into the weeds since
+the maze size is unbounded. If a space has been visited, it'll already
+have a number or be marked as a wall.
+#+NAME: shortest-path
+#+BEGIN_SRC lisp :results silent
+  (defun cell-type (x y &optional (fav 1362))
+    (let ((c (+ fav
+                (* x x)
+                (* 3 x)
+                (* 2 x y)
+                y
+                (* y y))))
+      (if (evenp (logcount c))
+          :open
+          :wall)))
+
+  (defun print-grid (x y &optional (fav 1362))
+    (loop for j from 0 to y
+       do (loop for i from 0 to x
+             do (format t "~a"
+                        (case (cell-type i j fav)
+                          (:open #\.)
+                          (:wall #\#))))
+         (format t "~%")))
+  (defun enqueue (list val)
+    "An inefficient but sufficient ENQUEUE function placing VAL at the
+  end of LIST."
+    (cond (list
+           (setf (cdr (last list)) (list val))
+           list)
+          (t (list val))))
+
+
+  (defun shortest-path (x y &optional (fav 1362))
+    (let ((grid (make-hash-table))
+          (queue (list #C(1 1))))
+      (setf (gethash #C(1 1) grid) 0)
+      (loop
+         until (null queue)
+         until (gethash (complex x y) grid)
+         for p = (pop queue)
+         do (loop
+               for d in '(#C(1 0) #C(0 1) #C(-1 0) #C(0 -1))
+               for c = (+ p d)
+               for v = (gethash c grid (cell-type (realpart c) (imagpart c) fav))
+               do (cond ((eql :open v) (setf (gethash c grid) (1+ (gethash p grid))))
+                        ((numberp v) (setf (gethash c grid)
+                                           (min v (1+ (gethash p grid))))))
+                 (when (eql :open v)
+                   (setf queue (enqueue queue c)))))
+      (gethash (complex x y) grid)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 13 A: ~a~%" (shortest-path 31 39 *input*)))
+#+END_SRC
+** Part 2
+Well, after fixing a couple logical errors I'm now on to part 2. The
+challenge here is to find how many spaces are reachable within 50. I'm
+going to do some copy/pasta. I'll use the same algorithm as above, but
+add a bounds check so that it stops searching. Then loop over the
+resulting grid and tally the number of reachable spaces.
+#+NAME: within-distance
+#+BEGIN_SRC lisp :results silent
+  (defun bounded-shortest-path (&key (fav 1362) (limit 50))
+    (let ((grid (make-hash-table))
+          (queue (list #C(1 1))))
+      (setf (gethash #C(1 1) grid) 0)
+      (loop
+         until (null queue)
+         for p = (pop queue)
+         do (loop
+               for d in '(#C(1 0) #C(0 1) #C(-1 0) #C(0 -1))
+               for c = (+ p d)
+               for v = (gethash c grid (cell-type (realpart c) (imagpart c) fav))
+
+               do (cond ((eql :open v) (setf (gethash c grid) (1+ (gethash p grid))))
+                        ((numberp v) (setf (gethash c grid)
+                                           (min v (1+ (gethash p grid))))))
+                 (when (and (eql :open v) (<= (gethash c grid) limit))
+                   (setf queue (enqueue queue c)))))
+      grid))
+
+  (defun tally-within-distance (&key (fav 1362) (limit 50))
+    (let ((g (bounded-shortest-path :fav fav :limit limit)))
+      (loop for j from 0 to limit
+         with count = 0
+         do (loop for i from 0 to limit
+               for c = (complex i j)
+               for v = (gethash c g)
+               do (when (and (numberp v)
+                             (<= v limit))
+                    (incf count)))
+         finally (return count))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 13 B: ~a~%" (tally-within-distance)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<shortest-path>>
+  <<within-distance>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 13 A: 82
+: Problem 13 B: 138
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.13)
+  (in-suite aoc.2016.13)
+
+  (run! 'aoc.2016.13)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
