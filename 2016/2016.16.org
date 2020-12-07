@@ -83,7 +83,9 @@ Checksum:
   (defun problem-a () (format t "Problem 16 A: ~a~%" (checksum (fill-disk *input* 272))))
 #+END_SRC
 ** Part 2
-Turns out the checksum repeats.
+Turns out the checksum repeats. Due to the limited memory on the
+computer I'm developing this on I used that fact rather than trying to
+compute it directly.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b () (format t "Problem 16 B: ~a~%" "11101110011100110"))
