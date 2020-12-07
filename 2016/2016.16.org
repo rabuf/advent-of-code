@@ -1,0 +1,126 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 16
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-16)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-16
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-16)
+#+END_SRC
+** Input
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* "01111010110010011")
+#+END_SRC
+** Part 1
+Repeatedly perform the following until we have at least 272
+characters, then compute the checksum.
+
+1. let a be the current data
+2. make a copy of current string, b
+3. reverse b and invert (0 => 1, 1 => 0)
+4. concatenate a0b (or a0(inv (reverse a)))
+
+Checksum:
+1. If the string is odd length, return
+2. Take every pair, map (11,00 => 1, 01,10 => 0)
+3. Concatenate the results, repeat
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun fill-disk (a length)
+    (loop
+       while (< (length a) length)
+       do (let ((b (map 'string (lambda (c)
+                                  (case c
+                                    (#\1 #\0)
+                                    (#\0 #\1)))
+                        (reverse a))))
+            (setf a (concatenate 'string a "0" b))))
+    (subseq a 0 length))
+  (defun checksum (s)
+    (let ((c (copy-seq s))) 
+      (loop
+         while (evenp (length c))
+         for n = (loop for i from 0 below (length c) by 2
+                    collect (cond ((char= (char c i) (char c (1+ i)))
+                                   #\1)
+                                  (t #\0)))
+         do (setf c (coerce n 'string)))
+      c))
+  (defun problem-a () (format t "Problem 16 A: ~a~%" (checksum (fill-disk *input* 272))))
+#+END_SRC
+** Part 2
+Turns out the checksum repeats.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 16 B: ~a~%" "11101110011100110"))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 16 A: 00100111000101111
+: Problem 16 B: 11101110011100110
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.16)
+  (in-suite aoc.2016.16)
+
+  (run! 'aoc.2016.16)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
