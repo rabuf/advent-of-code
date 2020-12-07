@@ -70,16 +70,6 @@ Each line specifies a bag and the bags it can hold. Time to break out
                       (elt contains 1)))))
 #+END_SRC
 
-#+NAME: count-direct
-#+BEGIN_SRC lisp :results silent
-  (defun count-direct (rules bag)
-    (count-if (lambda (r)
-                (some (lambda (c) (print c) (print (second c))
-                        (string= bag (second c)))
-                      (second r)))
-              rules))
-#+END_SRC
-
 I'm moving slow today, so no reason to rush now. I want a count of,
 directly or indirectly, how many bags can contain a =shiny gold=
 bag. No need to bother with numbers. I'm going to do my usual hash
