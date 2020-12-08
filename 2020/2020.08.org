@@ -180,7 +180,7 @@ on certain conditions. In the first one, the program runs until an
 instruction repeats, we return the accumulator *before* the repeated
 instruction. In the second, we turn nops to jmps and jmps to nops (but
 only one) until the program terminates properly (otherwise it'll still
-repeat an instruction.
+repeat an instruction) and return the last accumulator value.
 *** Runner
 Simple runner.
 #+BEGIN_SRC ada :tangle ada/day08.adb
