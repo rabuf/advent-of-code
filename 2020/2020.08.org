@@ -1,0 +1,226 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 08
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-08)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-08
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-08)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (cl-ppcre:split " " line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/08.txt"))
+#+END_SRC
+** Part 1
+Well, it was inevitable. It's a machine simulation.
+
+Three instructions:
+- jmp :: jumps by whatever number offset follows
+- nop :: does nothing
+- acc :: adds value to accumulator register
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun simulate-a (input)
+    (loop with pc = 0
+       until (<= (length input) pc)
+       with acc = 0
+       with executed = (make-hash-table)
+       do (when (gethash pc executed)
+              (return acc))
+         (setf (gethash pc executed) t)
+         (cond ((string= "nop" (first (elt input pc)))
+                (incf pc))
+               ((string= "jmp" (first (elt input pc)))
+                (incf pc (parse-integer (second (elt input pc)))))
+               ((string= "acc" (first (elt input pc)))
+                (incf acc (parse-integer (second (elt input pc))))
+                (incf pc)))))
+  (defun problem-a () (format t "Problem 08 A: ~a~%" (simulate-a *input*)))
+#+END_SRC
+** Part 2
+I need to change a nop to jmp or jmp to nop (only one) in the program
+so that it terminates. When it terminates normally return the value of
+the accumulator.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun simulate-b (input)
+    (loop for i from 0 below (length input)
+       if (or (string= "nop" (first (elt input i)))
+              (string= "jmp" (first (elt input i))))
+       do (let ((modified (copy-tree input)))
+            (cond ((string= "nop" (first (elt input i)))
+                   (setf (car (nth i modified)) "jmp"))
+                  ((string= "jmp" (first (elt input i)))
+                   (setf (car (nth i modified)) "nop")))
+            (loop named simulator
+               with pc = 0
+               with acc = 0
+               with executed = (make-hash-table)
+               if (= (length modified) pc)
+               do (return-from simulate-b acc)
+               do (when (gethash pc executed)
+                    (return-from simulator))
+                 (setf (gethash pc executed) t)
+                 (cond ((string= "nop" (first (elt modified pc)))
+                        (incf pc))
+                       ((string= "jmp" (first (elt modified pc)))
+                        (incf pc (parse-integer (second (elt modified pc)))))
+                       ((string= "acc" (first (elt modified pc)))
+                        (incf acc (parse-integer (second (elt modified pc))))
+                        (incf pc)))))))
+  (defun problem-b () (format t "Problem 08 B: ~a~%" (simulate-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 08 A: 1709
+: Problem 08 B: 1976
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.08)
+  (in-suite aoc.2020.08)
+  (defparameter *test-input*
+                 '(("nop" "+0")
+                   ("acc" "+1")
+                   ("jmp" "+4")
+                   ("acc" "+3")
+                   ("jmp" "-3")
+                   ("acc" "-99")
+                   ("acc" "+1")
+                   ("jmp" "-4")
+                   ("acc" "+6")))
+  (test part-1
+    (is (= 5 (simulate-a *test-input*))))
+  (test part-2
+    (is (= 8 (simulate-b *test-input*))))
+  (run! 'aoc.2020.08)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.08
+:  Running test PART-1 .
+:  Running test PART-2 .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day08.adb
+  with AOC2020.Day08;
+  procedure Day08 is
+  begin
+    null;
+  end Day08;
+#+END_SRC
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day08.ads
+  package AOC2020.Day08 is
+     procedure Run;
+  end AOC2020.Day08;
+#+END_SRC
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day08.adb
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+  package body AOC2020.Day08 is
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        null;
+     end Run;
+  end AOC2020.Day08;
+#+END_SRC
+
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day08
+  ./day08
+#+END_SRC
+
+#+RESULTS:
