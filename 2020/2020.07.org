@@ -199,54 +199,212 @@ recursive function.
 :     Fail: 0 ( 0%)
 ** Thoughts
 ** Ada
+I made a stupid mistake in this code today. I didn't consider the
+scope of the inner container (originally it was a vector, I turned it
+into an order map which was better for performance
+anyways). Basically, every time I read a new line, I added all its
+contents to the same shared container for every bag. Naturally, that
+did *not* work well. Once I realized I was a moron, I put in a *copy*
+of the container. If I had a local declare block inside the read line
+loop, this wouldn't have been an issue at all. Oops.
+*** Runner
 Simple runner.
 #+BEGIN_SRC ada :tangle ada/day07.adb
   with AOC2020.Day07;
   procedure Day07 is
   begin
-    null;
+    AOC2020.Day07.Run;
   end Day07;
 #+END_SRC
+*** Specification
 Specification for solution.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day07.ads
   package AOC2020.Day07 is
      procedure Run;
   end AOC2020.Day07;
 #+END_SRC
-Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2020-day07.adb
-  with GNAT.Regpat; use GNAT.Regpat;
-  with Text_IO; use Text_IO;
+*** Implementation
+The way I implemented this in Lisp may not translate directly here,
+but I'll try. Ada has several generic collections, specifically
+[[http://www.ada-auth.org/standards/aarm12_w_tc1/html/AA-A-18-6.html][Ordered Maps]] for today.
+
+I'll create a custom record as well, for today I'm actually going to
+show off a bit of literate programming.
+**** with/use
+These are the packages used today.
+
+1. =Ordered_Maps= - The key will be a =String=, the description of a
+   bag, and the value will be another map.
+2. =Text_IO= - generally useful if you want to display anything.
+3. =Ada.Strings.Fixed= - contains functions like =Index=, useful for
+   parsing.
+#+NAME: with-use
+#+BEGIN_SRC ada
+  with Ada.Containers.Ordered_Maps;  -- 1
+  with Text_IO; use Text_IO;         -- 2
+  with Ada.Strings.Fixed;            -- 3
+  use Ada.Strings.Fixed;
+#+END_SRC
+**** Types and Data Structures
+To ensure enough room in each description I'm just going to give them
+80 characters. I know, from inspection, this is more than enough.
+#+NAME: description-type
+#+BEGIN_SRC ada
+  subtype Description_T is String(1..80);
+#+END_SRC
+Since each bag contains 0 or more other bags, we'll store what they
+contain in another map. This will be handy for iteration later, too.
+#+NAME: content-map
+#+BEGIN_SRC ada
+  package Content_Maps is new Ada.Containers.Ordered_Maps
+    (Element_Type => Natural,
+     Key_Type => Description_T);
+#+END_SRC
+Since Description_T is "just" a string, it inherits the string <
+operator (needed for the Key_Type). The Map = operator isn't directly
+visible so has to be passed as a parameter to the generic package.
+#+NAME: description->contains
+#+BEGIN_SRC ada
+  package Bag_Maps is new Ada.Containers.Ordered_Maps
+    (Element_Type => Content_Maps.Map,
+     Key_Type => Description_T,
+     "=" => Content_Maps."=");
+#+END_SRC
+At this point, I believe all needed types have been constructed. The
+hard part (since I know the algorithms I intend to use) will be
+[[Parsing][parsing]].
+**** Parsing
+Each line consists of the form:
+#+BEGIN_EXAMPLE
+  <description> bags contain( <number> <description> bags?,?| no other bags)+.
+#+END_EXAMPLE
+I was going to use regular expressions, but I found that I didn't need
+it. I developed the following iteratively. It may have been easier if
+I'd used unbounded strings, but this seems to be working.
+#+NAME: parse-line
+#+BEGIN_SRC ada
+  procedure Parse_Line (Line : String; D : out Description_T; C : out Content_Maps.Map) is
+     I, J, K : Natural := 0;
+     Bag_Description : Description_T;
+  begin
+     I := Index (Line, "bags contain", 1);
+     D := (others => ' ');
+     D(1..I-2) := Line(Line'First..I-2);
+     I := I + 13;
+     loop
+        J := Index (Line, "bag", I);
+        if "no other" = Line(I..J-2) then
+           C := Content_Maps.Empty_Map;
+           exit;
+        else
+           K := Index (Line, " ", I);
+           Bag_Description := (others => ' ');
+           Bag_Description(1..(J-2-K)) := Line (K+1..J-2);
+           C.Insert(Bag_Description, Integer'Value(Line(I..K-1)));
+        end if;
+        I := Index (Line, ",", J);
+        exit when I = 0;
+        I := I + 2;
+     end loop;
+  end Parse_Line;
+#+END_SRC
+**** Part 1
+Now for the actual interesting work. We want to know how many bags can
+contain the bag with the description "shiny gold".
+#+NAME: part-1
+#+BEGIN_SRC ada
+  function Recursive_Locate (Bags : in Bag_Maps.Map; Current, Target : Description_T)
+                            return Boolean is
+  begin
+     if Bags(Current).Contains(Target) then return True; end if;
+     for B in Bags(Current).Iterate loop
+        if Recursive_Locate(Bags, Content_Maps.Key(B), Target)
+        then return True;
+        end if;
+     end loop;
+     return False;
+  end Recursive_Locate;
+  function Number_Of_Bags_That_Hold (Bags : in Bag_Maps.Map; D : Description_T)
+                                    return Natural is
+     Count : Natural := 0;
+  begin
+     for B in Bags.Iterate loop
+        if Bag_Maps.Key(B) = D then null;
+        elsif Recursive_Locate(Bags, Bag_Maps.Key(B), D)
+        then Count := Count + 1;
+        end if;
+     end loop;
+     return Count;
+  end Number_Of_Bags_That_Hold;
+#+END_SRC
+**** Part 2
+For part 2 we need to find how many bags our bag, the shiny gold one,
+contains.
+#+NAME: part-2
+#+BEGIN_SRC ada
+  function Recursive_Count (Bags : in Bag_Maps.Map; Current : Description_T)
+                            return Integer is
+     Count : Natural := 0;
+  begin
+     for B in Bags(Current).Iterate loop
+        Count := Count + (1 + Recursive_Count(Bags, Content_Maps.Key(B)))
+          ,* Bags(Current)(Content_Maps.Key(B));
+     end loop;
+     return Count;
+  end Recursive_Count;
+#+END_SRC
+**** Rest
+#+NAME: read-file
+#+BEGIN_SRC ada
+  procedure Read_File (Bags : out Bag_Maps.Map) is
+     Fin : File_Type;
+     Line : String (1..300);
+     Length : Natural;
+     D : Description_T;
+     C : Content_Maps.Map;
+  begin
+     Open (Fin, In_File, "../input/07.txt");
+     while not End_Of_File (Fin) loop
+        Get_Line(Fin, Line, Length);
+        Parse_Line(Line(1..Length), D, C);
+        Bags.Insert (D, Content_Maps.Copy(C));
+        C.Clear;
+     end loop;
+     Close (Fin);
+  end Read_File;
+#+END_SRC
+#+BEGIN_SRC ada :noweb yes :tangle ada/aoc2020-day07.adb
+  <<with-use>>
   package body AOC2020.Day07 is
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
+     <<description-type>>
+     <<content-map>>
+     <<description->contains>>
+     function Make_Description(S : String) return Description_T is
+       D : Description_T;
      begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+        D := (others => ' ');
+        D(S'First..S'Last) := S;
+        return D;
+     end Make_Description;
+
+     <<parse-line>>
+     <<read-file>>
+     <<part-1>>
+     <<part-2>>
      procedure Run is
+        Bags : Bag_Maps.Map;
+        D : Description_T := Make_Description("shiny gold");
      begin
-        null;
+        Read_File(Bags);
+        Put_Line("Advent of Code 2020 - Day 07"); New_Line;
+        Put_Line("The result for Part 1 is: " & Number_Of_Bags_That_Hold(Bags, D)'Image); 
+        Put_Line("The result for Part 2 is: " & Recursive_Count(Bags, D)'Image);
      end Run;
   end AOC2020.Day07;
 #+END_SRC
-
+*** Execution script
 In order to run this you have to "tangle" the code first using =C-c
 C-v C-t=.
-
 #+BEGIN_SRC shell :tangle no :results output :exports both
   cd ada
   gnatmake day07
@@ -254,3 +412,7 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2020 - Day 07
+: 
+: The result for Part 1 is:  213
+: The result for Part 2 is:  38426
