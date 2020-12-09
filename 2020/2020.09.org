@@ -1,0 +1,183 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 09
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-09)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-09
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-09)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/09.txt"))
+#+END_SRC
+** Part 1
+#+NAME: first-invalid
+#+BEGIN_SRC lisp :results silent
+  (defun is-valid (number list)
+    (loop for l in list
+       do (when (member (- number l) (remove l list))
+            (return t))))
+  (defun first-invalid (list)
+    (loop for i from 25 below (length list)
+       if (not (is-valid (elt list i) (subseq list (- i 25) i)))
+       do (return (elt list i))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 09 A: ~a~%" (first-invalid *input*)))
+#+END_SRC
+** Part 2
+Find a contiguous block that sums to the value in part 1. Can be
+anywhere in the data, return the sum of the smallest and largest.
+#+BEGIN_SRC lisp :results silent
+  (defun find-block (list target)
+    (loop for i from 2 to (length list)
+       do (loop for j from 0
+             while (<= (+ j i) (length list))
+             for s = (subseq list j (+ j i))
+             if (= target (reduce #'+ s))
+             do (return-from find-block (+ (reduce #'min s)
+                           (reduce #'max s))))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b ()
+    (format t "Problem 09 B: ~a~%"
+            (find-block *input* (first-invalid *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<first-invalid>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 09 A: 552655238
+: Problem 09 B: 70672245
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.09)
+  (in-suite aoc.2020.09)
+
+  (run! 'aoc.2020.09)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day09.adb
+  with AOC2020.Day09;
+  procedure Day09 is
+  begin
+    null;
+  end Day09;
+#+END_SRC
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day09.ads
+  package AOC2020.Day09 is
+     procedure Run;
+  end AOC2020.Day09;
+#+END_SRC
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day09.adb
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+  package body AOC2020.Day09 is
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        null;
+     end Run;
+  end AOC2020.Day09;
+#+END_SRC
+
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day09
+  ./day09
+#+END_SRC
+
+#+RESULTS:
