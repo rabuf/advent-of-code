@@ -78,9 +78,8 @@ anywhere in the data, return the sum of the smallest and largest.
              while (<= (+ j i) (length list))
              for s = (subseq list j (+ j i))
              for total = (reduce #'+ s)
-             until (< target total)
              if (= target total)
-             do (return-from find-block-original
+             do (return-from find-block
                   (+ (reduce #'min s)
                      (reduce #'max s))))))
 #+END_SRC
