@@ -1,0 +1,177 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 20
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-20)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :screamer)
+    (ql:quickload "screamer"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+I'm going to use the =screamer= package today which requires a
+different way of defining the package.
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (screamer:define-screamer-package :aoc-2016-20
+    (:use :iterate
+          :parseq)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-20)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (sort
+     (iter (for line in-file file using #'read-line)
+           (collect (cl-ppcre:register-groups-bind ((#'parse-integer x y))
+                        ("(\\d+)-(\\d+)" line)
+                      (list x y))))
+     (lambda (a b) (or (< (car a) (car b))
+                       (and (= (car a) (car b))
+                            (> (cdar a) (cdar b)))))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/20.txt"))
+#+END_SRC
+** Part 1
+Screamer allows for specifying non-deterministic functions.
+#+NAME: out-of-ranges
+#+BEGIN_SRC lisp :results silent
+  (defun out-of-ranges (ranges)
+    (let ((x (an-integer-between 0 (1- (expt 2 32)))))
+      (loop for (min max) in ranges
+         do (when (<= min x max) (fail)))
+      x))
+#+END_SRC
+Sorting the input by the first value of the ranges greatly reduced
+runtime here. I'm down to < 5 seconds from around 90 seconds. This is
+the only optimization I've made so far.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a ()
+    (format t "Problem 20 A: ~a~%"
+            (one-value (out-of-ranges *input*))))
+#+END_SRC
+** Part 2
+Now we want a count of the number of values. I don't want to generate
+and *store* these so I'll take the function from above and experiment
+a bit.
+#+BEGIN_SRC lisp :results silent
+  (defun valid-count (ranges &optional (rmin 0) (rmax (1- (expt 2 32))))
+    (let ((count 0))
+      (for-effects
+        (let ((x (an-integer-between rmin rmax)))
+          (loop for (min max) in ranges
+             do (when (<= min x max) (fail)))
+          (print x)
+          (incf count)))
+      count))
+#+END_SRC
+The above will take a while.
+
+=for-effects= is used so that =count= is incremented, but no list is
+constructed of the results. No reason to waste memory on something we
+don't want.
+
+The problem with the above is that it's trying *every* value in the
+range. It's not smart enough to skip a whole section.
+
+From [[http://nikodemus.github.io/screamer/#Generators][Screamer: Generators]]:
+#+BEGIN_SRC lisp :results silent
+  ;;; Screamer already provides an-integer-between, so we'll
+  ;;; call this by a different name.
+  (defun an-int-between (min max)
+    (if (> min max)
+        (fail)
+        (either min (an-int-between (1+ min) max))))
+#+END_SRC
+
+This only increments by one. However, it shows the form that could be
+used in general. Since I have the fast (deterministic) one below, and
+non-determinism adds nothing here I'm not spending any more time on
+this one. But I do need to remember to try =screamer= for future days.
+
+#+NAME: valid-count
+#+BEGIN_SRC lisp :results silent
+  (defun valid-count (ranges &optional (rmin 0) (rmax (1- (expt 2 32))))
+    (loop
+       for x from rmin to rmax
+       count
+         (loop
+            named inner
+            for (min max) in ranges
+            finally (return-from inner t)
+            do (when (<= min x max)
+                 (setf x max)
+                 (return-from inner nil)))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 20 B: ~a~%" (valid-count *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<out-of-ranges>>
+  <<valid-count>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 20 A: 23923783
+: Problem 20 B: 125
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.20)
+  (in-suite aoc.2016.20)
+
+  (run! 'aoc.2016.20)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
