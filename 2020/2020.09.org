@@ -221,9 +221,48 @@ This will be a simple iterative solution, like the second lisp one I
 did above.
 #+NAME: part-1
 #+BEGIN_SRC ada
-  function Invalid_Code (Data : Vector) return Long_Long_Integer is
+  function Is_Valid_Code (Data : Vector; I : Natural) return Boolean is
   begin
-   
+     for J in I - 26 .. I - 1 loop
+        for K in I - 26 .. I - 1 loop
+           if J /= K and Data(I) = Data(J) + Data(K)
+           then return True;
+           end if;
+        end loop;
+     end loop;
+     return False;
+  end Is_Valid_Code;
+  function Invalid_Code (Data : Vector) return Long_Long_Integer is
+     Result : Long_Long_Integer := 0;
+  begin
+     for I in Data.First_Index + 26 .. Data.Last_Index loop
+        if not Is_Valid_Code(Data, I)
+          then return Data(I);
+        end if;
+     end loop;
+     return Result;
+  end Invalid_Code;
+#+END_SRC
+*** Part 2
+#+NAME: part-2
+#+BEGIN_SRC ada
+  function Find_Block (Data : Vector; Target : Long_Long_Integer) return Long_Long_Integer is
+     Min, Max, Sum : Long_Long_Integer := 0;
+  begin
+     for I in Data.First_Index .. Data.Last_Index - 2 loop
+        Min := Data (I);
+        Max := Data (I);
+        Sum := Data (I);
+        for J in I + 1 .. Data.Last_Index loop
+           Min := Long_Long_Integer'Min(Data (J),Min);
+           Max := Long_Long_Integer'Max(Data (J), Max);
+           Sum := Sum + Data (J);
+           exit when Target < Sum;
+           if Sum = Target then return Min + Max; end if;
+        end loop;
+     end loop;
+     return Min + Max;
+  end Find_Block;
 #+END_SRC
 *** Specification
 Specification for solution.
@@ -239,13 +278,17 @@ Actual implementation body.
   package body AOC2020.Day09 is
      <<vectors>>
      <<read-file>>
+     <<part-1>>
+     <<part-2>>
      procedure Run is
        Data : Vector;
+       Invalid : Long_Long_Integer;
      begin
         Read_File (Data);
         Put_Line ("Advent of Code 2020 Day 09 -"); New_Line;
-        Put_Line ("The result for Part 1 is: " & Integer'Image(0));
-        Put_Line ("The result for Part 2 is: " & Integer'Image(0));
+        Invalid := Invalid_Code(Data);
+        Put_Line ("The result for Part 1 is: " & Invalid'Image);
+        Put_Line ("The result for Part 2 is: " & Find_Block(Data, Invalid)'Image);
      end Run;
   end AOC2020.Day09;
 #+END_SRC
@@ -260,3 +303,7 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2020 Day 09 -
+: 
+: The result for Part 1 is:  552655238
+: The result for Part 2 is:  70672245
