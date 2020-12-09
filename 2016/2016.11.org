@@ -135,7 +135,7 @@ repeat taking two objects.
               (print some-number)
               (multiple-value-bind (seconds minutes hours) (get-decoded-time)
                   (format t "~A:~A:~A~%" hours minutes seconds)))
-            (When (finished floors)
+            (when (finished floors)
               (return (gethash (list floors elevator) seen)))
             (iter (with floor = (elt floors elevator))
                   (for i from 0 below (length floor))
