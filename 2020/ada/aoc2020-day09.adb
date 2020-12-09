@@ -23,7 +23,7 @@ package body AOC2020.Day09 is
    function Is_Valid_Code (Data : Vector; I : Natural) return Boolean is
    begin
       for J in I - 26 .. I - 1 loop
-         for K in I - 26 .. I - 1 loop
+         for K in J + 1 .. I - 1 loop
             if J /= K and Data(I) = Data(J) + Data(K)
             then return True;
             end if;
@@ -49,7 +49,7 @@ package body AOC2020.Day09 is
          Max := Data (I);
          Sum := Data (I);
          for J in I + 1 .. Data.Last_Index loop
-            Min := Long_Long_Integer'Min(Data (J),Min);
+            Min := Long_Long_Integer'Min(Data (J), Min);
             Max := Long_Long_Integer'Max(Data (J), Max);
             Sum := Sum + Data (J);
             exit when Target < Sum;
