@@ -77,17 +77,65 @@ anywhere in the data, return the sum of the smallest and largest.
        do (loop for j from 0
              while (<= (+ j i) (length list))
              for s = (subseq list j (+ j i))
-             if (= target (reduce #'+ s))
-             do (return-from find-block
+             for total = (reduce #'+ s)
+             until (< target total)
+             if (= target total)
+             do (return-from find-block-original
                   (+ (reduce #'min s)
                      (reduce #'max s))))))
+#+END_SRC
+So a dumb thing about the above is that I expand the window on the
+outside. I'm also using =elt= which is slow for accessing elements of
+lists, especially deeper into the list structure.
+
+The following is faster, though perhaps not as clean as it could
+be. Taking advantage of the list structure. Getting either the car or
+cdr of a cons cell is fast. The sum, and min and max, are collected as
+the window is expanded so when the target is found (if it is found)
+$min + max$ can be returned directly.
+#+BEGIN_SRC lisp :results silent
+  (defun find-block (list target)
+    (loop for l = list then (cdr l)
+       do (loop named inner
+             for w = (cdr l) then (cdr w)
+             for min = (min (car l) (car w))
+             then (min min (car w))
+             for max = (max (car l) (car w))
+             then (max max (car w))
+             for total = (+ (car l) (car w))
+             then (incf total (car w))
+             until (< target total)
+             if (= target total)
+             do (return-from find-block (+ min max)))))
+#+END_SRC
+
+This one is the fastest. Though it's not really any different than the
+above in terms of the algorithm. It's completely recursive, no loops
+left.
+#+NAME: find-block
+#+BEGIN_SRC lisp :results silent
+  (defun find-block (list target)
+    (labels ((recurse (w min max sum)
+               (cond ((< target sum) nil)
+                     ((= sum target) (+ min max))
+                     ((null w) nil)
+                     (t (recurse
+                         (cdr w)
+                         (min min (car w))
+                         (max max (car w))
+                         (+ sum (car w)))))))
+      (or (recurse (cddr list)
+                   (min (car list) (cadr list))
+                   (max (car list) (cadr list))
+                   (+ (car list) (cadr list)))
+          (find-block-recurse (cdr list) target))))
 #+END_SRC
 
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun problem-b ()
     (format t "Problem 09 B: ~a~%"
-            (find-block *input* (first-invalid *input*))))
+            (find-block *input* 552655238)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -99,6 +147,7 @@ anywhere in the data, return the sum of the smallest and largest.
   <<read-input>>
   <<input>>
   <<first-invalid>>
+  <<find-block>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
