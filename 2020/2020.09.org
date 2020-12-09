@@ -96,13 +96,10 @@ $min + max$ can be returned directly.
   (defun find-block (list target)
     (loop for l = list then (cdr l)
        do (loop named inner
-             for w = (cdr l) then (cdr w)
-             for min = (min (car l) (car w))
-             then (min min (car w))
-             for max = (max (car l) (car w))
-             then (max max (car w))
-             for total = (+ (car l) (car w))
-             then (incf total (car w))
+             for w in (cdr l)
+             for min = (min (car l) w) then (min min w)
+             for max = (max (car l) w) then (max max w)
+             for total = (+ (car l) w) then (incf total w)
              until (< target total)
              if (= target total)
              do (return-from find-block (+ min max)))))
@@ -175,51 +172,84 @@ left.
 #+RESULTS: test-cases
 ** Thoughts
 ** Ada
+*** Runner
 Simple runner.
 #+BEGIN_SRC ada :tangle ada/day09.adb
   with AOC2020.Day09;
   procedure Day09 is
   begin
-    null;
+    AOC2020.Day09.Run;
   end Day09;
 #+END_SRC
+*** Withs and uses
+#+NAME: with-use
+#+BEGIN_SRC ada
+  with Text_IO; use Text_IO;
+  with Ada.Text_IO;
+  with Ada.Containers.Vectors;
+#+END_SRC
+*** Packages
+#+NAME: vectors
+#+BEGIN_SRC ada
+  package Long_Long_Integer_Vectors is new Ada.Containers.Vectors
+    (Element_Type => Long_Long_Integer,
+     Index_Type => Natural);
+
+  use Long_Long_Integer_Vectors;
+  package Long_Long_Integer_Text_IO is new Ada.Text_IO.Integer_IO(Long_Long_Integer);
+  use Long_Long_Integer_Text_IO;
+#+END_SRC
+*** Input
+Input is straightforward, all lines contain integers so I'm using the
+built-in =Ada.Integer_Text_IO= package.
+#+NAME: read-file
+#+BEGIN_SRC ada
+  procedure Read_File (Data : out Vector) is
+     Fin : File_Type;
+     N : Long_Long_Integer;
+  begin
+     Open (Fin, In_File, "../input/09.txt");
+     while not End_Of_File (Fin) loop
+        Get(Fin, N);
+        Data.Append(N);
+     end loop;
+     Close (Fin);
+  end Read_File;
+#+END_SRC
+*** Part 1
+This will be a simple iterative solution, like the second lisp one I
+did above.
+#+NAME: part-1
+#+BEGIN_SRC ada
+  function Invalid_Code (Data : Vector) return Long_Long_Integer is
+  begin
+   
+#+END_SRC
+*** Specification
 Specification for solution.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day09.ads
   package AOC2020.Day09 is
      procedure Run;
   end AOC2020.Day09;
 #+END_SRC
+*** Rest
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2020-day09.adb
-  with GNAT.Regpat; use GNAT.Regpat;
-  with Text_IO; use Text_IO;
+#+BEGIN_SRC ada :noweb yes :tangle ada/aoc2020-day09.adb
+  <<with-use>>
   package body AOC2020.Day09 is
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+     <<vectors>>
+     <<read-file>>
      procedure Run is
+       Data : Vector;
      begin
-        null;
+        Read_File (Data);
+        Put_Line ("Advent of Code 2020 Day 09 -"); New_Line;
+        Put_Line ("The result for Part 1 is: " & Integer'Image(0));
+        Put_Line ("The result for Part 2 is: " & Integer'Image(0));
      end Run;
   end AOC2020.Day09;
 #+END_SRC
-
+*** Execution
 In order to run this you have to "tangle" the code first using =C-c
 C-v C-t=.
 
