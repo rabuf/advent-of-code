@@ -1,6 +1,6 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2020 [9/25]
+* Advent of Code 2020 [10/25]
 This will be my attempt to solve the various Advent of Code 2020
 problems with Common Lisp.
 ** DONE [[file:2020.01.org][Day 1]]
@@ -12,7 +12,7 @@ problems with Common Lisp.
 ** DONE [[file:2020.07.org][Day 7]]
 ** DONE [[file:2020.08.org][Day 8]]
 ** DONE [[file:2020.09.org][Day 9]]
-** TODO [[file:2020.10.org][Day 10]]
+** DONE [[file:2020.10.org][Day 10]]
 ** TODO [[file:2020.11.org][Day 11]]
 ** TODO [[file:2020.12.org][Day 12]]
 ** TODO [[file:2020.13.org][Day 13]]
