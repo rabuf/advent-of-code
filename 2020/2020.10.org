@@ -212,51 +212,146 @@ been obvious from part 1, it's the same program structure.
 :     Fail: 0 ( 0%)
 ** Thoughts
 ** Ada
+*** Runner
 Simple runner.
 #+BEGIN_SRC ada :tangle ada/day10.adb
   with AOC2020.Day10;
   procedure Day10 is
   begin
-    null;
+    AOC2020.Day10.Run;
   end Day10;
 #+END_SRC
+*** Specification
 Specification for solution.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day10.ads
   package AOC2020.Day10 is
      procedure Run;
   end AOC2020.Day10;
 #+END_SRC
-Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2020-day10.adb
-  with GNAT.Regpat; use GNAT.Regpat;
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
   with Text_IO; use Text_IO;
+  with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
+  with Ada.Containers.Ordered_Sets;
+#+END_SRC
+*** Types
+I'm not using any custom types. The closest is instantiating a generic
+package, seen in the next section.
+*** Instantiation of generics
+#+NAME: generics
+#+BEGIN_SRC ada
+  package Integer_Ordered_Sets is new Ada.Containers.Ordered_Sets
+    (Element_Type => Integer);
+  use Integer_Ordered_Sets;
+#+END_SRC
+*** Input handling
+I'm using an ordered set to avoid having to sort later. I'm also
+prepopulating it with both 0 and $max + 3$ because they're used in
+each part. This saves me from either adding/removing them later,
+making copies of the set and modifying it, or special casing those.
+#+NAME: ada-get-data
+#+BEGIN_SRC ada
+  procedure Read_File(S : out Set) is
+     Fin : File_Type;
+     N : Integer;
+  begin
+     S := To_Set (0);
+     Open (Fin, In_File, "../input/10.txt");
+     while not End_Of_File (Fin) loop
+        Get (Fin, N);
+        S.Insert (N);
+     end loop;
+     Close (Fin);
+     S.Insert (3 + S.Last_Element);
+  end Read_File;
+#+END_SRC
+*** Part 1
+For this part, count how many one and three spaced gaps there are in
+the data, return the product.
+#+NAME: ada-count-gaps
+#+BEGIN_SRC ada
+  function Count_Gaps (Data : in Set) return Integer is
+     One, Three : Integer := 0;
+  begin
+     for I in Data.Iterate loop
+        if Next(I) /= No_Element
+        then
+           case Element(Next(I)) - Element(I) is
+              when 3 => Three := Three + 1;
+              when 2 => null;
+              when 1 => One := One + 1;
+              when others =>
+                 null; -- should never happen
+           end case;
+        end if;
+     end loop;
+     return One * Three;
+  end Count_Gaps;
+#+END_SRC
+*** Part 2
+Here we need to calculate how many valid ways there are to chain the
+adaptors together. I'm going to use the same approach as in my final
+Common Lisp solution above. This is computed using a single pass
+through the data. Due to the size of the result, we use
+=Long_Long_Integer=.
+
+I had a bug that pushed it even beyond what that type could hold and
+(briefly) played with =Big_Integer= from Ada 202x, which was actually
+pretty nice. However since it was unnecessary (once I found the bug) I
+removed it. I will keep it in mind for future problems, though.
+#+NAME: ada-count-paths
+#+BEGIN_SRC ada
+  function Count_Paths (Data : in Set) return Long_Long_Integer is
+     A, B : Long_Long_Integer := 0;
+     C : Long_Long_Integer := 1;
+     T : Long_Long_Integer;
+  begin
+     for I in Data.Iterate loop
+        if Next(I) /= No_Element
+        then
+           case Element(Next(I)) - Element(I) is
+              when 3 =>
+                 A := 0;
+                 B := 0;
+                 C := C;
+              when 2 =>
+                 T := B;
+                 A := 0;
+                 B := C;
+                 C := T + C;
+              when 1 =>
+                 T := C;
+                 C := A + B + C;
+                 A := B;
+                 B := T;
+              when others =>
+                 null; -- should never happen
+           end case;
+        end if;
+     end loop;
+     return C;
+  end Count_Paths;
+#+END_SRC
+*** Body
+#+BEGIN_SRC ada :noweb yes :tangle ada/aoc2020-day10.adb
+  <<ada-packages>>
   package body AOC2020.Day10 is
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+     <<generics>>
+     <<ada-get-data>>
+     <<ada-count-gaps>>
+     <<ada-count-paths>>
      procedure Run is
+       Data : Set;
      begin
-        null;
+        Read_File (Data);
+        Put_Line ("Advent of Code 2020 - Day 10"); New_Line;
+        Put_Line ("The result for Part 1 is: " & Count_Gaps (Data)'Image);
+        Put_Line ("The result for Part 2 is: " & Count_Paths (Data)'Image);
      end Run;
   end AOC2020.Day10;
 #+END_SRC
-
+*** Shell runner
 In order to run this you have to "tangle" the code first using =C-c
 C-v C-t=.
 
@@ -267,3 +362,7 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2020 - Day 10
+: 
+: The result for Part 1 is:  1885
+: The result for Part 2 is:  2024782584832
