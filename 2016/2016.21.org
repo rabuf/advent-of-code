@@ -1,0 +1,293 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 21
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-21)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-21
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-21)
+#+END_SRC
+** Input
+This will require some parsing. Each line corresponds to an
+instruction, a function to apply to a string. I think I'll play with
+CLOS for this one. I'll let each instruction be a class and use
+methods for dispatching.
+#+NAME: classes
+#+BEGIN_SRC lisp :results silent
+  (defclass scramble-instruction () ())
+  (defclass swap-position (scramble-instruction)
+    ((x :accessor swap-x :initarg :x)
+     (y :accessor swap-y :initarg :y)))
+
+  (defclass swap-letter (scramble-instruction)
+    ((a :accessor swap-a :initarg :a)
+     (b :accessor swap-b :initarg :b)))
+
+  (defclass rotate (scramble-instruction)
+    ((direction :accessor rotate-direction :initarg :direction)
+     (x :accessor rotate-x :initarg :x)))
+
+  (defclass rotate-based (scramble-instruction)
+    ((x :accessor rotate-x :initarg :x)))
+
+  (defclass reverse-range (scramble-instruction)
+    ((x :accessor reverse-x :initarg :x)
+     (y :accessor reverse-y :initarg :y)))
+
+  (defclass move (scramble-instruction)
+    ((x :accessor move-x :initarg :x)
+     (y :accessor move-y :initarg :y)))
+#+END_SRC
+#+NAME: parse-line
+#+BEGIN_SRC lisp :results silent
+  (defun make-swap-position (line)
+    (cl-ppcre:register-groups-bind ((#'parse-integer x y))
+        ("(\\d+) with position (\\d+)" line)
+      (make-instance 'swap-position :x x :y y)))
+  (defun make-swap-letter (line)
+    (cl-ppcre:register-groups-bind (a b)
+        ("([a-zA-Z]) with letter ([a-zA-Z])" line)
+      (make-instance 'swap-letter :a a :b b)))
+  (defun make-rotate (line)
+    (cl-ppcre:register-groups-bind (direction (#'parse-integer x))
+        ("(left|right) (\\d+)" line)
+      (make-instance 'rotate :direction (if (string= "right" direction) :right :left)
+                     :x x)))
+  (defun make-rotate-based (line)
+    (cl-ppcre:register-groups-bind (x)
+        ("letter ([a-zA-Z])" line)
+      (make-instance 'rotate-based :x x)))
+  (defun make-reverse-range (line)
+    (cl-ppcre:register-groups-bind ((#'parse-integer x y))
+        ("(\\d+) through (\\d+)" line)
+      (make-instance 'reverse-range :x x :y y)))
+  (defun make-move (line)
+    (cl-ppcre:register-groups-bind ((#'parse-integer x y))
+        ("(\\d+) to position (\\d+)" line)
+      (make-instance 'move :x x :y y)))
+  (defun parse-line (line)
+    (cond ((search "swap position" line)
+           (make-swap line))
+          ((search "swap letter" line)
+           (make-swap-letter line))
+          ((or (search "rotate left" line)
+               (search "rotate right" line))
+           (make-rotate line))
+          ((search "rotate based" line)
+           (make-rotate-based line))
+          ((search "reverse" line)
+           (make-reverse-range line))
+          ((search "move" line)
+           (make-move line))
+          (t (format t "Unknown line: ~A~%" line))))
+#+END_SRC
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/21.txt"))
+#+END_SRC
+** Part 1
+Ok, so everything is parsed into poorly named structures. Time to do
+something with these rules.
+#+NAME: rules
+#+BEGIN_SRC lisp :results silent
+  (defgeneric apply-scramble-instructions (rule s))
+
+  (defmethod apply-scramble-instructions ((rule swap-position) s)
+    (let ((temp (char s (swap-x rule))))
+      (setf (char s (swap-x rule)) (char s (swap-y rule)))
+      (setf (char s (swap-y rule)) temp)))
+
+  (defmethod apply-scramble-instructions ((rule swap-letter) s)
+    (let ((a (search (swap-a rule) s))
+          (b (search (swap-b rule) s)))
+      (apply-scramble-instructions
+       (make-instance 'swap-position :x a :y b)
+       s)))
+  (defmethod apply-scramble-instructions ((rule reverse-range) s)
+    (let ((temp (subseq s (reverse-x rule) (1+ (reverse-y rule)))))
+      (replace s (reverse temp) :start1 (reverse-x rule) :end1 (1+ (reverse-y rule)))))
+
+  (defmethod apply-scramble-instructions ((rule move) s)
+    (let* ((x (move-x rule))
+           (y (move-y rule))
+           (c (char s x))
+           (sub ""))
+      (cond ((< x y)
+             (setf sub (subseq s (1+ x) (1+ y)))
+             (replace s sub :start1 x :end1 y))
+            (t
+             (setf sub (subseq s y x))
+             (replace s sub :start1 (1+ y) :end1 (1+ x))))
+      (setf (char s y) c)))
+
+  (defmethod apply-scramble-instructions ((rule rotate) s)
+    (let* ((distance (case (rotate-direction rule)
+                       (:left (rotate-x rule))
+                       (:right (- (length s) (rotate-x rule)))))
+           (left (subseq s 0 distance))
+           (right (subseq s distance)))
+      (replace s (concatenate 'string right left))))
+
+  (defmethod apply-scramble-instructions ((rule rotate-based) s)
+    (let* ((distance (search (rotate-x rule) s)))
+      (if (>= distance 4) (incf distance))
+      (incf distance)
+      (apply-scramble-instructions
+       (make-instance 'rotate :direction :right :x (mod distance (length s)))
+       s)))
+
+  (defun apply-rules (rules s)
+    (loop for r in rules
+       do (apply-scramble-instructions r s))
+    s)
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 21 A: ~a~%" (apply-rules *input* "abcdefgh")))
+#+END_SRC
+** Part 2
+#+NAME: invert-rules
+#+BEGIN_SRC lisp :results silent
+  (defgeneric reverse-scramble-instructions (rule s))
+
+  ;; If I were doing this properly this would call the original.
+  ;; The swap, reverse, and move functions are all identical
+  ;; to their original
+
+  ;; Only the rotates need to be changed
+  (defmethod reverse-scramble-instructions ((rule swap-position) s)
+    (let ((temp (char s (swap-x rule))))
+      (setf (char s (swap-x rule)) (char s (swap-y rule)))
+      (setf (char s (swap-y rule)) temp)))
+
+  (defmethod reverse-scramble-instructions ((rule swap-letter) s)
+    (let ((a (search (swap-a rule) s))
+          (b (search (swap-b rule) s)))
+      (apply-scramble-instructions
+       (make-instance 'swap-position :x a :y b)
+       s)))
+  (defmethod reverse-scramble-instructions ((rule reverse-range) s)
+    (let ((temp (subseq s (reverse-x rule) (1+ (reverse-y rule)))))
+      (replace s (reverse temp) :start1 (reverse-x rule) :end1 (1+ (reverse-y rule)))))
+
+  (defmethod reverse-scramble-instructions ((rule move) s)
+    (let* ((x (move-y rule))
+           (y (move-x rule))
+           (c (char s x))
+           (sub ""))
+      (cond ((< x y)
+             (setf sub (subseq s (1+ x) (1+ y)))
+             (replace s sub :start1 x :end1 y))
+            (t
+             (setf sub (subseq s y x))
+             (replace s sub :start1 (1+ y) :end1 (1+ x))))
+      (setf (char s y) c)))
+
+  (defmethod reverse-scramble-instructions ((rule rotate) s)
+    (let* ((distance (case (rotate-direction rule)
+                       (:right (rotate-x rule))
+                       (:left (- (length s) (rotate-x rule)))))
+           (left (subseq s 0 distance))
+           (right (subseq s distance)))
+      (replace s (concatenate 'string right left))))
+
+  ;; This one is more complicated. We have to determine where it would
+  ;; have started initially to see how much it needs to be rotated.
+  (defmethod reverse-scramble-instructions ((rule rotate-based) s)
+    (let* ((distance (search (rotate-x rule) s)))
+      (setf distance (+ (floor distance 2)
+                        (if (or (oddp distance) (zerop distance))
+                            1
+                            5)))
+      (apply-scramble-instructions
+       (make-instance 'rotate :direction :left :x distance)
+       s)))
+
+  (defun reverse-rules (rules s)
+    (loop for r in (reverse rules)
+       do (reverse-scramble-instructions r s))
+    s)
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 21 B: ~a~%" (reverse-rules *input* "fbgdceah")))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<classes>>
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<parse-line>>
+  <<read-input>>
+  <<input>>
+  <<rules>>
+  <<reverse-rules>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 21 A: bgfacdeh
+: Problem 21 B: bdgheacf
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.21)
+  (in-suite aoc.2016.21)
+
+  (run! 'aoc.2016.21)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
