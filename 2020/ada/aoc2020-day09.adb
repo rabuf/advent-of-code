@@ -71,7 +71,7 @@ package body AOC2020.Day09 is
      Invalid : Long_Long_Integer;
    begin
       Read_File (Data);
-      Put_Line ("Advent of Code 2020 Day 09 -"); New_Line;
+      Put_Line ("Advent of Code 2020 - Day 09"); New_Line;
       Invalid := Invalid_Code(Data);
       Put_Line ("The result for Part 1 is: " & Invalid'Image);
       Put_Line ("The result for Part 2 is: " & Find_Block(Data, Invalid)'Image);
