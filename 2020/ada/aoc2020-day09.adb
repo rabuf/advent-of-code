@@ -24,7 +24,7 @@ package body AOC2020.Day09 is
    begin
       for J in I - 26 .. I - 1 loop
          for K in J + 1 .. I - 1 loop
-            if J /= K and Data(I) = Data(J) + Data(K)
+            if Data(I) = Data(J) + Data(K)
             then return True;
             end if;
          end loop;
