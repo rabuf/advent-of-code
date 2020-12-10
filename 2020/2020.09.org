@@ -244,7 +244,6 @@ did above.
   end Invalid_Code;
 #+END_SRC
 *** Part 2
-#+NAME: part-2
 #+BEGIN_SRC ada
   function Find_Block (Data : Vector; Target : Long_Long_Integer) return Long_Long_Integer is
      Min, Max, Sum : Long_Long_Integer := 0;
@@ -264,6 +263,39 @@ did above.
      return Min + Max;
   end Find_Block;
 #+END_SRC
+After seeing some other solutions and doing some algebra, I realized
+I'd selected a very inefficient approach (above). Finding the range
+(though not the min/max) can be done in a single pass by keeping a
+running sum.
+#+NAME: part-2
+#+BEGIN_SRC ada
+  function Find_Block (Data : Vector; Target : Long_Long_Integer) return Long_Long_Integer is
+     Min, Max, Sum : Long_Long_Integer := 0;
+     I, J : Natural;
+  begin
+     I := Data.First_Index;
+     J := I + 1;
+     Sum := Data(I) + Data(J);
+     while Sum /= Target and J <= Data.Last_Index loop
+        if Target < Sum then
+           Sum := Sum - Data(I);
+           I := I + 1;
+        end if;
+        if I = J or Sum < Target then
+           J := J + 1;
+           Sum := Sum + Data(J);
+        end if;
+     end loop;
+     Min := Data(I);
+     Max := Data(I);
+     for K in I+1 .. J loop
+        Min := Long_Long_Integer'Min(Data (J), Min);
+        Max := Long_Long_Integer'Max(Data (J), Max);
+     end loop;
+     return Min + Max;
+  end Find_Block;
+#+END_SRC
+That runs in about 1/3rd the time than the previous version needed.
 *** Specification
 Specification for solution.
 #+BEGIN_SRC ada :tangle ada/aoc2020-day09.ads

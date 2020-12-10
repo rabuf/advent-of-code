@@ -43,18 +43,26 @@ package body AOC2020.Day09 is
    end Invalid_Code;
    function Find_Block (Data : Vector; Target : Long_Long_Integer) return Long_Long_Integer is
       Min, Max, Sum : Long_Long_Integer := 0;
+      I, J : Natural;
    begin
-      for I in Data.First_Index .. Data.Last_Index - 2 loop
-         Min := Data (I);
-         Max := Data (I);
-         Sum := Data (I);
-         for J in I + 1 .. Data.Last_Index loop
-            Min := Long_Long_Integer'Min(Data (J), Min);
-            Max := Long_Long_Integer'Max(Data (J), Max);
-            Sum := Sum + Data (J);
-            exit when Target < Sum;
-            if Sum = Target then return Min + Max; end if;
-         end loop;
+      I := Data.First_Index;
+      J := I + 1;
+      Sum := Data(I) + Data(J);
+      while Sum /= Target and J <= Data.Last_Index loop
+         if Target < Sum then
+            Sum := Sum - Data(I);
+            I := I + 1;
+         end if;
+         if I = J or Sum < Target then
+            J := J + 1;
+            Sum := Sum + Data(J);
+         end if;
+      end loop;
+      Min := Data(I);
+      Max := Data(I);
+      for K in I+1 .. J loop
+         Min := Long_Long_Integer'Min(Data (J), Min);
+         Max := Long_Long_Integer'Max(Data (J), Max);
       end loop;
       return Min + Max;
    end Find_Block;
