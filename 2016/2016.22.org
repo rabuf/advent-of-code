@@ -1,0 +1,154 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 22
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-22)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-22
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-22)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (cl-ppcre:register-groups-bind ((#'parse-integer x y size used avail up))
+        ("(\\d+)\\D+(\\d+)\\D+(\\d+)\\D+(\\d+)\\D+(\\d+)\\D+(\\d+)" line)
+      (list (complex x y) size used avail up)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (cddr (read-input "input/22.txt")))
+#+END_SRC
+** Part 1
+The first part is to identify pairs that are "viable". That is, two
+nodes where the first can give its contents to the second.
+#+NAME: viable-pairs
+#+BEGIN_SRC lisp :results silent
+  (defun viablep (a b)
+    (destructuring-bind
+          ((p1 s1 u1 a1 up1)
+           (p2 s2 u2 a2 up2))
+        (list a b)
+      (and (/= p1 p2)
+           (not (zerop u1))
+           (<= u1 a2))))
+
+  (defun count-viable (nodes)
+    (loop for a in nodes
+       with count = 0
+       do (loop for b in nodes
+             if (viablep a b)
+             do (incf count))
+       finally (return count)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 22 A: ~a~%" (count-viable *input*)))
+#+END_SRC
+** Part 2
+#+NAME: print-grid
+#+BEGIN_SRC lisp :results silent
+  (defun print-grid (nodes)
+    (let ((grid (make-hash-table))
+          (max-x 0)
+          (max-y 0))
+      (loop for (p s u a up) in nodes
+         do (setf max-y (max max-y (imagpart p)))
+         do (setf max-x (max max-x (realpart p)))
+         do (setf (gethash p grid) (list p s u a up)))
+      (loop for y from 0 to max-y
+         do (loop for x from 0 to max-x
+               for (p s u a up) = (gethash (complex x y) grid)
+               do (if (loop named viable
+                         for n in nodes
+                         if (viablep (gethash p grid) n)
+                         do (return-from viable t))
+                      (format t ".")
+                      (if (zerop u) (format t "_") (format t "#"))))
+           (format t "~%"))))
+#+END_SRC
+The answer was determined by looking at the print out from that
+function. The =_= has to be moved to the top right and then perform a
+5-step loop repeatedly until it's in the top left, then one more
+movement to the right.
+
+On this grid that's $34 + 31*5 + 1$ steps.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 22 B: ~a~%" 200))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<viable-pairs>>
+  <<print-grid>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 22 A: 860
+: Problem 22 B: 200
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.22)
+  (in-suite aoc.2016.22)
+
+  (run! 'aoc.2016.22)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
