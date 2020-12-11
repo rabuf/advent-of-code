@@ -99,25 +99,39 @@ support for lisp installed you can run this by:
 #+RESULTS: test-cases
 ** Thoughts
 ** Ada
+*** Runner
 Simple runner.
 #+BEGIN_SRC ada :tangle ada/dayDAY.adb
   with AOCYEAR.DayDAY;
   procedure DayDAY is
   begin
-    null;
+    AOCYEAR.DayDAY.Run;
   end DayDAY;
 #+END_SRC
+*** Specification
 Specification for solution.
 #+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.ads
   package AOCYEAR.DayDAY is
      procedure Run;
   end AOCYEAR.DayDAY;
 #+END_SRC
-Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.adb
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
   with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.adb
+  <<ada-packages>>
   package body AOCYEAR.DayDAY is
+     <<types-and-generics>>
      -- Used as an example of matching regular expressions
      procedure Parse_Line (Line : Unbounded_String; P : out Password) is
         Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
@@ -139,11 +153,13 @@ Actual implementation body.
      end Parse_Line;
      procedure Run is
      begin
-        null;
+        Put_Line("Advent of Code YEAR - Day DAY");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
      end Run;
   end AOCYEAR.DayDAY;
 #+END_SRC
-
+*** Run the program
 In order to run this you have to "tangle" the code first using =C-c
 C-v C-t=.
 
