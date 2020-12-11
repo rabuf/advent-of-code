@@ -1,0 +1,226 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 23
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-23)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-23
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-23)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (cl-ppcre:register-groups-bind (op x y)
+        ("([a-z]{3}) ([a-z]|-?\\d+) ?([a-z]|-?\\d+)?" line)
+      (let ((m (parse-integer x :junk-allowed t))
+            (n (and y (parse-integer y :junk-allowed t))))
+        (cond ((string= "inc" op)
+               (list :inc (or m x)))
+              ((string= "dec" op)
+               (list :dec (or m x)))
+              ((string= "tgl" op)
+               (list :tgl (or m x)))
+              ((string= "jnz" op)
+               (list :jnz (or m x) (or n y)))
+              ((string= "cpy" op)
+               (list :cpy (or m x) (or n y)))))))
+  (defun read-input (file)
+    (coerce
+     (iter (for line in-file file using #'read-line)
+           (collect (parse-line line)))
+     'vector))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/23.txt"))
+#+END_SRC
+** Part 1
+Abandoning the assembunny simulator from [[file:2016.12.org][Day 12]]. It was not well
+written. I've improved the parser (above, could be cleaner but works).
+
+There's a new instruction that toggles other instructions. Naturally,
+it's called toggle:
+
+- =tgl x= :: toggles the instruction =x= away from current instruction
+             per a set of rules as follows:
+
+1. One-argument instructions: =inc= -> =dec=, everything else is
+   turned to =inc=
+2. Two-argument instructions: =jnz= -> =cpy=, everything else is
+   turned to =jnz=
+3. Arguments are unaffected.
+4. If the instruction becomes invalid, treat as a noop
+5. =tgl= can toggle itself, becoming =inc= like other one-argument
+   instructions.
+
+I need to improve my simulator. Among other things, it does not have a
+way to determine whether the instructions are valid or not. What makes
+it invalid?
+
+- =cpy= :: If the second parameter is a number, it's invalid.
+- =inc= :: If the parameter is a number, it's invalid
+- =dec= :: If the parameter is a number, it's invalid
+- =jnz= :: Always valid
+
+
+#+NAME: assembunny
+#+BEGIN_SRC lisp :results silent
+  (defun assembunny-sim (program &optional (state (make-hash-table :test #'equal)))
+    ;; ensure all values are initialized, if present they're unchanged
+    (setf (gethash "pc" state) (gethash "pc" state 0))
+    (setf (gethash "a" state) (gethash "a" state 0))
+    (setf (gethash "b" state) (gethash "b" state 0))
+    (setf (gethash "c" state) (gethash "c" state 0))
+    (setf (gethash "d" state) (gethash "d" state 0))
+    (labels ((copy (x y)
+               (when (stringp y)
+                 (setf (gethash y state)
+                       (gethash x state x))))
+             (tgl (x)
+               (let ((index (+ (gethash "pc" state)
+                               (gethash x state x))))
+                 (when (< -1 index (length program))
+                   (let ((op (car (elt program index)))
+                         (x (cadr (elt program index)))
+                         (y (caddr (elt program index))))
+                     (case op
+                       ((:tgl :dec)
+                        (setf (elt program index)
+                              (list :inc x)))
+                       (:inc
+                        (setf (elt program index)
+                              (list :dec x)))
+                       (:cpy
+                        (setf (elt program index)
+                              (list :jnz x y)))
+                       (:jnz
+                        (setf (elt program index)
+                              (list :cpy x y))))))))
+             (inc (x)
+               (when (stringp x)
+                 (incf (gethash x state))))
+             (dec (x)
+               (when (stringp x)
+                 (decf (gethash x state))))
+             (jnz (x offset)
+               (cond ((zerop (gethash x state x))
+                      (inc "pc"))
+                     (t (incf (gethash "pc" state)
+                              (gethash offset state offset))))))
+      (loop
+         for (op x y) = (elt program (gethash "pc" state 0))
+         finally (format t "(~a) ~a ~a ~a: ~a ~a ~a ~a ~%"
+                         (gethash "pc" state 0)
+                         op x y
+                         (gethash "a" state 0)
+                         (gethash "b" state 0)
+                         (gethash "c" state 0)
+                         (gethash "d" state 0))
+         do (case op
+              (:cpy (copy x y)
+                    (inc "pc"))
+              (:inc (inc x)
+                    (inc "pc"))
+              (:dec (dec x)
+                    (inc "pc"))
+              (:jnz (jnz x y))
+              (:tgl (tgl x)
+                    (inc "pc")))
+         until (>= (gethash "pc" state) (length program))))
+    state)
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a ()
+    (format t "Problem 23 A: ~a~%"
+            (let ((state (make-hash-table :test #'equal)))
+              (setf (gethash "a" state) 7)
+              (gethash "a" (assembunny-sim (copy-seq *input*) state)))))
+#+END_SRC
+** Part 2
+Of course, this takes too long to run but I figured out what it's
+computing. $a! + 5325$. After 8 minutes I stopped the execution. I may
+resume it at some point just to see how long it takes.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun factorial (n)
+    (loop for i from 1 to n
+       with result = 1
+       finally (return result)
+       do (setf result (* result i))))
+  (defun problem-b ()
+    (format t "Problem 23 A: ~a~%" (+ (factorial 12) 5325)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<assembunny>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: (26) JNZ c -5: 10365 1 0 0 
+: Problem 23 A: 10365
+: Problem 23 A: 479006925
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.23)
+  (in-suite aoc.2016.23)
+
+  (run! 'aoc.2016.23)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts

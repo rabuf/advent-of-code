@@ -117,7 +117,6 @@ it's functional.
                    (jnz x y)))
          until (>= (gethash "pc" state 0) (length program))))
     state)
-
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
