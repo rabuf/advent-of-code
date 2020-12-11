@@ -1,0 +1,296 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 11
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-11)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-11
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-11)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/11.txt"))
+#+END_SRC
+** Part 1
+A Game of Life styled problem. The rules:
+
+- If a seat is empty and count of adjacent occupied seats = 0, it
+  becomes occupied.
+- If the seat is occupied and 4 or more adjacent seats are occupied it
+  becomes empty.
+- Otherwise no change.
+#+NAME: to-grid
+#+BEGIN_SRC lisp :results silent
+  (defun to-grid (lines)
+    (let ((grid (make-hash-table)))
+      (loop for l in lines
+           for j from 0
+         do (loop for c across l
+               for i from 0
+                 do (setf (gethash (complex i j) grid) c)))
+      grid))
+
+  (defun print-grid (grid)
+    (loop for j from 0
+       while (gethash j grid)
+       do (loop for i from 0
+             while (gethash (complex i j) grid)
+             do (format t "~A" (gethash (complex i j) grid)))
+         (format t "~%")))
+#+END_SRC
+I'll use a double buffer approach. Create a new grid with all the
+updated cells, then replace the old one. Repeat.
+#+NAME: next-grid
+#+BEGIN_SRC lisp :results silent
+  (defun next-empty (location grid)
+    (loop for i in '(#C(1 1) #C(1 0)
+                     #C(0 1) #C(0 -1)
+                     #C(-1 1) #C(-1 0)
+                     #C(-1 -1) #C(1 -1))
+       count (char= #\# (gethash (+ location i) grid #\.)) into tally
+       finally (return (if (zerop tally) #\# #\L))))
+  (defun next-occupied (location grid)
+    (loop for i in '(#C(1 1) #C(1 0)
+                     #C(0 1) #C(0 -1)
+                     #C(-1 1) #C(-1 0)
+                     #C(-1 -1) #C(1 -1))
+       count (char= #\# (gethash (+ location i) grid #\.)) into tally
+       finally (return (if (<= 4 tally) #\L #\#))))
+  (defun next-grid (grid)
+    (let ((next (make-hash-table)))
+      (loop for k being each hash-key of grid using (hash-value v)
+         do (case v
+              (#\. (setf (gethash k next) v))
+              (#\L (setf (gethash k next) (next-empty k grid)))
+              (#\# (setf (gethash k next) (next-occupied k grid))))
+         count (char/= v (gethash k next)) into changed
+         finally (return (values next changed)))))
+#+END_SRC
+#+NAME: find-stable-point
+#+BEGIN_SRC lisp :results silent
+  (defun count-occupied (grid)
+    (loop for v being the hash-values of grid
+       count (char= #\# v)))
+  (defun find-stable-point (grid)
+    (loop
+       for i from 1
+       do (multiple-value-bind (next changed)
+              (next-grid grid)
+            (setf grid next)
+            (when (zerop changed)
+              (return (count-occupied grid))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 11 A: ~a~%" (find-stable-point (to-grid *input*))))
+#+END_SRC
+** Part 2
+Ok, so it's basically the same idea, however our rules change a
+bit. They see /further/ than just the adjacent spaces. Change the
+tally to look as far in the direction as is visible, find the first
+seat, and use its state to determine the counts.
+#+NAME: next-grid-visibility
+#+BEGIN_SRC lisp :results silent
+  (defun first-chair-in-direction (location direction grid)
+    (loop for i from 1
+       for pos = (+ location (* i direction))
+       for c = (gethash pos grid)
+       while (and c
+                  (char= #\. c))
+       finally (return (or c #\.))))
+  (defun next-empty-visibility (location grid)
+    (loop for i in '(#C(1 1) #C(1 0)
+                     #C(0 1) #C(0 -1)
+                     #C(-1 1) #C(-1 0)
+                     #C(-1 -1) #C(1 -1))
+       count (char= #\# (first-chair-in-direction location i grid)) into tally
+       finally (return (if (zerop tally) #\# #\L))))
+  (defun next-occupied-visibility (location grid)
+    (loop for i in '(#C(1 1) #C(1 0)
+                     #C(0 1) #C(0 -1)
+                     #C(-1 1) #C(-1 0)
+                     #C(-1 -1) #C(1 -1))
+       count (char= #\# (first-chair-in-direction location i grid))into tally
+       finally (return (if (<= 5 tally) #\L #\#))))
+  (defun next-grid-visibility (grid)
+    (let ((next (make-hash-table)))
+      (loop for k being each hash-key of grid using (hash-value v)
+         do (case v
+              (#\. (setf (gethash k next) v))
+              (#\L (setf (gethash k next) (next-empty-visibility k grid)))
+              (#\# (setf (gethash k next) (next-occupied-visibility k grid))))
+         count (char/= v (gethash k next)) into changed
+         finally (return (values next changed)))))
+#+END_SRC
+No regrets about the copy/paste. I could make the =next-grid= function
+take keyword parameters to determin what to call for each input, but
+this got it done.
+
+Dummy me, though, forgot to update the 4 to a 5 for
+=next-occupied=. Reading comprehension fail there on my part.
+
+#+NAME: find-stable-point-visibility
+#+BEGIN_SRC lisp :results silent
+  (defun find-stable-point-visibility (grid)
+    (loop
+       for i from 1
+       do (multiple-value-bind (next changed)
+              (next-grid-visibility grid)
+            (setf grid next)
+            (when (zerop changed)
+              (return (count-occupied grid))))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (find-stable-point-visibility (to-grid *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<to-grid>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 11 A: 2448
+: Problem 11 B: 2234
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.11)
+  (in-suite aoc.2020.11)
+
+  (run! 'aoc.2020.11)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day11.adb
+  with AOC2020.Day11;
+  procedure Day11 is
+  begin
+    AOC2020.Day11.Run;
+  end Day11;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day11.ads
+  package AOC2020.Day11 is
+     procedure Run;
+  end AOC2020.Day11;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day11.adb
+  <<ada-packages>>
+  package body AOC2020.Day11 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 11");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day11;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day11
+  ./day11
+#+END_SRC
+
+#+RESULTS:
