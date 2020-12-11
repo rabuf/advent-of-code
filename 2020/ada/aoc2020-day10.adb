@@ -1,7 +1,5 @@
 with Text_IO; use Text_IO;
 with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
-with Ada.Numerics.Big_Numbers.Big_Integers;
-use Ada.Numerics.Big_Numbers.Big_Integers;
 with Ada.Containers.Ordered_Sets;
 package body AOC2020.Day10 is
    package Integer_Ordered_Sets is new Ada.Containers.Ordered_Sets
