@@ -58,19 +58,6 @@ end up after following series of directions. Only L and R directions
 cause us to rotate.
 #+NAME: follow-directions
 #+BEGIN_SRC lisp :results silent
-  (defun turn-right (degrees)
-    (ecase degrees
-      (0 1)
-      (90 #C(0 -1))
-      (180 -1)
-      (270 #C(0 1))))
-  (defun turn-left (degrees)
-    (ecase degrees
-      (0 1)
-      (90 #C(0 1))
-      (180 -1)
-      (270 #C(0 -1))))
-  
   (defun follow-directions (directions)
     (loop for l in directions
        with pos = #C(0 0)
@@ -80,8 +67,8 @@ cause us to rotate.
        finally (return (+ (abs (realpart pos)) (abs (imagpart pos))))
        do (case command 
             (#\F (incf pos (* distance dir)))
-            (#\R (setf dir (* (turn-right distance) dir)))
-            (#\L (setf dir (* (turn-left distance) dir)))
+            (#\R (setf dir (/ dir (expt #C(0 1) (/ distance 90)))))
+            (#\L (setf dir (* dir (expt #C(0 1) (/ distance 90)))))
             (#\N (incf pos (* distance #C(0 1))))
             (#\S (incf pos (* distance #C(0 -1))))
             (#\E (incf pos (* distance #C(1 0))))
@@ -120,8 +107,8 @@ rotation and skipping having to adjust it after moving the ship.
        finally (return (+ (abs (realpart pos)) (abs (imagpart pos))))
        do (case command 
             (#\F (incf pos (* distance waypoint)))
-            (#\R (setf waypoint (* (turn-right distance) waypoint)))
-            (#\L (setf waypoint (* (turn-left distance) waypoint)))
+            (#\R (setf waypoint (/ waypoint (expt #C(0 1) (/ distance 90)))))
+            (#\L (setf waypoint (* waypoint (expt #C(0 1) (/ distance 90)))))
             (#\N (incf waypoint (* distance #C(0 1))))
             (#\S (incf waypoint (* distance #C(0 -1))))
             (#\E (incf waypoint (* distance #C(1 0))))
