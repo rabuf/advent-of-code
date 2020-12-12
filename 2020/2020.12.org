@@ -163,12 +163,56 @@ rotation and skipping having to adjust it after moving the ship.
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2020.12)
   (in-suite aoc.2020.12)
-
+  (defparameter *test-input* '("F10" "N3" "F7" "R90" "F11"))
+  (test move-ship
+    (is (= 25 (follow-directions *test-input*))))
+  (test move-with-waypoint
+    (is (= 286 (follow-waypoint *test-input*))))
   (run! 'aoc.2020.12)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.12
+:  Running test MOVE-SHIP .
+:  Running test MOVE-WITH-WAYPOINT .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
+** Back In My Day
+[[https://www.reddit.com/r/adventofcode/comments/kbjw9c/2020_day_12_part_3_back_in_my_day/][On Reddit]] this challenge was presented. The L and R commands now
+rotate by radians. I changed two lines from the =follow-waypoints=
+version.
+#+NAME: follow-radians
+#+BEGIN_SRC lisp :results silent
+  (defun follow-radians (directions)
+    (loop for l in directions
+       with pos = #C(0 0)
+       with waypoint = #C(10 1)
+       for command = (char l 0)
+       for distance = (parse-integer (subseq l 1))
+       finally (return (+ (abs (realpart pos)) (abs (imagpart pos))))
+       do (case command 
+            (#\F (incf pos (* distance waypoint)))
+            (#\R (setf waypoint (/ waypoint (cis distance))))
+            (#\L (setf waypoint (* waypoint (cis distance))))
+            (#\N (incf waypoint (* distance #C(0 1))))
+            (#\S (incf waypoint (* distance #C(0 -1))))
+            (#\E (incf waypoint (* distance #C(1 0))))
+            (#\W (incf waypoint (* distance #C(-1 0)))))))
+#+END_SRC
+
+#+BEGIN_SRC lisp :results output
+  (format t "~$~%" (follow-radians *test-input*))
+  (format t "~$~%" (follow-radians *input*))
+#+END_SRC
+
+#+RESULTS:
+: 240.10
+: 16687.78
+
 ** Ada
 *** Runner
 Simple runner.
