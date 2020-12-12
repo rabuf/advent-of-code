@@ -111,19 +111,6 @@ origin. It's *always* relative to the ship, so we can simplify
 rotation and skipping having to adjust it after moving the ship.
 #+NAME: follow-waypoint
 #+BEGIN_SRC lisp :results silent
-  (defun turn-right (degrees)
-    (ecase degrees
-      (0 1)
-      (90 #C(0 -1))
-      (180 -1)
-      (270 #C(0 1))))
-  (defun turn-left (degrees)
-    (ecase degrees
-      (0 1)
-      (90 #C(0 1))
-      (180 -1)
-      (270 #C(0 -1))))
-
   (defun follow-waypoint (directions)
     (loop for l in directions
        with pos = #C(0 0)
