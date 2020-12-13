@@ -1,0 +1,276 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 13
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-13)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-13
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-13)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/13.txt"))
+#+END_SRC
+** Part 1
+It's another math day. Because I think the second part will change the
+parsing rules a bit, I'm going to leave the input unaltered.
+#+BEGIN_SRC lisp :results silent
+  (defun solve-a (lines)
+    (let ((timestamp (parse-integer (first lines)))
+          (buses (loop for n in (cl-ppcre:all-matches-as-strings "\\d+" (second lines))
+                    collect (parse-integer n))))
+      (loop for b in buses
+         for mod = (mod timestamp b)
+         for wait = (- b mod)
+         do (format t "Bus ~A in ~A minutes: ~A~%"
+                    b wait (* b wait)))))
+#+END_SRC
+#+NAME: solve-a
+#+BEGIN_SRC lisp :results silent
+  (defun solve-a (lines)
+    (let ((timestamp (parse-integer (first lines)))
+          (buses (loop for n in (cl-ppcre:all-matches-as-strings "\\d+" (second lines))
+                    collect (parse-integer n))))
+      (loop for b in buses
+         with earliest-bus = (first buses)
+         with earliest-time = (- earliest-bus (mod timestamp earliest-bus))
+         for mod = (mod timestamp b)
+         for wait = (- b mod)
+         if (< wait earliest-time)
+         do (setf earliest-time wait)
+           (setf earliest-bus b)
+         finally (return (* earliest-bus earliest-time)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 13 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Ok, I was right not to move the parsing to the top. In this part, line
+one doesn't matter. What matters is the second line. Given an input
+like =n,m= we want to find the time, =t=, at which =n= would leave and
+where =m= leaves at =t+1=. An =x= in the input means we don't care
+about that slot, but the index in the input does matter for other
+numbers. So =n,x,m= means =n= leaves at =t= and =m= at =t+2=.
+
+For two numbers this isn't too bad to solve. But the search space on
+many numbers is very large. I'll make a naive, brute-force version first just to
+make sure I understand the logic correctly.
+#+NAME: parse-b
+#+BEGIN_SRC lisp :results silent
+  (defun parse-b (line)
+  "PARSE-B takes a comma separated string, LINE, of numbers and
+  `x`s. The return value is a list of (INDEX NUMBER) pairs"
+    (loop for i from 0
+       for x in (cl-ppcre:split "," line)
+       for n = (parse-integer x :junk-allowed t)
+       if n
+       collect (list i n)))
+#+END_SRC
+#+BEGIN_SRC lisp :results silent
+  (defun solve-b (numbers)
+    (loop for time from 0 by (second (first numbers))
+       if (every (lambda (pair)
+                   (destructuring-bind (index n) pair
+                     (zerop (mod (+ index time) n))))
+                 (cdr numbers))
+       do (return time)))
+#+END_SRC
+
+As it happens that works pretty well, though I imagine it won't be
+quick on the real input. However, I don't feel like thinking anymore
+so let's run it!
+
+Thoughts: I only optimize by the first parameter. I can do better than
+that. Starting with time 1 and n_0 of 1 (this permits the list to
+start with a non-zero index more easily) loop over each pair. For each
+pair, increment time by n_0 until a valid value is found. Then update
+n_0 with $n_0 := n_0 * n$. Repeat until all pairs are evaluated.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :results silent
+  (defun solve-b (pairs)
+    (let ((time 1)
+          (n0 1))
+      (loop for (a n) in pairs
+         do (loop
+               until (zerop (mod (+ a time) n))
+               do (incf time n0))
+           (setf n0 (* n n0)))
+      time))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 13 B: ~a~%" (solve-b (parse-b (second *input*)))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<solve-a>>
+  <<parse-b>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 13 A: 174
+: Problem 13 B: 780601154795940
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.13)
+  (in-suite aoc.2020.13)
+  (defparameter *test-input*
+    '("939" "7,13,x,x,59,x,31,19"))
+  (test find-earliest-a
+    (is (= 295 (solve-a *test-input*))))
+
+  (test find-earliest-b
+    (is (= 3417 (solve-b (parse-b "17,x,13,19"))))
+    (is (= 754018 (solve-b (parse-b "67,7,59,61"))))
+    (is (= 779210 (solve-b (parse-b "67,x,7,59,61"))))
+    (is (= 1261476 (solve-b (parse-b "67,7,x,59,61"))))
+    (is (= 1202161486 (solve-b (parse-b "1789,37,47,1889")))))
+
+  (run! 'aoc.2020.13)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.13
+:  Running test FIND-EARLIEST-A .
+:  Running test FIND-EARLIEST-B .....
+:  Did 6 checks.
+:     Pass: 6 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day13.adb
+  with AOC2020.Day13;
+  procedure Day13 is
+  begin
+    AOC2020.Day13.Run;
+  end Day13;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day13.ads
+  package AOC2020.Day13 is
+     procedure Run;
+  end AOC2020.Day13;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day13.adb
+  <<ada-packages>>
+  package body AOC2020.Day13 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 13");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day13;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day13
+  ./day13
+#+END_SRC
+
+#+RESULTS:
