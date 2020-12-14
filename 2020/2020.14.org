@@ -1,0 +1,293 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 14
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-14)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-14
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-14)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/14.txt"))
+#+END_SRC
+** Part 1
+The task is to sum up the actual values stored into memory after
+applying a mask. The mask either does't change (=X=) the bit, or
+sets it to 1 or 0.
+
+I feel like I'm overthinking this one.
+#+NAME: apply-mask
+#+BEGIN_SRC lisp :results silent
+  (defun apply-mask (n mask)
+    (loop for c across (reverse mask)
+       for i from 0
+       with result = 0
+       do
+         (case c
+            (#\X (incf result (logand (expt 2 i) n)))
+            (#\0 nil)
+            (#\1 (incf result (expt 2 i))))
+       finally (return result)))
+#+END_SRC
+#+NAME: sum-memory
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (let ((parts (cl-ppcre:split " " line)))
+      (cond ((string= (first parts) "mask")
+             (third parts))
+            (t (list
+                (parse-integer (cl-ppcre:scan-to-strings "\\d+" (first parts)))
+                (parse-integer (third parts)))))))
+  (defun sum-memory (commands)
+    (loop for c in commands
+       for todo = (parse-line c)
+       with mask = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+       with memory = (make-hash-table)
+       if (stringp todo)
+       do (setf mask todo)
+       if (consp todo)
+       do (setf (gethash (first todo) memory)
+                (apply-mask (second todo) mask))
+       finally (return (loop for v being the hash-values of memory
+                          sum v))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 14 A: ~a~%" (sum-memory *input*)))
+#+END_SRC
+** Part 2
+Basically the same problem, except now the mask applies to the *memory
+address*. And instead of =X= meaning unchanged, it now means
+floating. So for each =X= we double the number of possible resulting
+memory addresses. Each address is assigned to now. So a mask like =1X=
+would assign to both 2 and 3, =XX= would assign to each of 0 to 3. =0=
+now means that the original value is unchanged.
+
+The first thing I need to do is update the =apply-mask= function so
+that it returns a list of addresses. I'll make this a simple recursive
+function.
+
+#+NAME: apply-floating-mask
+#+BEGIN_SRC lisp :results silent
+  (defun apply-floating-mask (n mask)
+    (labels ((recurse (index value)
+               (if (minusp index)
+                   (list value)
+                   (case (char mask index)
+                     (#\0
+                      (recurse (1- index)
+                               (if (logbitp index n)
+                                   (1+ (* 2 value))
+                                   (* 2 value))))
+                     (#\1 (recurse (1- index) (1+ (* 2 value))))
+                     (#\X (append
+                           (recurse (1- index) (* 2 value))
+                           (recurse (1- index) (1+ (* 2 value)))))))))
+      (recurse (1- (length mask)) 0)))
+#+END_SRC
+#+BEGIN_SRC lisp :results silent
+  (defun apply-floating-mask (n mask)
+  (let ((mask (reverse mask)))
+    (labels ((recurse (index value)
+               (if (= (length mask) index)
+                   (list value)
+                   (case (char mask index)
+                     (#\0
+                      (recurse (1+ index)
+                               (if (logbitp index n)
+                                   (+ value (expt 2 index))
+                                   value)))
+                     (#\1 (recurse (1+ index)
+                                   (+ value (expt 2 index))))
+                     (#\X (append
+                           (recurse (1+ index) value)
+                           (recurse (1+ index) (+ value (expt 2 index)))))))))
+      (recurse 0 0))))
+#+END_SRC
+#+NAME: sum-floating-memory
+#+BEGIN_SRC lisp :results silent
+  (defun sum-floating-memory (commands)
+    (loop for c in commands
+       for todo = (parse-a c)
+       with mask = "0"
+       with memory = (make-hash-table)
+       if (stringp todo)
+       do (setf mask todo)
+       if (consp todo)
+       do (loop for address in (apply-floating-mask (first todo) mask)
+             do (setf (gethash address memory)
+                      (second todo)))
+       finally (return (loop for v being the hash-values of memory
+                          sum v))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (sum-floating-memory *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<apply-mask>>
+  <<sum-memory>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 14 A: 6559449933360
+: Problem 14 B: 3369767240513
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.14)
+  (in-suite aoc.2020.14)
+  (defparameter *test-input*
+    '("mask = XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X"
+      "mem[8] = 11"
+      "mem[7] = 101"
+      "mem[8] = 0"))
+
+  (test sum-memory
+    (is (= 165 (sum-memory *test-input*))))
+  (run! 'aoc.2020.14)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.14
+:  Running test SUM-MEMORY .
+:  Did 1 check.
+:     Pass: 1 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day14.adb
+  with AOC2020.Day14;
+  procedure Day14 is
+  begin
+    AOC2020.Day14.Run;
+  end Day14;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day14.ads
+  package AOC2020.Day14 is
+     procedure Run;
+  end AOC2020.Day14;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day14.adb
+  <<ada-packages>>
+  package body AOC2020.Day14 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 14");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day14;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day14
+  ./day14
+#+END_SRC
+
+#+RESULTS:
