@@ -112,23 +112,6 @@ function.
 #+NAME: apply-floating-mask
 #+BEGIN_SRC lisp :results silent
   (defun apply-floating-mask (n mask)
-    (labels ((recurse (index value)
-               (if (minusp index)
-                   (list value)
-                   (case (char mask index)
-                     (#\0
-                      (recurse (1- index)
-                               (if (logbitp index n)
-                                   (1+ (* 2 value))
-                                   (* 2 value))))
-                     (#\1 (recurse (1- index) (1+ (* 2 value))))
-                     (#\X (append
-                           (recurse (1- index) (* 2 value))
-                           (recurse (1- index) (1+ (* 2 value)))))))))
-      (recurse (1- (length mask)) 0)))
-#+END_SRC
-#+BEGIN_SRC lisp :results silent
-  (defun apply-floating-mask (n mask)
   (let ((mask (reverse mask)))
     (labels ((recurse (index value)
                (if (= (length mask) index)
@@ -178,6 +161,8 @@ function.
   <<input>>
   <<apply-mask>>
   <<sum-memory>>
+  <<apply-floating-mask>>
+  <<sum-floating-memory>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
