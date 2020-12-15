@@ -222,45 +222,124 @@ Specification for solution.
 *** Packages
 #+NAME: ada-packages
 #+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Strings;
+  use Ada.Strings;
+  with Ada.Strings.Unbounded;
+  use Ada.Strings.Unbounded;
+  with Ada.Strings.Unbounded.Text_IO;
+  use Ada.Strings.Unbounded.Text_IO;
+  with Ada.Containers.Ordered_Maps;
+  with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 #+END_SRC
 *** Types and generics
 #+NAME: types-and-generics
 #+BEGIN_SRC ada
+  package Bus_Maps is new Ada.Containers.Ordered_Maps
+    (Key_Type => Natural,
+     Element_Type => Natural,
+     "<" => ">");
+  use Bus_Maps;
+#+END_SRC
+*** Parsing the input
+Two lines of text. The first line indicates a timestamp, the second is
+a set of bus lines. Their index is important for part 2 so I'll use an
+ordered map that maps from the bus line to the index.
+#+NAME: ada-parse
+#+BEGIN_SRC ada
+  procedure Read_File (Time_Stamp : out Integer; Data : out Map) is
+     Fin : File_Type;
+     Index, Bus : Natural := 0;
+     Line : Unbounded_String;
+     I : Positive := 1;
+     J : Natural := 1;
+  begin
+     Open (Fin, In_File, "../input/13.txt");
+     Get (Fin, Time_Stamp);
+     Skip_Line (Fin);
+     Get_Line (Fin, Line);
+     Close (Fin);
+     loop
+        -- I don't know why, but I had to fully qualify `Index` here.
+        J := Ada.Strings.Unbounded.Index (Source => Line, Pattern => ",", From => I);
+        if Element (Line, I) in  '0' .. '9' or J = 0
+        then
+           Bus := Integer'Value (if J = 0 then Slice (Line, I, Length (Line)) else Slice (Line, I, J-1));
+           Data.Insert (Bus, Index);
+           Index := Index + 1;
+        end if;
+        I := J + 1;
+        exit when J = 0;
+     end loop;
+  end Read_File;
+#+END_SRC
+*** Part 1
+Find the /next/ bus that will be available after the timestamp.
+#+NAME: ada-part-1
+#+BEGIN_SRC ada
+  function Next_Bus (Timestamp : in Integer; Buses : in Map) return Integer is
+     Wait : Integer := Integer'Last;
+     Bus : Integer := 0;
+     TW, TB : Integer := 0;
+  begin
+     for C in Buses.Iterate loop
+        TB := Key ( C);
+        TW := TB - (Timestamp mod TB);
+        if TW < Wait
+        then
+           Wait := TW;
+           Bus := TB;
+        end if;
+     end loop;
+     return Wait * Bus;
+  end Next_Bus;
+#+END_SRC
+*** Part 2
+Find a time such that each bus will appear at time $t + index$. I'm
+going to try using tasks for this one, though there aren't really
+enough numbers to search for this to be a terribly good use, it does
+help.
+#+NAME: ada-part-2
+#+BEGIN_SRC ada
+  function Find_Time (Timestamp : in Integer; Buses : in Map) return Long_Long_Integer is
+     T : Long_Long_Integer := 1;
+     N : Long_Long_Integer := 1;
+  begin
+     for C in Buses.Iterate loop
+        loop
+           exit when 0 = (T + Long_Long_Integer(Element (C))) mod Long_Long_Integer(Key (C));
+           T := T + N;
+        end loop;
+        N := Long_Long_Integer(Key (C)) * N;
+     end loop;
+     return T;
+  end Find_Time;
+#+END_SRC
+Reading up on tasks in Ada to make a concurrent version of this.
+*** Run Procedure
+#+NAME: ada-run
+#+BEGIN_SRC ada
+  procedure Run is
+     Timestamp : Integer;
+     Buses : Map;
+  begin
+     Read_File (Timestamp, Buses);
+     Put_Line("Advent of Code 2020 - Day 13");
+     Put_Line("The result for Part 1 is " & Integer'Image (Next_Bus (Timestamp, Buses)));
+     Put_Line("The result for Part 2 is " & Long_Long_Integer'Image (Find_Time (Timestamp, Buses)));
+  end Run;
 
 #+END_SRC
 *** Implementation
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2020-day13.adb
+#+BEGIN_SRC ada :tangle ada/aoc2020-day13.adb :noweb yes
   <<ada-packages>>
   package body AOC2020.Day13 is
      <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
-     procedure Run is
-     begin
-        Put_Line("Advent of Code 2020 - Day 13");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
-     end Run;
+     <<ada-parse>>
+     <<ada-part-1>>
+     <<ada-part-2>>
+     <<ada-run>>
   end AOC2020.Day13;
 #+END_SRC
 *** Run the program
