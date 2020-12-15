@@ -8,6 +8,7 @@ with AOC2020.Day07;
 with AOC2020.Day08;
 with AOC2020.Day09;
 with AOC2020.Day10;
+with AOC2020.Day13;
 use AOC2020;
 procedure Main is
 begin
@@ -20,4 +21,5 @@ begin
    Day07.Run;
    Day09.Run;
    Day10.Run;
+   Day13.Run;
 end Main;
