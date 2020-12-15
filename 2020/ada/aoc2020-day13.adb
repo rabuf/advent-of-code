@@ -72,7 +72,7 @@ package body AOC2020.Day13 is
       Buses : Map;
    begin
       Read_File (Timestamp, Buses);
-      Put_Line("Advent of Code 2020 - Day 13");
+      Put_Line("Advent of Code 2020 - Day 13"); New_Line;
       Put_Line("The result for Part 1 is " & Integer'Image (Next_Bus (Timestamp, Buses)));
       Put_Line("The result for Part 2 is " & Long_Long_Integer'Image (Find_Time (Timestamp, Buses)));
    end Run;
