@@ -1,0 +1,107 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 19
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-19)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-19
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-19)
+#+END_SRC
+** Input
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* 3014603)
+#+END_SRC
+** Part 1
+There are 3014603 elves in a circle. Each takes the gifts from the elf
+to their left. If an elf has no presents, they're removed. This means,
+on the first pass the even numbered elves will be removed.
+
+With 5 elves, the 3rd gets all the presents.
+
+I spent some time with a pen and paper and worked out the formula.
+$g(n) = 2 \cdot (n - 2^{\floor{\log_2 n}}) + 1$
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun greediest (n)
+    (+ (* 2
+          (- n
+             (expt 2
+                   (floor (log n 2)))))
+       1))
+  (defun problem-a () (format t "Problem 19 A: ~a~%" (greediest *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 19 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 19 A: 1834903
+: Problem 19 B: 3014603
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.19)
+  (in-suite aoc.2016.19)
+
+  (run! 'aoc.2016.19)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts

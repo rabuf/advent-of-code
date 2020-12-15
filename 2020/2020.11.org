@@ -242,48 +242,68 @@ Specification for solution.
 *** Packages
 #+NAME: ada-packages
 #+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Text_IO.Unbounded_IO;
+  use Ada.Text_IO.Unbounded_IO;
+#+END_SRC
+*** Read input
+#+NAME: ada-read-input
+#+BEGIN_SRC ada
+  procedure Read_File (Grid : out Cell_Array) is
+     Fin : File_Type;
+     Line : String (1..99);
+     Length : Natural;
+     Y : Height_Range := 1;
+  begin
+     for Row in Height_Range'Range loop
+        Grid := (Width_Range => (others => Floor));
+     end loop;
+     Open (Fin, In_File, "../input/11.txt");
+     while not End_Of_File (Fin) loop
+        Get_Line(Fin, Line, Length);
+        Put_Line(Length'Image);
+        for X in 1..98 loop
+           case Line(X) is
+              when '.' => Grid (X, Y) := Floor;
+              when '#' => Grid (X, Y) := Occupied;
+              when 'L' => Grid (X, Y) := Empty;
+              when others => null;
+           end case;
+        end loop;
+     end loop;
+     Close (Fin);
+  end Read_File;
 #+END_SRC
 *** Types and generics
+I'm going to create a type to represent the cell types, in good Ada
+fashion. The grid will be represented by a 2d array of cells. I'm
+going to cheat a bit and hardcode the sizes. I know it's a 98x97 (w x
+h) grid. I'll pad it with 2 on either side.
 #+NAME: types-and-generics
 #+BEGIN_SRC ada
-
+  type Cell_Type is (Empty, Occupied, Floor);
+  subtype Height_Range is Integer range 0..98;
+  subtype Width_Range is Integer range 0..99;
+  type Cell_Array is array (Width_Range, Height_Range) of Cell_Type;
 #+END_SRC
 *** Implementation
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2020-day11.adb
+#+BEGIN_SRC ada :noweb yes :tangle ada/aoc2020-day11.adb
   <<ada-packages>>
   package body AOC2020.Day11 is
      <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+     <<ada-read-input>>
      procedure Run is
+        Grid : Cell_Array;
      begin
-        Put_Line("Advent of Code 2020 - Day 11");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Read_File (Grid);
+        Put_Line ("Advent of Code 2020 - Day 11");
+        Put_Line ("The result for Part 1 is " & Integer'Image(0));
+        Put_Line ("The result for Part 2 is " & Integer'Image(0));
      end Run;
   end AOC2020.Day11;
-#+END_SRC
-*** Run the program
+#+END_SRC*
+** Run the program
 In order to run this you have to "tangle" the code first using =C-c
 C-v C-t=.
 
