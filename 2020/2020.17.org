@@ -1,0 +1,343 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 17
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-17)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-17
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-17)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun make-grids (lines)
+    (loop for l in lines
+       with 3d-grid = (make-hash-table :test 'equal)
+       with 4d-grid = (make-hash-table :test 'equal)
+       for y from 0
+       with z = 0
+       with w = 0
+       do (loop for c across l
+             for x from 0
+             if (char= #\# c)
+             do (setf (gethash (list x y z) 3d-grid) c)
+               (setf (gethash (list x y z w) 4d-grid) c))
+       finally (return (list 3d-grid 4d-grid))))
+  (defun read-input (file)
+    (make-grids
+     (iter (for line in-file file using #'read-line)
+           (collect line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/17.txt"))
+#+END_SRC
+** Part 1
+Another GoL style puzzle. This time it operates in 3d, though our
+input is for just one slice. The space is unbounded, that is we can't
+just stop examining at the edge it's possible to expand beyond the
+current known area.
+
+Two rules:
+- If a cube is active, then it remains active if 2 or 3 of its
+  neighbors are also active. Otherwise it becomes inactive.
+- If a cube is inactive but exactly 3 of its neighbors are active, it
+  becomes active. Otherwise it remains inactive.
+
+Since both rules depend on being adjacent to other cubes I'm going to
+use a sparse representation. Only active cubes will be used. Their
+neighbors (all 26 of them) will be queued up for examination.
+#+NAME: conway-cube-step
+#+BEGIN_SRC lisp :results silent
+  (defun count-neighbors (grid location)
+    (destructuring-bind (x y z) location
+      (loop for i from (1- x) to (1+ x)
+         sum (loop for j from (1- y) to (1+ y)
+                sum (loop for k from (1- z) to (1+ z)
+                       if (not (and (= i x) (= j y) (= k z)))
+                       count (char= #\# (gethash (list i j k) grid #\.)))))))
+
+  (defun neighbors (location)
+    (destructuring-bind (x y z) location
+      (loop for i from (1- x) to (1+ x)
+         with neighbors = nil
+         finally (return neighbors)
+         do (loop for j from (1- y) to (1+ y)
+               do (loop for k from (1- z) to (1+ z)
+                     if (not (and (= i x) (= j y) (= k z)))
+                     do (pushnew (list i j k) neighbors :test #'equal))))))
+
+  (defun active-rule (grid location)
+    (if (<= 2 (count-neighbors grid location) 3)
+        #\#
+        #\.))
+
+  (defun inactive-rule (grid location)
+    (if (= 3 (count-neighbors grid location))
+        #\#
+        #\.))
+
+  (defun next-step (grid)
+    (let ((next (make-hash-table :test 'equal))
+          (to-check nil))
+      (loop
+         for location being the hash-keys of grid
+         do (pushnew location to-check :test #'equal)
+           (setf to-check (union to-check (neighbors location))))
+      (loop for location in to-check
+         for delta = (case (gethash location grid #\.)
+                       (#\# (active-rule grid location))
+                       (#\. (inactive-rule grid location)))
+         if (char= delta #\#)
+         do (setf (gethash location next) #\#))
+      next))
+
+  (defun solve-a (grid)
+    (loop repeat 6
+       with grid = grid
+       do (setf grid (next-step grid))
+       finally (return (hash-table-count grid))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 17 A: ~a~%" (solve-a (first *input*))))
+#+END_SRC
+** Part 2
+I'm literally just going to copy the logic from above and make a 4d version
+#+NAME: conway-cube-4d
+#+BEGIN_SRC lisp :results silent
+  (defun count-neighbors-4d (grid location)
+    (destructuring-bind (x y z w) location
+      (loop for i from (1- x) to (1+ x)
+         sum (loop for j from (1- y) to (1+ y)
+                sum (loop for k from (1- z) to (1+ z)
+                       sum (loop for l from (1- w) to (1+ w)
+                              if (not (and (= i x) (= j y) (= k z) (= l w)))
+                              count (char= #\# (gethash (list i j k l) grid #\.))))))))
+
+  (defun neighbors-4d (location)
+    (destructuring-bind (x y z w) location
+      (loop for i from (1- x) to (1+ x)
+         with neighbors = nil
+         finally (return neighbors)
+         do (loop for j from (1- y) to (1+ y)
+               do (loop for k from (1- z) to (1+ z)
+                     do (loop for l from (1- w) to (1+ w)
+                           if (not (and (= i x) (= j y) (= k z) (= l w)))
+                           do (pushnew (list i j k l) neighbors :test #'equal)))))))
+
+  (defun active-rule-4d (grid location)
+    (if (<= 2 (count-neighbors-4d grid location) 3)
+        #\#
+        #\.))
+
+  (defun inactive-rule-4d (grid location)
+    (if (= 3 (count-neighbors-4d grid location))
+        #\#
+        #\.))
+
+  (defun next-step-4d (grid)
+    (let ((next (make-hash-table :test 'equal))
+          (to-check nil))
+      (loop
+         for location being the hash-keys of grid
+         do (push location to-check); :test #'equal)
+           (setf to-check (append to-check (neighbors-4d location))))
+      (loop for location in to-check
+         for delta = (case (gethash location grid #\.)
+                       (#\# (active-rule-4d grid location))
+                       (#\. (inactive-rule-4d grid location)))
+         if (char= delta #\#)
+         do (setf (gethash location next) #\#))
+      next))
+
+  (defun next-step-4d-bb (grid)
+    (let ((next (make-hash-table :test 'equal)))
+      (destructuring-bind (min-x min-y min-z min-w
+                                 max-x max-y max-z max-w)
+          (loop
+             for (x y z w) being the hash-keys of grid
+             finally (return (list (1- min-x) (1- min-y) (1- min-z) (1- min-w)
+                                   (1+ max-x) (1+ max-y) (1+ max-z) (1+ max-w)))
+             minimizing x into min-x
+             minimizing y into min-y
+             minimizing z into min-z
+             minimizing w into min-w
+             maximizing x into max-x
+             maximizing y into max-y
+             maximizing z into max-z
+             maximizing w into max-w)
+        (loop for x from min-x to max-x
+           do (loop for y from min-y to max-y
+                 do (loop for z from min-z to max-z
+                       do (loop for w from min-w to max-w
+                             for location = (list x y z w)
+                               for delta = (case (gethash location grid #\.)
+                                             (#\# (active-rule-4d grid location))
+                                             (#\. (inactive-rule-4d grid location)))
+                             if (char= delta #\#)
+                             do (setf (gethash location next) #\#)))))
+        next)))
+
+  (defun solve-b (grid)
+    (loop repeat 6
+       with grid = grid
+       do (setf grid (next-step-4d-bb grid))
+       finally (return (hash-table-count grid))))
+#+END_SRC
+
+Of course, that takes 30 seconds. I could definitely speed it up, all
+the union stuffs take a lot of time. It may actually be faster to just
+append the results. Going to try it real quick. Much faster, about 4
+seconds. But what we *really* want is to find a bounding box which can
+be calculated in one pass. Less than one second. Not bad, a 30x
+improvemnet ubt makes the code a bit uglier (all the minimziing/maximizing).
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 17 B: ~a~%" (solve-b (second *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<conway-cube-step>>
+  <<conway-cube-4d>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 17 A: 237
+: Problem 17 B: 2448
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.17)
+  (in-suite aoc.2020.17)
+
+  (run! 'aoc.2020.17)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day17.adb
+  with AOC2020.Day17;
+  procedure Day17 is
+  begin
+    AOC2020.Day17.Run;
+  end Day17;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day17.ads
+  package AOC2020.Day17 is
+     procedure Run;
+  end AOC2020.Day17;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day17.adb
+  <<ada-packages>>
+  package body AOC2020.Day17 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 17");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day17;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day17
+  ./day17
+#+END_SRC
+
+#+RESULTS:
