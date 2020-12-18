@@ -1,0 +1,300 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 18
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-18)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-18
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-18)
+#+END_SRC
+** Input
+I'll be using the shunting-yard algorithm for this. To help, I
+preprocess each line by splitting it on spaces. I introduce extra
+whitespace for the parentheses (which can be adjacent to each other or
+numbers in the actual input).
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (cl-ppcre:split
+     " +"
+     ;; Next two lines help with the later parsing step
+     (cl-ppcre:regex-replace-all
+      "\\)"
+      (cl-ppcre:regex-replace-all "\\(" line "( ") " )")))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/18.txt"))
+#+END_SRC
+** Part 1
+This is an implementation of the shunting-yard algorithm with no
+precedence *except* for parenthetical expressions.
+#+NAME: to-rpn
+#+BEGIN_SRC lisp :results silent
+  (defun to-rpn (infix)
+    (loop for i in infix
+       for val = (parse-integer i :junk-allowed t)
+       with stack = nil
+       with op = nil
+       if val
+       do (push val stack)
+       if (null val)
+       do (cond ((string= "+" i)
+                 (when (functionp (first op))
+                   (push (pop op) stack))
+                 (push #'+ op))
+                ((string= "*" i)
+                 (when (functionp (first op))
+                   (push (pop op) stack))
+                 (push #'* op))
+                ((string= "(" i) (push i op))
+                (t
+                 (loop for v = (pop op)
+                    until (equal "(" v)
+                    do (push v stack))))
+       finally (loop for o in op
+                  do (push o stack))
+         (return (reverse stack))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 18 A: ~a~%" (loop for i in *input*
+                  sum (rpn (to-rpn i)))))
+#+END_SRC
+** Part 2
+Same as the above but now addition takes precedence over
+multiplication.
+
+I originally wrote the parsing and computation into one function. For
+part two I've split it out. I had a stupid mistake in my handling of
+the more generalized version and lost some time to an infinite
+loop/out of memory issue. I slept on it, realized the problem, and
+fixed it in my =parse-line= function.
+
+Below is the general =rpn= interpreter. It takes a list of numbers and
+operations and performs them directly.
+#+NAME: rpn
+#+BEGIN_SRC lisp :Results silent
+  (defun rpn (input)
+    (loop for i in input
+       with stack = nil
+       if (numberp i)
+       do (push i stack)
+       if (functionp i)
+       do (push (funcall i (pop stack) (pop stack)) stack)
+       finally (return (pop stack))))
+#+END_SRC
+
+Since =+= takes precedence, =*= will only be pushed to the stack when
+we close parens or reach the end. I think that should work. And it does.
+
+Conveniently, =eq= works with two functions so we can leave the
+representation otherwise unchanged.
+#+NAME: to-rpn-precedence
+#+BEGIN_SRC lisp :results silent
+  (defun to-rpn-precedence (infix)
+    (loop for i in infix
+       for val = (parse-integer i :junk-allowed t)
+       with stack = nil
+       with op = nil
+       if val
+       do (push val stack)
+       if (null val)
+       do (cond ((string= "+" i)
+                 (when (and (functionp (first op))
+                            (eq #'+ (first op)))
+                   (push (pop op) stack))
+                 (push #'+ op))
+                ((string= "*" i)
+                 (when (and (functionp (first op))
+                            (eq #'+ (first op)))
+                   (push (pop op) stack))
+                 (push #'* op))
+                ((string= "(" i) (push i op))
+                (t
+                 (loop for v = (pop op)
+                    until (equal "(" v)
+                    do (push v stack))))
+       finally (loop for o in op
+                  do (push o stack))
+         (return (reverse stack))))
+#+END_SRC
+An option for making this more general, though I don't plan to do it
+right now, is to take in a precedence table. Two operations with the
+same precedence would work like in the original. But two operations
+with different precedence would be like in this second version.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 18 B: ~a~%" (loop for i in *input*
+                  sum (rpn (to-rpn-precedence i)))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<to-rpn>>
+  <<rpn>>
+  <<to-rpn-precedence>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 18 A: 29839238838303
+: Problem 18 B: 201376568795521
+** Test Cases
+There are a number of test cases, may as well incorporate them.
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.18)
+  (in-suite aoc.2020.18)
+  (test left-to-right
+    (is (= 71 (rpn (to-rpn (parse-line "1 + 2 * 3 + 4 * 5 + 6")))))
+    (is (= 51 (rpn (to-rpn (parse-line "1 + (2 * 3) + (4 * (5 + 6))")))))
+    (is (= 26 (rpn (to-rpn (parse-line "2 * 3 + (4 * 5)")))))
+    (is (= 437 (rpn (to-rpn (parse-line "5 + (8 * 3 + 9 + 3 * 4 * 3)")))))
+    (is (= 12240 (rpn (to-rpn (parse-line "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))")))))
+    (is (= 13632 (rpn (to-rpn (parse-line "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2"))))))
+  (test precedence
+    (is (= 231 (rpn (to-rpn-precedence (parse-line "1 + 2 * 3 + 4 * 5 + 6")))))
+    (is (= 51 (rpn (to-rpn-precedence (parse-line "1 + (2 * 3) + (4 * (5 + 6))")))))
+    (is (= 46 (rpn (to-rpn-precedence (parse-line "2 * 3 + (4 * 5)")))))
+    (is (= 1445 (rpn (to-rpn-precedence (parse-line "5 + (8 * 3 + 9 + 3 * 4 * 3)")))))
+    (is (= 669060 (rpn (to-rpn-precedence (parse-line "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))")))))
+    (is (= 23340 (rpn (to-rpn-precedence (parse-line "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2"))))))
+  (run! 'aoc.2020.18)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.18
+:  Running test LEFT-TO-RIGHT ......
+:  Running test PRECEDENCE ......
+:  Did 12 checks.
+:     Pass: 12 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day18.adb
+  with AOC2020.Day18;
+  procedure Day18 is
+  begin
+    AOC2020.Day18.Run;
+  end Day18;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day18.ads
+  package AOC2020.Day18 is
+     procedure Run;
+  end AOC2020.Day18;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day18.adb
+  <<ada-packages>>
+  package body AOC2020.Day18 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 18");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day18;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day18
+  ./day18
+#+END_SRC
+
+#+RESULTS:
