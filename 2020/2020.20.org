@@ -1,0 +1,539 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 20
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-20)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-20
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-20)
+#+END_SRC
+** Input
+The input is a set of 10x10 tiles (consisting of =.= and =#=
+characters) along with a tile id. I'm going to parse this into a set
+of arrays stored in a hash table. The key will be the tile id.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-tiles (lines)
+    (let ((tiles (make-hash-table)))
+      (loop for line in lines
+         with tno = 0
+         with tile = nil
+         with row = 0
+         if (string= line "")
+         do
+           (setf (gethash tno tiles) tile)
+         finally
+           (setf (gethash tno tiles) tile)
+           (return tiles)
+         if (string/= line "")
+         do (cond ((search "Tile" line)
+                   (setf row 0)
+                   (setf tno (parse-integer (cl-ppcre:scan-to-strings "\\d+" line)))
+                   (setf tile (make-array '(10 10))))
+                  (t (loop for c across line
+                        for col from 0
+                        do (setf (aref tile row col) c))
+                     (incf row))))))
+
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+A quick test of my parsing skills, a function to print all tiles.
+#+BEGIN_SRC lisp :results silent
+  (defun print-tiles (tiles)
+    (loop for k being the hash-keys of tiles using (hash-value v)
+         do (format t "Tile ~A:~%~A~%" k v)))
+#+END_SRC
+With a quick spot check, I'm confident this is correct.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (parse-tiles (read-input "input/20.txt")))
+#+END_SRC
+** Part 1
+So there are 144 tiles, forming a 12x12 square. The tiles are
+(possibly) rotated or flipped. The /borders/ of each adjacent tile are
+exact matches. So I'm going to not do anything fancy, just a
+backtracking search. I'll want to store a couple things in my current
+state:
+
+- Tiles currently placed (I'll start in the top left and work across)
+- Number of the tile in each location (for the final computation)
+#+NAME: fit-tiles
+#+BEGIN_SRC lisp :results silent
+  (defun fits-below (t1 t2)
+    (= 10 (loop for i from 0 to 9
+             count (char= (aref t1 i 0) (aref t2 i 9)))))
+  (defun fits-right (t1 t2)
+    (= 10 (loop for j from 0 to 9
+             count (char= (aref t1 0 j) (aref t2 9 j)))))
+  ;; rotates clockwise, 4 result in the original
+  (defun rotate (tile)
+    (let ((rotated (make-array '(10 10))))
+      (loop for x from 0 to 9
+         do (loop for y from 0 to 9
+               do (setf (aref rotated x y) (aref tile (- 9 y) x))))
+      rotated))
+  ;; performs vertical flip, with rotations this should account for
+  ;; all variations.
+  (defun flip (tile)
+    (let ((flipped (make-array '(10 10))))
+      (loop for x from 0 to 9
+         do (loop for y from 0 to 9
+               do (setf (aref flipped x y) (aref tile (- 9 x) y))))
+      flipped))
+  (defun fits (tile x y state)
+    (or (and (zerop x) (zerop y)) ;; top left always fits
+        (and (if (< 0 x) (fits-right tile (aref state (1- x) y)) t)
+             (if (< 0 y) (fits-below tile (aref state x (1- y))) t))))
+  (defun fit-tiles (tiles unassigned &optional (x 0) (y 0) (state (make-array '(12 12))) (arrangement (make-array '(12 12))))
+    (destructuring-bind (max-x max-y) (array-dimensions state)
+    (cond ((null unassigned)
+           (* (aref arrangement 0 0)
+              (aref arrangement (1- max-x) 0)
+              (aref arrangement 0 (1- max-y))
+              (aref arrangement (1- max-x) (1- max-y))))
+          (t
+           (loop for tno in unassigned
+              for original = (gethash tno tiles)
+              do (loop repeat 4
+                    for tile = original then (rotate tile)
+                    if (fits tile x y state)
+                    do (setf (aref state x y) tile)
+                      (setf (aref arrangement x y) tno)
+                      (let ((val (fit-tiles tiles
+                                            (remove tno unassigned)
+                                            (mod (1+ x) max-x)
+                                            (if (= x (1- max-x)) (1+ y) y)
+                                            state
+                                            arrangement)))
+                        (when val (return-from fit-tiles val))))
+                (loop repeat 4
+                   for tile = (flip original) then (rotate tile)
+                   if (fits tile x y state)
+                   do (setf (aref state x y) tile)
+                     (setf (aref arrangement x y) tno)
+                     (let ((val (fit-tiles tiles
+                                           (remove tno unassigned)
+                                           (mod (1+ x) max-x)
+                                           (if (= x (1- max-x)) (1+ y) y)
+                                           state
+                                           arrangement)))
+                       (when val (return-from fit-tiles val)))))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 20 A: ~a~%" (fit-tiles *input* (loop for k being the hash-keys of *input* collect k))))
+#+END_SRC
+** Part 2
+Oy. Some stupid mistakes on my part made that a lot tougher than
+necessary. Once I fixed my incorrect constants and a few other
+details, I got it working. Now I need to amke an image using the
+above. To do this, I'm going take the same fit function from above,
+but modify it to return the final image instead of the product of tile
+IDs. Then I'll pass *that* to a =make-image= function. After that,
+I'll worry about the actual task (identify possible sea monsters).
+
+#+NAME: make-image
+#+BEGIN_SRC lisp :results silent
+  (defun tile-arrangement (tiles unassigned &optional (x 0) (y 0) (state (make-array '(12 12))) (arrangement (make-array '(12 12))))
+    (destructuring-bind (max-x max-y) (array-dimensions state)
+      (cond ((null unassigned) state)
+            (t
+             (loop for tno in unassigned
+                for original = (gethash tno tiles)
+                do (loop repeat 4
+                      for tile = original then (rotate tile)
+                      if (fits tile x y state)
+                      do (setf (aref state x y) tile)
+                        (setf (aref arrangement x y) tno)
+                        (let ((val (tile-arrangement tiles
+                                                     (remove tno unassigned)
+                                                     (mod (1+ x) max-x)
+                                                     (if (= x (1- max-x)) (1+ y) y)
+                                                     state
+                                                     arrangement)))
+                          (when val (return-from tile-arrangement val))))
+                  (loop repeat 4
+                     for tile = (flip-vertical original) then (rotate tile)
+                     if (fits tile x y state)
+                     do (setf (aref state x y) tile)
+                       (setf (aref arrangement x y) tno)
+                       (let ((val (tile-arrangement tiles
+                                                    (remove tno unassigned)
+                                                    (mod (1+ x) max-x)
+                                                    (if (= x (1- max-x)) (1+ y) y)
+                                                    state
+                                                    arrangement)))
+                         (when val (return-from tile-arrangement val)))))))))
+  (defun make-image (tiles)
+    (let* ((dimension (floor (sqrt (hash-table-count tiles))))
+           (arrangement (tile-arrangement
+                         tiles
+                         (loop for k being the hash-keys of tiles collect k)
+                         0 0
+                         (make-array (list dimension dimension))
+                         (make-array (list dimension dimension))))
+          (image (make-array (list (* dimension 8) (* dimension 8)))))
+      (loop for x from 0 below dimension
+         do (loop for y from 0 below dimension
+               do (loop for i from 0 to 7
+                     do (loop for j from 0 to 7
+                           do (setf (aref image (+ i (* x 8)) (+ j (* y 8)))
+                                    (aref (aref arrangement x y) (1+ i) (1+ j)))))))
+      image))
+#+END_SRC
+After a lot of playing around with the test input, I'm confident I
+have a correct image. The question is: How many waves (=#=) are not
+part of a possible sea monster. This is the habitats "roughness".
+
+The sea monster looks like:
+#+BEGIN_EXPORT ascii
+                  # 
+#    ##    ##    ###
+ #  #  #  #  #  #   
+#+END_EXPORT
+
+A region matches this if there are waves in the same places, but the
+blanks can match anything. The sea monster can be rotated and
+flipped. Unfortunately my routines for those are hardcoded for 10x10
+tiles. I'm not suer I want to bother with something more general. But
+a thought occured to me. If I go back to my previous style of using
+complex numbers to represent grids, I can cleanly handle this search
+and the rotations.
+
+I'll add a routine that can take an array and turn it into a hash
+table. I'll make a similar hash table for the sea monster pattern
+above. Then I can use complex math to handle the rotations and
+flipping of the sea monster (in retrospect this could've cleanly
+handled the tiles as well).
+
+#+NAME: grid-to-table
+#+BEGIN_SRC lisp :results silent
+  (defun grid-to-table (image)
+    (let ((table (make-hash-table)))
+      (destructuring-bind (x y) (array-dimensions image)
+        (loop for i from 0 below x
+           do (loop for j from 0 below y
+                   if (char= #\# (aref image i j))
+                   do (setf (gethash (complex i j) table)
+                            (aref image i j)))))
+      table))
+#+END_SRC
+
+Since I'm now using complex numbers to represent coordinates, a grid
+stored this way can be rotated and flipped by multiplication by =i= or
+using the complex conjugate.
+#+NAME: grid-operations
+#+BEGIN_SRC lisp :results silent
+  (defun grid-rotate (grid)
+    (loop for k being the hash-keys of grid using (hash-value v)
+       with result = (make-hash-table)
+       finally (return result)
+       do (setf (gethash (* #C(0 1) k) result) v)))
+
+  (defun grid-flip (grid)
+    (loop for k being the hash-keys of grid using (hash-value v)
+       with result = (make-hash-table)
+       finally (return result)
+       do (setf (gethash (conjugate k) result) v)))
+#+END_SRC
+
+I'm hardcoding the pattern, but it could be changed to anything. I
+don't bother with any sanity checks, like that the pattern fits
+entirely within the image. Since I'm using hash tables, accessing "out
+of bounds" values is a non-issue.
+#+NAME: grid-search
+#+BEGIN_SRC lisp :results silent
+  (defparameter *sea-monster-pattern*
+    (grid-to-table
+     #2A((#\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\. #\# #\.)
+         (#\# #\. #\. #\. #\. #\# #\# #\. #\. #\. #\. #\# #\# #\. #\. #\. #\. #\# #\# #\#)
+         (#\. #\# #\. #\. #\# #\. #\. #\# #\. #\. #\# #\. #\. #\# #\. #\. #\# #\. #\. #\.))))
+
+  (defun grid-match (grid pattern offset)
+    (loop for k being the hash-keys of pattern
+       if (null (gethash (+ offset k) grid))
+       do (return-from grid-match nil))
+    t)
+
+  (defun grid-search (image &optional (pattern *sea-monster-pattern*))
+    (destructuring-bind (max-x max-y) (array-dimensions image)
+      (let ((image (grid-to-table image))
+            (matches (make-hash-table)))
+        (loop for x from 0 below max-x
+           do (loop for y from 0 below max-y
+                 for offset = (complex x y)
+                 do (loop repeat 4
+                       for p = pattern then (grid-rotate p)
+                       if (grid-match image p offset)
+                       do (loop for k being the hash-keys of p
+                             do (setf (gethash (+ k offset) matches) #\#)))
+                 do (loop repeat 4
+                       for p = (grid-flip pattern) then (grid-rotate p)
+                       if (grid-match image p offset)
+                       do (loop for k being the hash-keys of p
+                             do (setf (gethash (+ k offset) matches) #\#)))))
+        (- (hash-table-count image) (hash-table-count matches)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 20 B: ~a~%" (grid-search (make-image *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<fit-tiles>>
+  <<make-image>>
+  <<grid-to-table>>
+  <<grid-operations>>
+  <<grid-search>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 20 A: 45079100979683
+: Problem 20 B: 1946
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.20)
+  (in-suite aoc.2020.20)
+  (defparameter *test-input*
+    (parse-tiles '("Tile 2311:"
+                   "..##.#..#."
+                   "##..#....."
+                   "#...##..#."
+                   "####.#...#"
+                   "##.##.###."
+                   "##...#.###"
+                   ".#.#.#..##"
+                   "..#....#.."
+                   "###...#.#."
+                   "..###..###"
+                   ""
+                   "Tile 1951:"
+                   "#.##...##."
+                   "#.####...#"
+                   ".....#..##"
+                   "#...######"
+                   ".##.#....#"
+                   ".###.#####"
+                   "###.##.##."
+                   ".###....#."
+                   "..#.#..#.#"
+                   "#...##.#.."
+                   ""
+                   "Tile 1171:"
+                   "####...##."
+                   "#..##.#..#"
+                   "##.#..#.#."
+                   ".###.####."
+                   "..###.####"
+                   ".##....##."
+                   ".#...####."
+                   "#.##.####."
+                   "####..#..."
+                   ".....##..."
+                   ""
+                   "Tile 1427:"
+                   "###.##.#.."
+                   ".#..#.##.."
+                   ".#.##.#..#"
+                   "#.#.#.##.#"
+                   "....#...##"
+                   "...##..##."
+                   "...#.#####"
+                   ".#.####.#."
+                   "..#..###.#"
+                   "..##.#..#."
+                   ""
+                   "Tile 1489:"
+                   "##.#.#...."
+                   "..##...#.."
+                   ".##..##..."
+                   "..#...#..."
+                   "#####...#."
+                   "#..#.#.#.#"
+                   "...#.#.#.."
+                   "##.#...##."
+                   "..##.##.##"
+                   "###.##.#.."
+                   ""
+                   "Tile 2473:"
+                   "#....####."
+                   "#..#.##..."
+                   "#.##..#..."
+                   "######.#.#"
+                   ".#...#.#.#"
+                   ".#########"
+                   ".###.#..#."
+                   "########.#"
+                   "##...##.#."
+                   "..###.#.#."
+                   ""
+                   "Tile 2971:"
+                   "..#.#....#"
+                   "#...###..."
+                   "#.#.###..."
+                   "##.##..#.."
+                   ".#####..##"
+                   ".#..####.#"
+                   "#..#.#..#."
+                   "..####.###"
+                   "..#.#.###."
+                   "...#.#.#.#"
+                   ""
+                   "Tile 2729:"
+                   "...#.#.#.#"
+                   "####.#...."
+                   "..#.#....."
+                   "....#..#.#"
+                   ".##..##.#."
+                   ".#.####..."
+                   "####.#.#.."
+                   "##.####..."
+                   "##..#.##.."
+                   "#.##...##."
+                   ""
+                   "Tile 3079:"
+                   "#.#.#####."
+                   ".#..######"
+                   "..#......."
+                   "######...."
+                   "####.#..#."
+                   ".#...#.##."
+                   "#.#####.##"
+                   "..#.###..."
+                   "..#......."
+                   "..#.###...")))
+  (run! 'aoc.2020.20)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.20
+:  Didn't run anything...huh?
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day20.adb
+  with AOC2020.Day20;
+  procedure Day20 is
+  begin
+    AOC2020.Day20.Run;
+  end Day20;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day20.ads
+  package AOC2020.Day20 is
+     procedure Run;
+  end AOC2020.Day20;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day20.adb
+  <<ada-packages>>
+  package body AOC2020.Day20 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 20");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day20;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day20
+  ./day20
+#+END_SRC
+
+#+RESULTS:
