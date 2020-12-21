@@ -1,0 +1,300 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 21
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-21)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-21
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-21)
+#+END_SRC
+** Input
+#+NAME: read-input
+The input consists of a set of lines containing ingredients and
+allergens. The allergens are listed in paretheticals (if they're
+present). I'll split each line into two lists of strings and return
+both.
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (destructuring-bind (ingredients allergens) (cl-ppcre:split "\\(contains " line)
+      (list (cl-ppcre:split " " ingredients)
+            (cl-ppcre:split " " (cl-ppcre:regex-replace-all "," (string-trim ")" allergens) "")))))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/21.txt"))
+#+END_SRC
+** Part 1
+This is going to take a bit to wrap my head around. Somehow, using
+this data, we can determine which ingredients *definitely do not have*
+allergens in them.
+
+I'm going to play around with the test data first, because I'm not
+grokking this.
+
+If I understand it correctly, if an allergen is in two lists, find the
+intersection of ingredients from those lists and those *may* have the
+allergen. The elements in both lists that are *not* in common don't
+have the allergen.
+
+I'm going to do a hash table. IT will use the allergens as keys, and
+create a list of lists of ingredients. Afterwards, I'll reduce those
+using intersection to identify possible allergen containing
+ingredients. I can then take the union and remove all these
+ingredients to identify safe ingredients. Then for the actual puzzle
+answer, count how many each of them show up across all food items.
+
+This will be messy.
+#+NAME: solve-a
+#+BEGIN_SRC lisp :results silent
+  (defun make-allergen-map (foods)
+    (let ((map (make-hash-table :test #'equal)))
+      (loop for (ingredients allergens) in foods
+         do (loop for a in allergens
+               do (push ingredients (gethash a map))))
+      map))
+
+  (defun string-list-intersect (a b)
+    (intersection a b :test #'string=))
+
+  (defun string-list-union (a b)
+    (union a b :test #'string=))
+
+  (defun possible-allergen-ingredients (map)
+    (let ((ingredients nil))
+      (loop for k being the hash-keys of map using (hash-value v)
+         do (loop for i in (reduce #'string-list-intersect v)
+               do (pushnew i ingredients :test #'string=)))
+      ingredients))
+
+  (defun safe-ingredients (map unsafe)
+    (let ((ingredients nil))
+      (loop for k being the hash-keys of map using (hash-value v)
+         do (loop for i in (reduce #'string-list-union v)
+               if (not (member i unsafe :test #'string=))
+               do (pushnew i ingredients :test #'string=)))
+      ingredients))
+
+  (defun count-safe-ingredients (ingredient-lists safe)
+    (let ((ingredients (apply #'append ingredient-lists)))
+      (loop for i in safe
+         sum (count i ingredients :test #'string=))))
+
+  (defun get-ingredient-lists (input)
+    (mapcar #'car input))
+
+  (defun solve-a (input)
+    (let* ((map (make-allergen-map input))
+           (unsafe (possible-allergen-ingredients map))
+           (safe (safe-ingredients map unsafe)))
+      (count-safe-ingredients (get-ingredient-lists input) safe)))
+#+END_SRC
+
+The above works on the test input. It does *not* work on the real
+input. Time to work on some debugging output and see what's happening.
+
+Parsing problem, I thought I'd removed the commas, but they're still
+there. So there are more allergens than there should be. I'm going to
+reuse a function from above, but have it return a mapping from
+allergen to ingredients.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 21 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+Now the task is to identify which items actually contain the
+allergens, not just *could*. This is basically the same constraint
+satisfaction problem from a couple days ago. It turns out that wheat
+only shows up in one ingredient. Removing it from the others lets us
+find their specific ingredient by repeated reduction.
+#+NAME: solve-b
+#+BEGIN_SRC lisp :results silent
+  (defun possible-allergen-ingredients-map (map)
+    (let ((aimap (make-hash-table :test #'equal)))
+      (loop for k being the hash-keys of map using (hash-value v)
+         do (loop for i in (reduce #'string-list-intersect v)
+               do (pushnew i (gethash k aimap) :test #'string=)))
+      aimap))
+  (defun constraint-solver (map)
+    (labels ((all-identified-p ()
+               (loop for v being the hash-values of map
+                  if (consp v)
+                  do (return-from all-identified-p nil))
+               t))
+      (loop until (all-identified-p)
+         do (loop named inner
+               for k being the hash-keys of map using (hash-value i)
+               if (and (consp i) (= 1 (length i)))
+               do (setf (gethash k map) (car i))
+                 (loop for k being the hash-keys of map using (hash-value v)
+                    do (setf (gethash k map) (remove (car i) v :test #'string=)))
+                 (return-from inner)))
+      (format nil "~{~A~^,~}"
+              (mapcar #'cadr
+                      (sort (loop for k being the hash-keys of map using (hash-value v)
+                               collect (list k v))
+                            #'string<=
+                            :key #'car)))))
+  (defun solve-b (input)
+    (let* ((map (make-allergen-map input))
+           (unsafe (possible-allergen-ingredients-map map)))
+      (constraint-solver unsafe)))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 21 B: ~a~%" (solve-b *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<solve-a>>
+  <<solve-b>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 21 A: 1958
+: Problem 21 B: xxscc,mjmqst,gzxnc,vvqj,trnnvn,gbcjqbm,dllbjr,nckqzsg
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.21)
+  (in-suite aoc.2020.21)
+  (defparameter *test-input*
+    (mapcar #'parse-line
+            '("mxmxvkd kfcds sqjhc nhms (contains dairy, fish)"
+              "trh fvjkl sbzzf mxmxvkd (contains dairy)"
+              "sqjhc fvjkl (contains soy)"
+              "sqjhc mxmxvkd sbzzf (contains fish)")))
+  (run! 'aoc.2020.21)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.21
+:  Didn't run anything...huh?
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day21.adb
+  with AOC2020.Day21;
+  procedure Day21 is
+  begin
+    AOC2020.Day21.Run;
+  end Day21;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day21.ads
+  package AOC2020.Day21 is
+     procedure Run;
+  end AOC2020.Day21;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day21.adb
+  <<ada-packages>>
+  package body AOC2020.Day21 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 21");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day21;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day21
+  ./day21
+#+END_SRC
+
+#+RESULTS:
