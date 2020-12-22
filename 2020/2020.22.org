@@ -1,0 +1,241 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 22
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-22)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-22
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-22)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-input (lines)
+    (let (p1 p2)
+      (pop lines)
+      (loop for val = (pop lines)
+         until (string= val "")
+         do (push (parse-integer val) p1))
+      (pop lines)
+      (loop for val = (pop lines)
+         while val
+         do (push (parse-integer val) p2))
+      (list (reverse p1) (reverse p2))))
+    
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (parse-input (read-input "input/22.txt")))
+#+END_SRC
+** Part 1
+Implementing the card game Combat (War). The game is over once a
+player has all the cards. The value I need is the sum of each card
+times its distance from the bottom (bottom card is face value, next is
+doubled, etc.).
+
+#+NAME: combat
+#+BEGIN_SRC lisp :results silent
+  (defun score-combat (hand)
+    (loop for i from 1
+       for c in (reverse hand)
+         sum (* i c)))
+  (defun play-combat (hands)
+    (let ((p1 (copy-seq (first hands)))
+          (p2 (copy-seq (second hands))))
+      (loop
+         until (or (null p1) (null p2))
+         for c1 = (pop p1)
+         for c2 = (pop p2)
+         do (cond ((< c1 c2)
+                   (setf p2 (append p2 (list c2 c1))))
+                  (t
+                   (setf p1 (append p1 (list c1 c2))))))
+      (score-combat (or p1 p2))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 22 A: ~a~%" (play-combat *input*)))
+#+END_SRC
+** Part 2
+Scoring is the same, but now the game is recursive.
+
+New termination rule: If the card configurations ever repeat, player 1
+wins.
+
+Otherwise, players select a card each like before. If both players
+have at least as many cards in their deck as the value of their card,
+they take that many cards into a recursive game.
+#+NAME: recursive-combat
+#+BEGIN_SRC lisp :results silent
+  (defun play-recursive-combat (hands)
+    (labels ((play (p1 p2)
+               (let ((seen (make-hash-table :test #'equalp)))
+                 (setf (gethash (list p1 p2) seen) 0)
+                 (loop
+                    until (or (plusp (gethash (list p1 p2) seen 0)) (null p1) (null p2))
+                    for c1 = (pop p1)
+                    for c2 = (pop p2)
+                    do (case (winner c1 p1 c2 p2)
+                         (player-1 (setf p1 (append p1 (list c1 c2))))
+                         (player-2 (setf p2 (append p2 (list c2 c1)))))
+                    do (incf (gethash (list p1 p2) seen -1)))
+                 (cond ((or (plusp (gethash (list p1 p2) seen 0)) (null p2))
+                        (values 'player-1 (score-combat p1)))
+                       (t (values 'player-2 (score-combat p2))))))
+             (winner (c1 p1 c2 p2)
+               (cond ((or (< (length p1) c1) (< (length p2) c2))
+                      (if (< c1 c2) 'player-2 'player-1))
+                     (t (play (subseq p1 0 c1) (subseq p2 0 c2))))))
+      (nth-value 1 (play (copy-seq (first hands)) (copy-seq (second hands))))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 22 B: ~a~%" (play-recursive-combat *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<combat>>
+  <<recursive-combat>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 22 A: 34005
+: Problem 22 B: 32731
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.22)
+  (in-suite aoc.2020.22)
+
+  (run! 'aoc.2020.22)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day22.adb
+  with AOC2020.Day22;
+  procedure Day22 is
+  begin
+    AOC2020.Day22.Run;
+  end Day22;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day22.ads
+  package AOC2020.Day22 is
+     procedure Run;
+  end AOC2020.Day22;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day22.adb
+  <<ada-packages>>
+  package body AOC2020.Day22 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 22");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day22;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day22
+  ./day22
+#+END_SRC
+
+#+RESULTS:
