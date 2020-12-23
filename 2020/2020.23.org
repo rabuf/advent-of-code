@@ -89,7 +89,7 @@ current cup.
 #+END_SRC
 ** Part 2
 I'm going to eliminate all movement. Instead I'm going to have an
-array where each index is a cup, and the value is the *next* up.
+array where each index is a cup, and the value is the *next* cup.
 
 Instead of moving values, a move will result in:
 
@@ -117,7 +117,7 @@ expression.
          do (setf (aref array i) j))
       (list (first cups) array))))
   (defun fast-move (current cups)
-    (flet ((next-cup (i) (aref cups i)))
+    (macrolet ((next-cup (i) `(aref cups ,i)))
       (let* ((destination (1- current))
              (next (next-cup (next-cup (next-cup (next-cup current)))))
              (move-head (next-cup current))
@@ -125,9 +125,9 @@ expression.
         (loop while (or (< destination 1) (member destination (list move-head (next-cup move-head) move-tail)))
            do (decf destination)
              (when (< destination 1) (setf destination (1- (array-dimension cups 0)))))
-        (psetf (aref cups current) next
-               (aref cups destination) move-head
-               (aref cups move-tail) (next-cup destination)))))
+        (psetf (next-cup current) next
+               (next-cup destination) move-head
+               (next-cup move-tail) (next-cup destination)))))
   (defun fast-cups (seed total-cups iterations)
     (destructuring-bind (current cups) (make-cup-array seed total-cups)
       (loop for i from 1 to iterations
