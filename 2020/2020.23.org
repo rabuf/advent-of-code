@@ -1,0 +1,256 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 23
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-23)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-23
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-23)
+#+END_SRC
+** Input
+Just a number, no parsing! That's a lie, it needs to be interpreted as
+a set of cups each given a unique number. I'll deal with that in part 1.
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* 916438275)
+#+END_SRC
+** Part 1
+Given a set of cups (given with an identifier unique to each) perform
+a move. From the current cup, pick up the next three. Place them to
+the right of the cup one less than the current cup (keep decrementing
+if this one was picked up). Then the next cup is the one right of the
+current cup.
+#+NAME: move
+#+BEGIN_SRC lisp :results silent
+  (defun move (cups)
+    "Performa a MOVE on the cups, the current cup is always first in the list."
+    (let* ((curr (pop cups))
+           (next (subseq cups 0 3))
+           (destination (1- curr)))
+      (setf cups (subseq cups 3))
+      (loop while (or (< destination 1) (member destination next))
+         do (decf destination)
+           (when (< destination 1)
+             (setf destination 9)))
+      (let ((left (subseq cups 0 (1+ (position destination cups))))
+            (right (subseq cups (1+ (position destination cups)))))
+        (append left next right (list curr)))))
+#+END_SRC
+#+NAME: cups
+#+BEGIN_SRC lisp :results silent :noweb yes
+  <<move>>
+  (defun cups (number &optional (times 100))
+    (let ((cups (loop for n = number then (floor n 10)
+                   until (zerop n)
+                   collect (mod n 10) into result
+                   finally (return (reverse result)))))
+      (loop
+         for i from 1 to times
+         do
+           (setf cups (move cups)))
+      (format nil "~{~A~}~{~A~}" (subseq cups (1+ (position 1 cups))) (subseq cups 0 (position 1 cups)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 23 A: ~a~%" (fast-cups *input* 9 100)))
+#+END_SRC
+** Part 2
+I'm going to eliminate all movement. Instead I'm going to have an
+array where each index is a cup, and the value is the *next* up.
+
+Instead of moving values, a move will result in:
+
+- Change current cup to point to cup 4 ahead (after the moved cups)
+- Change destination to point to first cup in moved cups
+- Change last moved cup to point to after the original destination
+  value
+
+These are really just swaps, so I can do this using =psetf= in one
+expression.
+#+NAME: fast-cups
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun make-cup-array (number total-cups)
+    (let ((cups (loop for n = number then (floor n 10)
+                   until (zerop n)
+                   collect (mod n 10) into result
+                   finally (return (reverse result)))))
+      (setf cups (append cups
+                         (loop for i from (1+ (apply #'max cups)) to total-cups
+                            collect i)
+                         (list (first cups))))
+    (let ((array (make-array (1+ total-cups))))
+      (loop for i in cups
+         for j in (cdr cups)
+         do (setf (aref array i) j))
+      (list (first cups) array))))
+  (defun fast-move (current cups)
+    (flet ((next-cup (i) (aref cups i)))
+      (let* ((destination (1- current))
+             (next (next-cup (next-cup (next-cup (next-cup current)))))
+             (move-head (next-cup current))
+             (move-tail (next-cup (next-cup move-head))))
+        (loop while (or (< destination 1) (member destination (list move-head (next-cup move-head) move-tail)))
+           do (decf destination)
+             (when (< destination 1) (setf destination (1- (array-dimension cups 0)))))
+        (psetf (aref cups current) next
+               (aref cups destination) move-head
+               (aref cups move-tail) (next-cup destination)))))
+  (defun fast-cups (seed total-cups iterations)
+    (destructuring-bind (current cups) (make-cup-array seed total-cups)
+      (loop for i from 1 to iterations
+         do
+           (fast-move current cups)
+           (setf current (aref cups current)))
+      (values
+       (format nil "~{~A~}"
+               (loop repeat 8
+                  for i = (aref cups 1) then (aref cups i)
+                  collect i))
+       (* (aref cups 1) (aref cups (aref cups 1))))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 23 B: ~a~%" (nth-value 1 (fast-cups *input* 1000000 10000000))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<input>>
+  <<cups>>
+  <<fast-cups>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 23 A: 39564287
+: Problem 23 B: 404431096944
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.23)
+  (in-suite aoc.2020.23)
+
+  (run! 'aoc.2020.23)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day23.adb
+  with AOC2020.Day23;
+  procedure Day23 is
+  begin
+    AOC2020.Day23.Run;
+  end Day23;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day23.ads
+  package AOC2020.Day23 is
+     procedure Run;
+  end AOC2020.Day23;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day23.adb
+  <<ada-packages>>
+  package body AOC2020.Day23 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 23");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day23;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day23
+  ./day23
+#+END_SRC
+
+#+RESULTS:
