@@ -131,9 +131,8 @@ expression.
   (defun fast-cups (seed total-cups iterations)
     (destructuring-bind (current cups) (make-cup-array seed total-cups)
       (loop for i from 1 to iterations
-         do
-           (fast-move current cups)
-           (setf current (aref cups current)))
+         for curr = current then (aref cups curr)
+         do (fast-move curr cups))
       (values
        (format nil "~{~A~}"
                (loop repeat 8
