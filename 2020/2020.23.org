@@ -181,6 +181,56 @@ expression.
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
+I think I can reimplement this using Common Lisp's circular lists
+(that is, have the last cdr point to the start of the list). It brings
+back some of the linear access times (specifically seeking to a
+particular value) but shouldn't be as bad as my first version (with
+its various appends and such).
+
+This is not a bad solution, but the inability to seek randomly makes
+this particularly inefficient. In the worst case the destination is
+just before the current position, which for part 2 means iterating 1
+million times (less 1). Based on my estimates, it needs 800 minutes to
+finish part 1 on my computer.
+
+I could improve this by using a secondary structure to point to each
+cons cell directly allowing the insert to be O(1) instead of
+O(n). However, that pretty much puts me back at the original solution,
+but ends up being more complicated.
+#+BEGIN_SRC lisp :results silent
+  (defun move-to-circular (list target)
+    (loop until (= (car list) target)
+       do (pop list))
+    list)
+  (defun get-destination (current next-three max)
+    (loop with d = (1- current)
+       while (or (< d 1) (member d next-three))
+       do (decf d)
+         (when (< d 1)
+           (setf d max))
+       finally (return d)))
+  (defun circular-cups (cups iterations)
+    (let ((max (length cups))
+          (*print-circle* t))
+      (setf (cdr (last cups)) cups)
+      (loop for i from 1 to iterations
+         for current = (car cups)
+         for next-three = (subseq cups 1 4)
+         for destination = (get-destination current next-three max)
+         do (psetf (cdr cups) (cddddr cups)
+                   (cdr (move-to-circular cups destination)) next-three
+                   (cdr (last next-three)) (cdr (move-to-circular cups destination)))
+           (pop cups))
+      (loop repeat 8
+         with c = (cdr (move-to-circular cups 1))
+         collect (pop c))))
+  (defun make-cups (initial max)
+    (cond ((<= max (length initial)) initial)
+          (t (append
+              initial
+              (loop for i from (1+ (length initial)) to max
+                   collect i)))))
+#+END_SRC
 ** Ada
 *** Runner
 Simple runner.
