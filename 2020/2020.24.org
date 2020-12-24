@@ -1,0 +1,287 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 24
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2020-24)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2020-24
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2020-24)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/24.txt"))
+#+END_SRC
+** Part 1
+Each line is a series of directions to follow on a hexaganol floor. The directinos are:
+- e
+- w
+- ne
+- nw
+- se
+- sw
+
+No delimiters, just follow them. They lead to a tile to flip (tiles
+may be flipped more than once). After following the directions, how
+many tiles end with the black side up (start with white).
+
+The difficulty (for me) today will be representing a hexagonal
+grid. I'll use a 3-tuple for this. First is distance east/west, second
+is nw/se, third is ne/sw.
+#+NAME: flip-tiles
+#+BEGIN_SRC lisp :results silent
+  (defun directions-to-coord (directions &key (x 0) (y 0) (z 0))
+    (with-input-from-string (s directions)
+      (loop for c = (read-char s nil nil)
+         while c
+         do (case c
+              (#\e (incf x) (decf y))
+              (#\w (decf x) (incf y))
+              (#\s (incf z)
+                   (case (read-char s)
+                     (#\e (decf y))
+                     (#\w (decf x))))
+              (#\n (decf z)
+                   (case (read-char s)
+                     (#\e (incf x))
+                     (#\w (incf y)))))
+         finally (return (list x y z)))))
+  (defun count-black-tiles (directions)
+    (loop with tiles = (make-hash-table :test #'equal)
+       for d in directions
+       for c = (directions-to-coord d)
+       do (cond ((gethash c tiles) (remhash c tiles))
+                (t (setf (gethash c tiles) t)))
+       finally (return (values (hash-table-count tiles) tiles))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (count-black-tiles *input*)))
+#+END_SRC
+** Part 2
+Another Game of Life day. After determining teh initial tiles (above),
+each day apply the following two rules:
+- Any black tile with zero or more than 2 black tiles immediately
+  adjacent to it is flipped to white.
+- Any white tile with exactly 2 black tiles immediately adjacent to it
+  is flipped to black.
+
+I've modified the =directions-to-coord= function to take an optional
+set of values which are the starting coordinates. This will be useful
+for detecting neighbors quickly.
+#+NAME: tile-game
+#+BEGIN_SRC lisp :results silent
+  (defun count-neighbors (grid coord)
+    (loop for d in '("e" "w" "nw" "ne" "sw" "se")
+       with (x y z) = coord
+       for c = (directions-to-coord d :x x :y y :z z)
+       count (gethash c grid)))
+  (defun get-neighbors (coord)
+    (loop for d in '("e" "w" "nw" "ne" "sw" "se")
+       with (x y z) = coord
+       for c = (directions-to-coord d :x x :y y :z z)
+       collect c))
+  (defun next-day (tiles)
+    (loop with next-tiles = (make-hash-table :test #'equal)
+       for k being the hash-keys of tiles
+       for n = (count-neighbors tiles k)
+       ;; determine if black tiles are unflipped
+       if (not (or (zerop n) (< 2 n)))
+       do (setf (gethash k next-tiles) t)
+       ;; determine if white tiles are flipped
+       do (loop for w in (get-neighbors k)
+             for n = (count-neighbors tiles w)
+             if (and (= n 2) (not (gethash w tiles)))
+             do (setf (gethash w next-tiles) t))
+       finally (return next-tiles)))
+
+  (defun tile-game (directions days)
+    (loop for i from 0 to days
+       for tiles = (nth-value 1 (count-black-tiles directions)) then (next-day tiles)
+       finally (return (hash-table-count tiles))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (tile-game *input* 100)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<flip-tiles>>
+  <<tile-game>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 24 A: 455
+: Problem 24 B: 3904
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2020.24)
+  (in-suite aoc.2020.24)
+  (defparameter *test-input* '("sesenwnenenewseeswwswswwnenewsewsw"
+                               "neeenesenwnwwswnenewnwwsewnenwseswesw"
+                               "seswneswswsenwwnwse"
+                               "nwnwneseeswswnenewneswwnewseswneseene"
+                               "swweswneswnenwsewnwneneseenw"
+                               "eesenwseswswnenwswnwnwsewwnwsene"
+                               "sewnenenenesenwsewnenwwwse"
+                               "wenwwweseeeweswwwnwwe"
+                               "wsweesenenewnwwnwsenewsenwwsesesenwne"
+                               "neeswseenwwswnwswswnw"
+                               "nenwswwsewswnenenewsenwsenwnesesenew"
+                               "enewnwewneswsewnwswenweswnenwsenwsw"
+                               "sweneswneswneneenwnewenewwneswswnese"
+                               "swwesenesewenwneswnwwneseswwne"
+                               "enesenwswwswneneswsenwnewswseenwsese"
+                               "wnwnesenesenenwwnenwsewesewsesesew"
+                               "nenewswnwewswnenesenwnesewesw"
+                               "eneswnwswnwsenenwnwnwwseeswneewsenese"
+                               "neswnwewnwnwseenwseesewsenwsweewe"
+                               "wseweeenwnesenwwwswnew"))
+  (test count-test
+    (is (= 10 (count-black-tiles *test-input*))))
+  (test game-test
+    (is (= 2208 (tile-game *test-input* 100))))
+  (run! 'aoc.2020.24)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2020.24
+:  Running test COUNT-TEST .
+:  Running test GAME-TEST .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day24.adb
+  with AOC2020.Day24;
+  procedure Day24 is
+  begin
+    AOC2020.Day24.Run;
+  end Day24;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day24.ads
+  package AOC2020.Day24 is
+     procedure Run;
+  end AOC2020.Day24;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2020-day24.adb
+  <<ada-packages>>
+  package body AOC2020.Day24 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2020 - Day 24");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2020.Day24;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day24
+  ./day24
+#+END_SRC
+
+#+RESULTS:
