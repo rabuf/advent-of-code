@@ -62,10 +62,9 @@ Breaking the cryptographic security of a hotel room door.
        for value = 1 then (mod (* value subject-number) *magic*)
        until (= value n)
        finally (return i)))
-  (defun find-encryption-key (public-key loop-size)
+  (defun find-encryption-key (subject-number loop-size)
     (loop repeat loop-size
-       with subject-number = public-key
-       for value = public-key then (mod (* value subject-number) *magic*)
+       for value = subject-number then (mod (* value subject-number) *magic*)
        finally (return value)))
 #+END_SRC
 #+NAME: problem-a

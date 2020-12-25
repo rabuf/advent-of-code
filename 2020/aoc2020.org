@@ -1,6 +1,6 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2020 [24/25]
+* Advent of Code 2020 [25/25]
 This will be my attempt to solve the various Advent of Code 2020
 problems with Common Lisp.
 ** DONE [[file:2020.01.org][Day 1]]
@@ -27,7 +27,7 @@ problems with Common Lisp.
 ** DONE [[file:2020.22.org][Day 22]]
 ** DONE [[file:2020.23.org][Day 23]]
 ** DONE [[file:2020.24.org][Day 24]]
-** TODO [[file:2020.25.org][Day 25]]
+** DONE [[file:2020.25.org][Day 25]]
 * Some helper stuff
 This is the runner for the Ada code. It will run every days' tasks.
 #+BEGIN_SRC ada :tangle ada/main.adb
