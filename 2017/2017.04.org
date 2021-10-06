@@ -1,0 +1,203 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 04
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-04)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-04
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-04)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun split-string (string)
+    (with-input-from-string (in (substitute #\Newline #\Space string))
+      (iter (for w in-stream in using #'read-line)
+            (collect w))))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (split-string line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/04.txt"))
+#+END_SRC
+** Part 1
+Passphrases are invalid if they have a repeated word. A simple way to
+check, then, is to take a sequence and remove all duplicates and see
+if the two lengths are the same.
+#+NAME: valid-passphrase
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun valid-passphrase-p (passphrase)
+    (= (length passphrase)
+       (length (remove-duplicates passphrase :test #'string=))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (count-if #'valid-passphrase-p *input*)))
+#+END_SRC
+** Part 2
+Now words are considered equal if they're *anagrams* of each
+other. I'm going to create a function that will sort two strings and
+then report if their sorted forms are equal.
+
+#+NAME: valid-passphrase-anagrams-p
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun string-anagram-= (a b)
+    (let ((a (copy-seq a))
+          (b (copy-seq b)))
+      (sort a #'char<)
+      (sort b #'char<)
+      (string= a b)))
+  (defun valid-passphrase-anagrams-p (passphrase)
+    (= (length passphrase)
+       (length (remove-duplicates passphrase :test #'string-anagram-=))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (count-if #'valid-passphrase-anagrams-p *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<valid-passphrase>>
+  <<valid-passphrase-anagrams-p>>
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 04 A: 337
+: Problem 04 B: 231
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.04)
+  (in-suite aoc.2017.04)
+
+  (run! 'aoc.2017.04)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day04.adb
+  with AOC2017.Day04;
+  procedure Day04 is
+  begin
+    AOC2017.Day04.Run;
+  end Day04;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day04.ads
+  package AOC2017.Day04 is
+     procedure Run;
+  end AOC2017.Day04;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day04.adb
+  <<ada-packages>>
+  package body AOC2017.Day04 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 04");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day04;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day04
+  ./day04
+#+END_SRC
+
+#+RESULTS:
