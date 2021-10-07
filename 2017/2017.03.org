@@ -64,6 +64,16 @@ our position by moving horizontally right from *upper*.
 The manhattan distance is 480.
 
 ** Part 2
+There's, conventiently, a well-known sequence that represents these so
+I don't have to calculate it myself:
+- https://oeis.org/A141481
+
+The question is, which is the first value in the sequence *larger*
+than my input number:
+#+BEGIN_QUOTE
+349975
+#+END_QUOTE
+
 ** Putting it all together
 #+NAME: day3
 ** Answer
