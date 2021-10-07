@@ -1,0 +1,213 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 08
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-08)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-08
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-08)
+#+END_SRC
+** Input
+Going to use parseq again. Each line is an instruction, they get
+interpreted in order.
+#+BEGIN_QUOTE
+<reg> [inc|dec] <number> if reg [<|>|<=|>=|==|!=] <number>
+#+END_QUOTE
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule gte () ">=" (:constant #'>=))
+      (defrule lte () "<=" (:constant #'<=))
+      (defrule gt ()  ">"  (:constant #'>))
+      (defrule lt ()  "<"  (:constant #'<))
+      (defrule eq ()  "==" (:constant #'=))
+      (defrule neq () "!=" (:constant #'/=))
+      (defrule relation () (or gte lte gt lt eq neq))
+      (defrule value () (+ (and (? "-") digit)) (:string) (:function #'parse-integer))
+      (defrule dec () "dec" (:constant #'-))
+      (defrule inc () "inc" (:constant #'+))
+      (defrule operation () (or inc dec))
+      (defrule register () (+ alpha) (:string))
+      (defrule line () (and register " " operation " " value " if " register " " relation " " value)
+        (:choose 0 2 4 6 8 10))
+      (parseq 'line line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/08.txt"))
+#+END_SRC
+** Part 1
+Interpret each line in order (conveniently how the above leaves
+it). Registers default to 0, perform the operation if the condition is
+met.
+#+NAME: interpret-instructions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun interpret-instructions (instructions)
+    (let* ((h (make-hash-table :test #'equal))
+           (max (loop for (r op by a rel to) in instructions
+                      do (when (funcall rel (gethash a h 0) to)
+                           (incf (gethash r h 0) (funcall op by)))
+                      maximizing (gethash r h 0))))
+      (values
+       ;; Max value after all executions
+       (loop for v being the hash-value of h
+             maximizing v)
+       ;; Max value seen at any point
+       max)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 08 A: ~a~%" (interpret-instructions *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 08 B: ~a~%" (nth-value 1 (interpret-instructions *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 08 A: 4877
+: Problem 08 B: 5471
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.08)
+  (in-suite aoc.2017.08)
+
+  (run! 'aoc.2017.08)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day08.adb
+  with AOC2017.Day08;
+  procedure Day08 is
+  begin
+    AOC2017.Day08.Run;
+  end Day08;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day08.ads
+  package AOC2017.Day08 is
+     procedure Run;
+  end AOC2017.Day08;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day08.adb
+  <<ada-packages>>
+  package body AOC2017.Day08 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 08");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day08;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day08
+  ./day08
+#+END_SRC
+
+#+RESULTS:
