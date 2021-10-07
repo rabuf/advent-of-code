@@ -1,0 +1,912 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 07
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-07)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-07
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-07)
+#+END_SRC
+** DONE Input
+Alright, the input isn't *too* bad, here's an example:
+#+BEGIN_QUOTE
+pbga (66)
+xhth (57)
+ebii (61)
+havc (66)
+ktlj (57)
+fwft (72) -> ktlj, cntj, xhth
+qoyq (66)
+padx (45) -> pbga, havc, qoyq
+tknk (41) -> ugml, padx, fwft
+jptl (61)
+ugml (68) -> gyxo, ebii, jptl
+gyxo (61)
+cntj (57)
+#+END_QUOTE
+The format is:
+#+BEGIN_QUOTE
+<name> (<weight>) [-> <name>[, <name]+]
+#+END_QUOTE
+
+First step on processing is to parse each line, I'll break each into a
+triple of the name, weight, and children (nil if none).
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule name () (+ alpha) (:string))
+      (defrule weight () (+ digit) (:string) (:function #'parse-integer))
+      (defrule children+ () (and ", " name) (:choose 1))
+      (defrule children () (and name (* children+)) (:flatten))
+      (defrule line () (and name " (" weight ")" (? (and " -> " children))) (:choose 0 2 '(4 1)))
+      (parseq 'line line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/07.txt"))
+#+END_SRC
+** Part 1
+Treating the input as specifications for a tree, identify the root
+node of the tree. The weight doesn't matter here.
+
+#+NAME: find-root
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun find-root (programs)
+    (let ((h (make-hash-table :test #'equal)))
+      (loop for (p _ __) in programs do (setf (gethash p h) nil))
+      (loop
+        for (p _ cs) in programs
+        do (loop
+             for c in cs
+             do (push p (gethash c h nil))))
+      (loop
+        for k being the hash-keys in h using (hash-value v)
+        when (null v)
+        return k)))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 07 A: ~a~%" (find-root *input*)))
+#+END_SRC
+** Part 2
+So we've got the root. The next challenge is to find out *which*
+program has the incorrect weight. I'm going to write three functions:
+- =build-hash= :: returns a hash of =parent -> w x [child]=. This is
+                  used to construct the simpler tree structure in the
+                  next function.
+- =build-tree= :: returns a tree consisting of the weights of each
+                  node, the names no longer matter.
+- =solve-b= :: creative name, finds the unbalanced part and returns
+               the correct weight.
+#+NAME: build-tree
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun build-hash (programs)
+    (let ((h (make-hash-table :test #'equal)))
+      (loop for (p w cs) in programs
+            do (setf (gethash p h) (list w cs)))
+      h))
+  (defun build-tree (programs)
+    (let ((root (find-root programs))
+          (hash (build-hash programs)))
+      (labels ((recurse (node)
+                 (let ((w (first (gethash node hash)))
+                       (cs (second (gethash node hash))))
+                   (if cs
+                       (cons w
+                             (loop for c in cs
+                                   collect (recurse c)))
+                       w))))
+        (recurse root))))
+  (defun solve-b (programs)
+    (let ((tree (build-tree programs)))
+      (labels ((recurse (node)
+                 (cond ((atom node) node)
+                       ((list node)
+                        (let ((weights
+                                (loop for n in (cdr node)
+                                      collect (recurse n))))
+                          (print (list (car node) weights))
+                          (print (apply #'+ (cons (car node) weights)))
+                          (unless (apply #'= weights)
+                            (print 'difference)
+                            (print (- (apply #'max weights) (apply #'min weights))))
+                          (+ (car node) (apply #'+ weights)))))))
+        (recurse tree))))
+#+END_SRC
+
+I cheated, just printed out a lot of stuff and then used =C-r= to
+search back to the point where the difference appeared and did the
+math.
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 07 B: ~a~%" (identity 749)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 07 A: veboyvy
+Problem 07 B: ((keztg 7 NIL) (uwbtawx 9 NIL) (mgyhaax 46 NIL)
+               (fuvokrr 14 (pnjbsm glrua))
+               (cymmj 257 (phyzvno pmfprs ozgprze bgjngh)) (goilxo 80 NIL)
+               (cumfrfc 102 (yjivxcf swqkqgz)) (yquljjj 20 NIL) (ehywag 18 NIL)
+               (mmtyhkd 21 NIL) (paglk 98 NIL) (wtqfs 82 NIL) (oaynkf 8 NIL)
+               (cupbfut 78 NIL) (vpcruoy 70 NIL) (wmdbo 50 NIL)
+               (tmbtipi 48 NIL) (lkopm 9 NIL) (gluzk 18 NIL) (prvrg 76 NIL)
+               (lkdkyk 30 (oldwss nadxwf))
+               (iqsztjd 181 (hovelvz pndcqot naglm oxxlsk))
+               (nxdkpuh 217 (yhcsc ydmeqtl)) (nxlhjq 306 (hcwjxe zixbap))
+               (vtkgj 89 NIL) (rzrzage 73 NIL) (ftegwk 284 NIL) (lircjh 23 NIL)
+               (zosskdz 232 (isrch bwzvefg dxodoee)) (dphcbfr 67 NIL)
+               (pnmvk 180 (wrabgy vlfpuo))
+               (owmjbhg 120 (szfxhin czzpk zwrfiyf)) (oonqts 26 NIL)
+               (zjaqq 129 (hopjmyt cdwkezv)) (hxeoxk 33 NIL)
+               (csaqixs 1237 (alzipi lhxycw tkeuvp)) (avenz 7 NIL)
+               (nnhknbl 55 (owzwbpn iaonkp)) (bxifcld 86 NIL)
+               (neyeo 165 (gxxzwq fxwez)) (qnjpz 71 NIL) (qhxmh 61 NIL)
+               (jmhfgr 139 (ucuqxgm hovhxsp)) (tyuhzom 80 NIL)
+               (pqtboz 207 (ayvns codwosk)) (dqyjg 65 NIL) (nujppls 24 NIL)
+               (mxbixyi 60 NIL) (xkzgz 85 NIL)
+               (oxklzu 2285 (ehwlw fptoo sgobq eduwet pqmpnzo))
+               (fuleuxt 6 (ljzuyyk pxydes))
+               (zktmxll 451 (txsrez ewjrko drtrgwp kiggy)) (qpxbow 40 NIL)
+               (rshpnha 36 NIL) (pqmpnzo 1374 (hpltoci oxvwr vrxeemw))
+               (wdazzdu 54 NIL) (kivcyus 53 NIL) (cvvncju 10 NIL)
+               (dtkuik 36 NIL) (opkvs 64 NIL) (kwjnfg 28 NIL)
+               (suoiohi 197 (gluzk fdhdpw)) (jkaxk 98 NIL) (zsoro 12 NIL)
+               (fqvtm 15 NIL) (nqktjw 14 NIL) (cbhkkx 116 (wrprrev vyoxx))
+               (rmqdolg 55 NIL) (mdkes 95 NIL) (obxansb 343 (uzyprc uxaqq))
+               (pjitmnv 31 NIL) (vdkrvi 73 NIL) (nystxqv 35 NIL)
+               (odgzsnk 73 NIL) (hehbbo 83 NIL) (zrthre 30 NIL) (zwoot 9 NIL)
+               (mfawmsq 92 NIL) (sckaqs 1141 (qpaei cbhkkx qezwkkx))
+               (vxfci 60 (tdecuga wssvxr pchccgz ypogtw)) (vauwilt 78 NIL)
+               (qxkas 24 (mzgyj xappjar cgbgm muarkn)) (eqibqs 20 NIL)
+               (wuefg 549 (pwwyeqx ylidl qwbfod mqztoa)) (jmchsu 77 NIL)
+               (dinng 30 NIL) (nlpmbrd 37 (fnzjtvw qzjyi)) (yjivxcf 19 NIL)
+               (yhjopn 34 NIL) (hqxdyv 17568 (apktiv ybekxtf etoxfc))
+               (wvivxrz 82 NIL) (wszqat 85 (eddmyv edkwqih mxbixyi))
+               (xcldsl 78 NIL) (rnbzlx 35 NIL) (hibxz 94 (zgzsu vzgsgk))
+               (rgyco 21 NIL) (lmvvs 22 NIL) (nezny 13 NIL) (tpcvq 251 NIL)
+               (puxgb 15 NIL) (merrako 8 NIL)
+               (nzweur 431 (rfouw sukktk rreqg fmpcnql))
+               (pwwyeqx 100 (fmjhlia yquljjj)) (lccoo 27 (bmlid prvrg))
+               (dudxud 202 NIL) (cmnzh 49 NIL) (nitvw 8 NIL) (dcakuo 21 NIL)
+               (nnbty 81 NIL) (kjlxeat 318 (nmhww zacsvwk))
+               (frinpfj 88 (lwfoqny tdgel)) (zgqsgm 38 (phdcpp qwcrc))
+               (bvikij 91 (obxansb bizbsjd usggwvu zrhny svngfr))
+               (dnycw 219 (sibzrx hdgvs wnfqg)) (youpfn 38 NIL) (zixbap 47 NIL)
+               (mpwldri 55 NIL) (rfqenw 80 NIL) (tjtzx 78 NIL) (zbfut 55 NIL)
+               (eruxzoi 63 NIL) (nandmg 344 (qpqplm zrthre))
+               (bizbsjd 159 (piecd ghkdvw caurb)) (jpkwter 19 (mcjgfx ujsbt))
+               (uwpbnv 83 NIL) (devljb 45 NIL) (euzztul 30 NIL)
+               (frmbrb 1660 (norkse iitweo mebwy sckaqs xdrge)) (duccgc 15 NIL)
+               (bmlid 76 NIL) (clwwv 238 (jofvyvx zgjoaiw))
+               (llmmm 69 (wvivxrz pikvdx)) (rstdh 21 NIL) (afckjn 51 NIL)
+               (ojqia 22 NIL) (qtlzten 155 (fjgsw uujpt)) (eqxgwfz 40 NIL)
+               (ljwsi 20 NIL) (vuxbzm 48 NIL) (qzuwt 130 (qnrjqj bjdtdn))
+               (lnnwiq 20 NIL) (pbxpdo 281 (vabmsx kwjnfg)) (bfcdy 31 NIL)
+               (ykpsfj 28 NIL) (uegcs 210 NIL) (qezwkkx 74 (gquil stfzaxc))
+               (jkvduo 44 NIL) (vtylgti 66 (twgbxu uukshmq rlvggmr aynpr))
+               (eyyokyd 28 NIL) (nrbcaqo 45 NIL) (caocs 35 NIL)
+               (cfdpxpm 207 (jhwmc nezny))
+               (qwjmobb 28425 (ohusizx gqoxv xatjlb))
+               (akniuo 129 (zpczji tugrmnp)) (kravhjd 17 NIL)
+               (wtbwbpz 43 (kybegv qxhda)) (hovelvz 31 NIL) (jhwmc 13 NIL)
+               (wctze 102 (qwdhdrk znooxvq vhrxl zfhkfwn)) (nmhww 43 NIL)
+               (fqufwq 58 NIL) (zyxjg 81 NIL) (eltbyz 61 NIL)
+               (ehtsbv 783 (upaqlj cckqr pgprg ubksf)) (zbrbb 12 NIL)
+               (vjgvk 28 NIL) (mqulwk 15 NIL) (kywmnbd 404 NIL) (wcuvk 20 NIL)
+               (ymfls 75 NIL) (spxwcuv 173 (iobcvl xwfbb wxpauwt))
+               (eumzi 24 NIL) (kqoigs 53 (krfgye oxklzu pinipk ojatf memkrd))
+               (alneqju 77 NIL)
+               (joczsir 313 (xwkoc atkmjxg gurxxfd axxkh jmpknjs))
+               (uwzvy 35 NIL) (xqxyx 386 (avenz keztg))
+               (erylwj 804 (wdsbi ugrhs fzmaw)) (corfkob 87 NIL)
+               (sibzrx 67 (pqccp audeogd)) (crrfxfn 38 NIL) (piecd 72 NIL)
+               (bxefs 22 NIL) (lnufi 93 NIL) (qifuph 44 NIL) (uqccsbh 26 NIL)
+               (jaqwzi 79 (zkgoa juymjz))
+               (nivpffu 169 (tnccv lfqca sgfco nnbbrbf egsgwch)) (dfrkf 49 NIL)
+               (cdrhm 56 NIL) (vaylgz 80 NIL) (ayvns 23 NIL) (mdddafe 56 NIL)
+               (fpldxlq 195 (gjnnmvb ljwsi)) (eygaz 427 (ascyv kmjfxcf puxgb))
+               (ymeelep 92 NIL) (iuzvl 23 NIL) (tkjeu 41 NIL)
+               (xdlyd 75 (cymmj pbxpdo vmjbgo cwttq)) (jsltf 39 NIL)
+               (ciojx 146 (ioobamp ahrfot))
+               (eqmeu 211 (anrjxof nepxnu mwpbyo rbzqabo))
+               (bogvr 202 (zghrr bompiu)) (jefztzv 91 NIL)
+               (fvikm 80 (zepvwyv oonqts)) (zdqcu 194 (ucbuez nqktjw))
+               (pdvolf 75 NIL) (mkmci 40 (ggaxx xvzlrw)) (sqmfis 35 NIL)
+               (chrqi 74 NIL) (tvgytpm 49 NIL) (bjoyw 29 NIL) (nkfvkp 62 NIL)
+               (xbtswv 7446 (iehfo xcrkb qksclw))
+               (qomxhp 721 (agufw djgzb jxbksoh twnfzz ucxgom)) (ibmiu 9 NIL)
+               (atmzoso 6 (drosj wcrrrlf)) (fuqvw 56 NIL) (jfaca 49 NIL)
+               (yulga 213 NIL) (dxodoee 7 NIL) (gethyvd 39 NIL) (hjxcpi 30 NIL)
+               (jlcgqt 55 NIL) (lzouo 144 (ubjgijo rnbzlx)) (djyxrkb 78 NIL)
+               (bscpyic 61 (nktmu sqpdsk)) (sxmdnhl 31 NIL) (qbdafi 25 NIL)
+               (vwbxg 35 NIL) (rlvggmr 63 NIL)
+               (kiggy 27 (pgsokae ottiad eruxzoi zhttn))
+               (ocpngbz 73 (hqzay ewzryd ipjbc xjnhqlg))
+               (movmxq 216 (kfxhl ulpkj)) (mzgyj 85 NIL) (orwbdwn 52 NIL)
+               (ixyqeq 6735 (xgwjcx nkkgyl sykwd)) (htsjndf 211 NIL)
+               (ndhsa 82 NIL) (jmpknjs 80 (gdrcfwr wgivp)) (hieel 65 NIL)
+               (htdwe 25 NIL) (qrfuvjh 9 NIL) (ubjgijo 35 NIL) (vobnpuq 32 NIL)
+               (elgyjo 141 (ineoncq pfdmmg)) (zsnge 71 NIL) (zbwxa 28 NIL)
+               (ogczchc 31 NIL) (njdpm 53 NIL) (cpsce 84 NIL) (ftdylco 19 NIL)
+               (zrwfi 22 NIL) (hyfuy 252 (pmscqw ecaph))
+               (nayudfl 320 (ssvsso zrwfi)) (kykfb 72 (euzztul vxrtejs))
+               (ggpjxwv 9 NIL) (aostqf 29 NIL)
+               (zujltb 13 (hatvlca ppmrgga cjoya bogvr gtbpbl ocwkc qzuwt))
+               (ajbtn 18 NIL) (fzmaw 20 (qjixqo fkhxkeg uqccsbh))
+               (akmbqb 108 (kqkzsm grgsn)) (slrdn 55 NIL) (nrjwctg 96 NIL)
+               (norkse 661 (jmhfgr anwxvv ptwhbm znubct djrrc hgmjvpp))
+               (bwzvefg 7 NIL) (peuadz 8 NIL) (kvmqsdx 308 (zvtoom twvdhg))
+               (bvnjiou 32 NIL) (lnwuqu 159 (yeqnq fqvtm)) (pksfx 54 NIL)
+               (xatua 97 NIL) (tbrznk 37 NIL) (ucuqxgm 31 NIL) (hwjhf 78 NIL)
+               (pinipk 7229 (pqewl zujltb kfcowx))
+               (yyhzd 12 (kvqspmf dtkuik wsvir)) (imyvlyt 38 NIL)
+               (oldwss 96 NIL) (paegovu 86 NIL) (knjlz 83 NIL) (oevbo 23 NIL)
+               (yeucm 98 NIL) (usvkq 56 NIL)
+               (hatvlca 69 (gpogy eyrfvtl subwna))
+               (qkhtsa 208 (pyxgmtu pqgpuv pudnxf dilqo juqbdco flufot fzdyvo))
+               (gzvjxk 1397 (wctze zoijv fuleuxt))
+               (bkwcwf 326 (jazkpl kfcgv qpjctjw))
+               (vqghhbs 157 (lsrvhoi livmxo)) (fzdyvo 186 (gwfrqr tcgffi))
+               (rqkfkxw 47 NIL) (bntdh 76 NIL) (rfmiqz 158 (omlwg uhwvnbg))
+               (zorvsm 50 NIL) (edzgraw 83 NIL) (iwsknb 345 (qhqnfsp vrwkr))
+               (vyoxx 63 NIL) (livmxo 27 NIL) (foabep 92 NIL) (dbuccip 28 NIL)
+               (oojme 73 (ugkxkqe keucu zjqeu))
+               (cmmqbz 29868 (frmbrb ixyqeq njatvu))
+               (syjvwzt 6039 (bigkiu wjipa pmbnia)) (uxaqq 16 NIL)
+               (vboha 79 NIL) (irsfgz 94 NIL) (lsrvhoi 27 NIL)
+               (zdtvktq 99 (ezrix lyhfj)) (hgbkwjv 32 NIL)
+               (inxivh 261 (mzzxjcu rkaxx)) (nfrtom 44 NIL) (xhzylb 97 NIL)
+               (nuxqskl 39 NIL) (qhfxqrr 65 NIL) (foaayon 78 NIL)
+               (rhtdtxv 234 (rplxsw fjqomax)) (kppxrk 73 NIL) (qjixqo 26 NIL)
+               (sgngx 75 NIL) (ycsbsyn 87 (gmeueu wdhmsi zrqqtx))
+               (kqkzsm 61 NIL) (irjvpam 39 (ajozeez xxlbk nfwlplx))
+               (ldfofo 84 NIL) (mygcpku 84 NIL) (caurb 72 NIL) (gpysit 22 NIL)
+               (gxfij 171 (sxnsqj ksxixz)) (mxbyg 39 NIL) (jlshk 29 NIL)
+               (havdbe 132 (dqyjg wvdapsm)) (ocwkc 86 (dtzws fleszz))
+               (rqrtz 83 NIL) (eddmyv 60 NIL) (ecaph 56 NIL)
+               (ebgsk 60 (rshpnha puexzf)) (lymsa 44 (qcyypa vbdcxx))
+               (mozvs 54 (dfrkf cmnzh)) (kpghxz 17 NIL) (wrpqf 83 NIL)
+               (dzjsx 57 NIL) (vrzbmt 14 NIL)
+               (dryngd 29 (shawokt elkflt tjtzx auiiuv)) (ittmm 28 NIL)
+               (zqurr 284 (fqufwq htsuyvw)) (ktejrze 69 NIL)
+               (pudnxf 192 (aostqf szwpt)) (tqjlm 74 NIL) (codwosk 23 NIL)
+               (pmscqw 56 NIL) (cmcto 441 NIL)
+               (edoycls 93 (vvnzr imnvt vuxbzm rhzco))
+               (zrhny 177 (dcwfs dppwsec)) (vffew 46 NIL) (hcwjxe 47 NIL)
+               (dinlw 342 (zzjuf lnwuqu gxfij kmqurp)) (lgtpaqk 75 NIL)
+               (fluwt 65 NIL) (syuoewb 288 (uwbtawx avjkgl nkycb))
+               (anrjxof 6 NIL) (vrwkr 5 NIL) (pngubp 76 NIL) (vvnhe 89 NIL)
+               (rnlaw 45 (wszqat ptizsk mofyda ttolm velktz nzsnkla hhdzz))
+               (nadxwf 96 NIL) (sxpan 31 NIL) (gdrcfwr 71 NIL) (vabmsx 28 NIL)
+               (tsiyp 52 NIL) (fptoo 1398 (gintpbf cklkizf kjgtfqc))
+               (obxrn 756 (yyhzd afatio uqjge)) (znkchkk 50 NIL)
+               (hvapnf 121 (siruccf tgpxvyr)) (htsuyvw 58 NIL)
+               (yifny 122 (dcakuo xhtzti)) (uvvqcxz 79 NIL)
+               (suiyl 773 (hjfwn thknml gkijw)) (shawokt 78 NIL) (ezdiq 37 NIL)
+               (khrqmbo 9 NIL) (gkjbikb 79 (nrjwctg iamrpx)) (ysskib 76 NIL)
+               (zufoz 93 (smrvw kkkjsil)) (uusiaqf 84 NIL)
+               (cjxyt 69 (deczzuu ymeelep)) (gcefq 33 NIL)
+               (tgebda 247 (ngthpc bnvlsm afckjn)) (ljmve 55 NIL)
+               (rqdcuf 144 (xzxvwzf bjoyw)) (sjxaxv 76 NIL) (jiybx 88 NIL)
+               (wxpauwt 20 NIL) (clsbdm 10 NIL)
+               (fmpcnql 56 (rjvfwcu xjjdapk nwtlu)) (hchmn 258 (bremy vpcruoy))
+               (labnsw 157 (wnwsbdq jqjkgv)) (hvpcvdf 95 NIL)
+               (xatjlb 40 (aiunbee keoaqjb jxkofob plbtdq)) (dflvw 86 NIL)
+               (vmcgj 233 NIL) (jxwyzy 13 NIL)
+               (mebwy 1107 (uegez dpiyhv vdzuw icpwoof)) (btqebbp 156 NIL)
+               (mmvszxj 71 NIL) (gpysm 85 NIL) (dppwsec 99 NIL)
+               (iodveqh 89 NIL) (xcycu 116 (dnkiyf njdpm)) (ijictm 38 NIL)
+               (ineay 19 NIL) (hvdpzbv 73 NIL)
+               (cckqr 148 (rqhfhc jcyciyq jbqvpsb uapwikr))
+               (opowpvm 265 (aewie phrume)) (ptwhbm 69 (omzlzx suxpc))
+               (bpdixmv 83 NIL) (mzlmr 43 NIL) (ezrix 79 NIL) (jovly 61 NIL)
+               (audeogd 99 NIL) (hjfwn 168 (wtqfs uamje))
+               (wdhbym 184 (pksfx bgahvfu krlep pkmmfc)) (nmmtdv 83 NIL)
+               (uftwml 50 NIL) (ycyyvdy 17 NIL) (dqdpop 53 (ggllv zatwq))
+               (egqmgr 37 NIL) (txsrez 99 (iiznokx dobmve)) (lqmdutk 25 NIL)
+               (mfecx 33 NIL) (kldww 23 NIL) (dxbxha 135 (uvswv ydmrd))
+               (xmvdh 41 NIL) (ctinwus 96 NIL) (arkedwb 237 (qsvckew merrako))
+               (iaonkp 89 NIL) (uthjdye 124 (awoedy wuisqnk qsfpaj))
+               (yzbccbx 36 (fxemb osryil nkfvkp)) (xvlymgg 33 NIL)
+               (wbbaxr 10 NIL) (wcrrrlf 98 NIL) (bclse 38 (slgjon tzltv))
+               (krzjli 33 NIL) (dnkiyf 53 NIL) (cklkizf 219 NIL) (pqccp 99 NIL)
+               (bgahvfu 54 NIL) (gotqku 33 NIL) (vregap 88 NIL)
+               (qjcqm 138 (vdkrvi qoijc)) (phocd 23 NIL) (lerycoe 84 NIL)
+               (aidbql 35 NIL) (qwvmczr 187 (youpfn kkukqoj)) (achhc 30 NIL)
+               (qxnkp 68 NIL) (znkzp 94 (otpnx drtxytc ntonira zyxjg))
+               (ewzryd 92 NIL) (xxssj 168 (nhnrpz rzwfp))
+               (lnaoiv 70 (awqat dnaoe qombesj eygaz)) (qzjyi 88 NIL)
+               (aevhbim 49 NIL) (jeuzbj 44 NIL) (msskvkg 60 NIL)
+               (douvhy 133 (mqulwk nnkmf))
+               (qrfgzm 552 (lrtds yrpat tvjwhhy atmzoso dudxud rqdcuf xxssj))
+               (alankuj 75 NIL) (juymjz 77 NIL) (gcqaj 69 NIL)
+               (ozwpmzc 43 (bknogxz ldfofo)) (gintpbf 59 (byckty tagyci))
+               (yrhid 222 (phocd wtzkvm kldww xugyewm))
+               (keucu 15 (kwozg xfmxo rwepl)) (zicelk 67 NIL)
+               (xwwxswj 40 (frnhsjr mmvszxj qsmvtif))
+               (lcfyznt 151 (klmvmt bgmmb))
+               (ehwlw 55 (tgebda ehypcwy xqxyx vxfci nxlhjq))
+               (uegez 150 (rnjfcg tusgzei)) (pjaxkr 92 NIL)
+               (mdprv 179 (paanydj vtaejs)) (avjkgl 9 NIL)
+               (sshfxeu 11 (goilxo ltichp)) (alzipi 53 (cpsce ezspcab))
+               (wxoqoa 100 (mfvul pwatre)) (trmwq 10 NIL) (ltmwbs 33 NIL)
+               (kmdzlmk 235 (mzauq ycsbsyn srqclhj shhfy xcycu zsnatp))
+               (dfjvh 61 NIL) (zknesz 39 NIL) (ezglz 289 (kyjgf oaynkf))
+               (pqixzdw 128 (nvvca cwxgqrk duccgc sbnsoxi)) (zpczji 60 NIL)
+               (rathd 135 (rsbune wmdbo uftwml)) (pchccgz 85 NIL)
+               (rzwfp 17 NIL) (umgzhmp 150 (eqibqs rwgpi wcuvk))
+               (ouqtjz 127 (ejkei sdgdv)) (sstvew 52 NIL) (qxhda 96 NIL)
+               (cvstod 96 NIL) (rbyiay 94 NIL) (vwzmkq 63 (vhjcue nnbty))
+               (dtzws 83 NIL) (nyepy 363 (jsltf nuxqskl))
+               (iiwkm 84 (fluwt clcixal)) (ucezr 10 NIL) (zvtoom 55 NIL)
+               (fleszz 83 NIL) (hdtcizc 9 NIL) (wzatr 57 NIL)
+               (teqswj 40 (advhon qhfxqrr hieel)) (usuaiv 45 NIL)
+               (eygdy 86 (pqtboz kmodn dqklqo tukyh)) (janrdqf 81 NIL)
+               (jjukf 723 (vqghhbs ozwpmzc htsjndf wsupp)) (udmez 91 NIL)
+               (lsvqox 1205 (tpcvq fvqvgw jusfet)) (zjymq 33 NIL)
+               (wuisqnk 34 NIL) (pxydes 62 NIL)
+               (qegmu 84 (hzcanxq xfbosce glyxk fvlmvtk akmbqb lymsa fbrwdf))
+               (mckrfxj 38 NIL) (keylghg 60 NIL) (dqwdx 215 (hseaxj ubxke))
+               (fzjgh 179 (bafdzbu uanvh)) (qsvckew 8 NIL) (pvhrim 52 NIL)
+               (mzauq 98 (sxpan pjitmnv ogczchc aruczxj)) (nxwjvx 53 NIL)
+               (agufw 229 (wbbaxr knrgg)) (urpnw 47 (khtjh dflvw otxphme))
+               (klmvmt 17 NIL) (skgwztg 233 NIL) (ghaxvq 9 NIL)
+               (sgobq 60 (lsspa srgmt wofung rathd joaed fzjgh pbkfd))
+               (qaveutv 44 NIL) (dnaoe 80 (vohepl mymke paglk pahwxj))
+               (edgdvfa 23 NIL) (mrfmn 94 NIL) (hovhxsp 31 NIL)
+               (hqlyg 47 (aidbql tfhij krvyy)) (zuybvj 32 NIL)
+               (kquxfy 1294 (srcyajr neako vtuqq)) (htsuvhg 253 NIL)
+               (tagyci 80 NIL) (ldnnoag 35 NIL) (qkougo 76 NIL) (fvmhrf 38 NIL)
+               (spvcd 84 NIL) (tcbpqu 70 NIL) (yzxqp 76 NIL)
+               (ihmqs 66 (oydsj qheany)) (neako 48 (panao fcufg))
+               (dkgmsse 18 NIL) (zupym 33 NIL) (pwumvgy 80 NIL) (ognax 83 NIL)
+               (oxvwr 203 (wixlvcp wqgcqb)) (ysltqk 65 (mrfmn hrjgbc))
+               (dtqzu 61 (tgnqn corfkob)) (vmhwy 177 (yaudo eqxgwfz))
+               (pwatre 16 NIL) (uijtrw 247 (cbdczg idjhk)) (stfzaxc 84 NIL)
+               (refya 15 NIL) (xfbosce 188 (rstdh nqzwt)) (kbrxrks 56 NIL)
+               (fplihc 88 NIL) (fkoqh 251 (ohvifiy npckah)) (lwfoqny 61 NIL)
+               (paanydj 39 NIL) (xzxvwzf 29 NIL)
+               (bpebim 180 (vvnohc jlyaty kixaco))
+               (aiunbee 1214
+                (fpldxlq eqmeu teqswj ngtkzm yndyrey wtbwbpz eoqtf))
+               (wrdgs 220 NIL) (oxxlsk 31 NIL) (atlrd 269 (dgszhd dkgmsse))
+               (svtwviu 69 (iiwkm ieuwo carbhvi lzouo cklpcr fkkzg ouubjrl))
+               (mfvul 16 NIL) (ndpwgdy 36 NIL) (rhzco 48 NIL) (nzetqt 8 NIL)
+               (xvzlrw 87 NIL) (utsob 14 NIL) (rsbune 50 NIL) (tcgffi 32 NIL)
+               (cwttq 9 (mughfl ponlfyf tuyyte ndhsa)) (wejvpzr 29 NIL)
+               (ozgprze 20 NIL) (eemnlc 83 NIL) (omlwg 28 NIL)
+               (hpmuqvl 37 (gawck yeucm))
+               (ohusizx 9151 (fsokbvd oojme bonjgrt)) (mqllnxu 206 NIL)
+               (cnqrxk 38 NIL) (qpjctjw 32 NIL) (wttpvzh 23 NIL) (tgnqn 87 NIL)
+               (eyrfvtl 61 NIL) (mzzxjcu 27 NIL) (velktz 145 (dxzlkz keylghg))
+               (hvdhkw 210 NIL) (zafde 41 NIL)
+               (qmwvc 558 (hibxz xqbvg bgjzy mvswhtp)) (knrgg 10 NIL)
+               (xrbuyn 38 NIL) (wsupp 35 (ecgpjx jiybx)) (krlep 54 NIL)
+               (gvajgxp 40 NIL) (yaudo 40 NIL) (prdkf 96 (chrqi tqjlm))
+               (suxpc 66 NIL) (pnmfw 51 NIL) (jldaz 64 NIL) (rucse 85 NIL)
+               (ivcedgz 46 NIL) (zytvsav 21 NIL) (tytka 53 NIL) (pfdmmg 11 NIL)
+               (hmumqsz 47 NIL) (cncicpd 93 NIL) (rrixk 27 NIL) (uzyprc 16 NIL)
+               (ljctbd 13 NIL)
+               (llgoq 76 (rgwpu movmxq hvifpbk hiiqp kszkv bjtza hfttss))
+               (gqoxv 1646 (bvikij dcqpq kquxfy qrfgzm qomxhp))
+               (apktiv 8441 (obxrn kqaksir itjrw supnaxw wuefg twtcx))
+               (nicjj 56 NIL) (nzmaui 18 (wmxobe eipmjyb jovly tjblqzk))
+               (ezspcab 84 NIL) (bclrfac 31 NIL) (jrcng 318 NIL)
+               (pbkfd 157 (pcdvdp jldaz)) (vmqlqrp 46 NIL) (ynvqpm 92 NIL)
+               (rnjfcg 20 NIL) (qhqnfsp 5 NIL) (ajozeez 92 NIL)
+               (shciqu 127 (ehywag ajbtn)) (uujpt 29 NIL) (znooxvq 7 NIL)
+               (mwblvo 257 (ixmfiwz jlcgqt rmqdolg)) (rrazh 233 (clsbdm uavnq))
+               (ipjbc 92 NIL) (jovkydi 89 NIL) (rkfsa 102 (pestqep vnvkvb))
+               (owzwbpn 89 NIL) (cragbdx 19 NIL) (vtpldh 19 NIL)
+               (rplxsw 82 NIL) (cbvamfw 47 (wdnebh vpqqbz)) (vhrxl 7 NIL)
+               (cqvyvl 122 (eemnlc hehbbo)) (nmxmtaa 188 (bvahtih asklr))
+               (kfcgv 32 NIL) (pztxq 339 (pqbar bclrfac)) (gwfrqr 32 NIL)
+               (dcqpq 1411 (dqdpop gtrgqb lcfyznt)) (ksxixz 9 NIL)
+               (itjrw 9 (jjjpzm mhofo znljf wrdgs dcknzvh))
+               (omwrb 859 (pqixzdw hoqtxuf weenw)) (rwgpi 20 NIL)
+               (xoqxg 73 NIL) (rdyda 5 NIL) (dolng 83 NIL) (osvmh 77 NIL)
+               (pqewl 185 (hchmn rhtdtxv xzgejmu fumvuu))
+               (dcknzvh 138 (pdviq hnpndnp)) (vjmwqzj 35 NIL) (zhttn 63 NIL)
+               (lyuys 284 (zicelk joernlg)) (jjjpzm 164 (vjgvk yaiinhu))
+               (siruccf 37 NIL) (tzkuvl 87 NIL) (jpbiodh 10 NIL)
+               (jodrf 56 (lktgac ysskib qkougo)) (egvza 251 (gotqku viqlepb))
+               (jdpcmb 6 NIL) (ejlgch 133 (mmoea vvbcb)) (ecgpjx 88 NIL)
+               (pdviq 41 NIL) (igqvq 288 NIL) (pndcqot 31 NIL) (kmjfxcf 15 NIL)
+               (rqhfhc 12 NIL) (cgbgm 85 NIL) (jjmfi 33 NIL) (vpizq 37 NIL)
+               (zynpfpv 73 NIL) (vnyllno 37 NIL) (sfyad 69 NIL) (sooqm 69 NIL)
+               (dxdltnx 80 (xtexo ohpvt acjtzxw pnmfw))
+               (gcmpmnt 166 (stqwvs xmgkswu)) (jwgrqmj 44 NIL) (gcksx 73 NIL)
+               (uswphji 1472
+                (nzweur pocxcw xdlyd joczsir kymbpe rhwgdsv omwrb))
+               (lhifvp 49 NIL) (sgfco 305 NIL) (wqgcqb 12 NIL)
+               (rgjxp 116 (nujppls eumzi)) (omzlzx 66 NIL)
+               (jeplz 96 (gpysit gzmagb))
+               (bgjzy 78 (ibmiu ghaxvq lkopm khrqmbo))
+               (kvqsn 69 (bpdixmv knjlz nmmtdv edzgraw)) (ugkuxzz 314 NIL)
+               (pryjaeo 21 NIL) (jzpwsg 78 (paegovu bxifcld oijrg wyftg))
+               (flufot 182 (ftoskhn afzlar)) (cmqaaw 83 NIL)
+               (fvqvgw 26 (ymfls lgtpaqk cumus))
+               (gurxxfd 46 (qaveutv bwtusip jeuzbj qifuph))
+               (jqtlcm 380 (njeahp sfyoyp)) (bywpbd 215 (qrfuvjh nrczybn))
+               (pcpnk 28 NIL) (pnjbsm 69 NIL) (lhxycw 161 (achhc ttwnws))
+               (qczhlyf 14 NIL) (sldytqh 49 NIL) (fmjhlia 20 NIL)
+               (soqvass 53 NIL) (qptfj 21 NIL) (izuebwg 37 NIL)
+               (iaafo 1335 (iggtk gkjbikb gcvpqk)) (bkzdepq 56 NIL)
+               (nqzwt 21 NIL) (frnhsjr 71 NIL) (nfwlplx 92 NIL)
+               (egsgwch 279 (jxwyzy sbnot)) (ntonira 81 NIL) (ahrfot 9 NIL)
+               (zjbiqnt 54 NIL) (tpozmfd 27 NIL) (jopepd 27 NIL)
+               (kkukqoj 38 NIL) (panao 88 NIL)
+               (szsntp 88 (uvvqcxz vboha xgzexud aaqcpt))
+               (lfqca 65 (kieka rfqenw srbuc)) (ttwnws 30 NIL) (iobcvl 20 NIL)
+               (gmeueu 45 NIL) (jazkpl 32 NIL) (carbhvi 118 (vxrzo ujlhns))
+               (jlyaty 11 NIL) (jwbxyd 75 NIL) (mlmzsqc 78 NIL) (sqpdsk 86 NIL)
+               (gkijw 268 (hgbkwjv stmzb)) (sebxl 52 NIL)
+               (anwxvv 59 (qnjpz kbibi)) (cylfwm 81 NIL) (sbnot 13 NIL)
+               (cdcnp 5 NIL) (sohzsx 80 NIL) (gfmgl 47 NIL) (cbdczg 47 NIL)
+               (uamje 82 NIL) (phrume 20 NIL) (jhpijl 185 (mojjl yhjopn))
+               (czzpk 17 NIL) (mwpdil 37 NIL) (lizssx 47 NIL) (otxphme 86 NIL)
+               (vvnohc 11 NIL) (xmusk 10 NIL) (pqgpuv 210 (lnnwiq qqosg))
+               (iqumjrz 19 NIL) (khtjh 86 NIL) (sqfgpm 41 NIL) (qpqplm 30 NIL)
+               (pqlav 8 NIL) (nzhprt 93 (sohzsx vaylgz))
+               (iehfo 624 (fcsfrg cbvamfw dtqzu)) (vhfwgvx 83 NIL)
+               (tbkhho 97 NIL) (uqymxu 58 (egqmgr izuebwg))
+               (xzgejmu 188 (cwiwn vtadj tcbpqu)) (gjnnmvb 20 NIL)
+               (ppmlbky 544 (kvqsn kcgui chetpy pztxq)) (jqqojdl 33 NIL)
+               (qksclw 69 (inxivh dxbxha irjvpam syuoewb)) (axxkh 222 NIL)
+               (tnccv 259 (wttpvzh edgdvfa)) (cumus 75 NIL)
+               (jxkofob 1875 (mrizfl zgqsgm bclse ciojx rgjxp yifny))
+               (uydtye 8 NIL) (tuyyte 82 NIL) (twgbxu 63 NIL) (ulpkj 40 NIL)
+               (lunefek 35 NIL) (pestqep 60 NIL) (kvxnjmq 25 NIL)
+               (siitl 61 NIL) (chutuh 13 NIL) (gtjbuae 71 NIL)
+               (fbrwdf 17 (jzjrtvd gtjbuae zsnge)) (tukyh 71 (ggzym rfvehkx))
+               (xqpffoe 68 (elthna mwpdil vpizq)) (iepmwr 176 (irsfgz rbyiay))
+               (lntikva 47 NIL) (kmodn 253 NIL) (ufsmed 81 NIL) (psrqv 54 NIL)
+               (xluwv 30 NIL) (qombesj 380 (rdghpyb ivcedgz))
+               (shhfy 76 (zynpfpv kppxrk)) (fvlmvtk 130 (ilpuzq jzndr))
+               (gdqtqg 155 (lhifvp jfaca)) (osgjrb 69 NIL)
+               (uqjge 88 (nzetqt nitvw wxemcge uydtye)) (ppafb 30 NIL)
+               (opduu 38 NIL) (fpank 10 NIL) (sngnjdu 15 NIL) (ndidblx 52 NIL)
+               (asklr 19 NIL) (wmxobe 61 NIL) (vvnzr 48 NIL) (usggwvu 375 NIL)
+               (sukktk 202 (oevbo sitjrw)) (mqztoa 26 (dzjsx wzatr))
+               (kfxhl 40 NIL) (jsjexer 258 (ljctbd chutuh)) (bremy 70 NIL)
+               (xugyewm 23 NIL) (djrrc 39 (egcat wdazzdu zjbiqnt))
+               (juqbdco 144 (vggsia tytka))
+               (rfouw 28 (yxzzaaq zbfut mpwldri ljmve))
+               (svngfr 83 (odgzsnk rzrzage lbzddgt hvdpzbv)) (viqlepb 33 NIL)
+               (pgsokae 63 NIL) (cobwyky 76 NIL) (zgjoaiw 25 NIL)
+               (ohvifiy 6 NIL) (simmjy 65 (mlksi mfawmsq)) (zrqqtx 45 NIL)
+               (yrpat 120 (zlkzyr zafde)) (nevkec 53 NIL)
+               (gvxhl 125 (liymk psrqv)) (ohpvt 51 NIL)
+               (kmqurp 155 (ycyyvdy slmxb)) (acrsmhw 99 (cncicpd tiwakam))
+               (yrdsj 149 (mmtyhkd omshqjl pryjaeo zytvsav)) (pahwxj 98 NIL)
+               (nhnrpz 17 NIL) (mfzvywf 14 NIL)
+               (fhphiyb 45183 (ixktgj zfzum yzyzmzw))
+               (eduwet 1794 (tzkuvl jcmte rndomrv)) (akrgqe 74 NIL)
+               (bzjctqm 115 (dphcbfr sauzcee)) (xqbvg 104 (cdcnp wixfh))
+               (ljzuyyk 62 NIL) (egusv 173 (qpxbow gvajgxp)) (grmhpg 75 NIL)
+               (gtbpbl 252 NIL) (fkdukrv 331 (zbrbb zsoro)) (aondpve 53 NIL)
+               (vgsnxlm 23 NIL) (hcptw 44 NIL) (zkgoa 77 NIL) (dasyq 66 NIL)
+               (skumcr 55 NIL) (afatio 30 (hjxcpi qmddtb ppafb))
+               (ioobamp 9 NIL) (wrprrev 63 NIL) (nrczybn 9 NIL) (hoxdnl 32 NIL)
+               (ndcfy 19 NIL) (tdecuga 85 NIL)
+               (ugqqv 70 (akrgqe aeawrmy ozjbwv)) (ravjm 83 NIL)
+               (tsizsce 52 NIL) (uyopxvt 56 NIL) (djgzb 79 (gpysm rucse))
+               (ozbfh 64 NIL) (rwepl 73 NIL) (vkfrqct 56 NIL) (mansh 22 NIL)
+               (bnsivw 336 (vobnpuq hoxdnl)) (omshqjl 21 NIL) (lktgac 76 NIL)
+               (hgrua 66 NIL) (vrxeemw 49 (vvnhe nyejrrv))
+               (ydfajlk 88 (qgjqyh alneqju jmchsu))
+               (ewjrko 167 (kbrxrks cygdj))
+               (oeftx 49 (bpebim sdbmop nlpmbrd yulga qtlzten hidrx))
+               (ypogtw 85 NIL) (eoqtf 97 (ktejrze osgjrb)) (cbbcj 46 NIL)
+               (dvlyc 16 (arkedwb nzhprt zjaqq cjxyt gdqtqg jhpijl egusv))
+               (tvjwhhy 120 (tkjeu vaeuo)) (cahxjyq 52 NIL) (muarkn 85 NIL)
+               (zzjuf 95 (rqkfkxw lizssx)) (cygdj 56 NIL) (vlagh 5 NIL)
+               (vohepl 98 NIL) (pgprg 152 (jqdmk bxefs))
+               (yrwyc 5 (ocpngbz ybfew nyepy cmcto))
+               (asfqik 180 (orcyokv tuyzi)) (jcyciyq 12 NIL)
+               (twnfzz 149 (vbateme olydb)) (jofvyvx 25 NIL) (tazfdb 43 NIL)
+               (jcmte 87 NIL) (ttolm 173 (vmqlqrp vffew)) (fndeqk 27 NIL)
+               (xydxd 56 NIL) (elthna 37 NIL) (uspimc 85 NIL) (zatwq 66 NIL)
+               (mwpbyo 6 NIL) (joaed 205 (ycxlhqo mgzox nmemj ljmkz))
+               (vtadj 70 NIL) (ilpuzq 50 NIL) (ubksf 106 (nrbcaqo shnrfq))
+               (mmnejdx 10 NIL) (srqclhj 90 (jqqojdl krzjli ltmwbs mtrnyd))
+               (rpegyn 23 NIL) (nzsnkla 265 NIL) (zfhkfwn 7 NIL)
+               (hrjgbc 94 NIL) (stqwvs 28 NIL) (etkdg 38 NIL)
+               (fumvuu 86 (xcldsl memrqz ryfse vauwilt)) (uavnq 10 NIL)
+               (yaiinhu 28 NIL) (mlksi 92 NIL)
+               (oyguh 32 (ipxkky lqmdutk hrtgwt kvxnjmq)) (ceeem 25 NIL)
+               (pqbar 31 NIL) (aeawrmy 74 NIL) (fcufg 88 NIL) (hjnhdkp 27 NIL)
+               (xmxzvhr 14 (cvstod jxcnmmo)) (mketjaw 45 NIL) (srbuc 80 NIL)
+               (qqosg 20 NIL) (ynrctr 140 NIL) (kbibi 71 NIL) (lalfu 50 NIL)
+               (iamrpx 96 NIL) (xgfsqq 309 (qwvmczr ladcna fkoqh))
+               (dobmve 90 NIL) (nvvca 15 NIL) (vtaejs 39 NIL) (xgzexud 79 NIL)
+               (tmvkuob 15 NIL) (foxjx 60 NIL) (ladcna 97 (hbdwzm cmqaaw))
+               (klnew 68 NIL) (vtdwe 37 NIL) (eayhoi 58 (tvgytpm pvlirjn))
+               (nccoxir 52 NIL)
+               (wibfie 90 (uqymxu oyguh wxoqoa alomcle fvikm kykfb ebgsk))
+               (yhcsc 34 NIL) (ptzbutd 38 NIL) (xmgkswu 28 NIL)
+               (ajhio 301 (jjmfi mfecx zjymq)) (lasluxv 87 (etkdg mckrfxj))
+               (msyvug 76 NIL) (weenw 188 NIL) (drtrgwp 185 (hmumqsz lntikva))
+               (gyojd 214 NIL) (zwrfiyf 17 NIL) (gquil 84 NIL) (erghvss 45 NIL)
+               (mqmgirb 251 (buffpzu qpwiok)) (xaali 31 NIL) (clcixal 65 NIL)
+               (pyxgmtu 169 (hjnhdkp jopepd fndeqk)) (grgsn 61 NIL)
+               (finkdao 78 NIL) (njeahp 10 NIL) (hidrx 175 (ineay vtpldh))
+               (qcyypa 93 NIL) (gnwlorj 48 NIL) (xjjdapk 64 NIL)
+               (vxrtejs 30 NIL) (uukshmq 63 NIL) (hzcanxq 214 (peuadz pqlav))
+               (ptizsk 10 (cbirs syurke ihpmp)) (cjoya 196 (pcpnk dbuccip))
+               (qpaei 86 (djyxrkb cupbfut)) (tjblqzk 61 NIL) (xjnhqlg 92 NIL)
+               (qscpjx 39 NIL) (xptjtlm 108 (utsob lmxnloe vrzbmt))
+               (rgwpu 161 (xjuoid oszlto mketjaw))
+               (erdxj 299 (mdprv zdtvktq labnsw vmhwy)) (stmzb 32 NIL)
+               (vxjjxhz 49 NIL) (xxlbk 92 NIL) (fxwez 7 NIL) (hbdwzm 83 NIL)
+               (bjdtdn 61 NIL) (wnfqg 99 (ravjm dolng)) (sauzcee 67 NIL)
+               (nkfrt 98 NIL) (rfvehkx 91 NIL) (fnzjtvw 88 NIL) (wdhmsi 45 NIL)
+               (slmxb 17 NIL) (dkoxq 128 (hvpcvdf mdkes)) (qheany 80 NIL)
+               (lpziczm 229 (xydxd fuqvw)) (gzmagb 22 NIL) (bgjngh 20 NIL)
+               (krfgye 51 (gzvjxk dvlyc niwzp olqbic iaixlte tycqst kfqrgj))
+               (dcwfs 99 NIL) (ixktgj 955 (eabhh iqvhov lemnz))
+               (mbtsi 300 (gbixdw lalfu)) (dqklqo 57 (jkaxk nkfrt))
+               (qwsan 44 NIL) (iggtk 235 (gyuyb cjjbqxl)) (ascyv 15 NIL)
+               (gtrgqb 17 (coaznz spvcd)) (awoedy 34 NIL) (mtrnyd 33 NIL)
+               (wofung 133 (ptzbutd jlpxjeo cnqrxk crrfxfn))
+               (dpiyhv 86 (tsizsce gfdyf)) (surri 214 NIL) (tusgzei 20 NIL)
+               (kzcyjtb 78 (sqmfis ppfmc ldnnoag)) (memrqz 78 NIL)
+               (javiioo 87 (gnwlorj tmbtipi)) (dzqrtc 206 (zbwxa ykpsfj))
+               (jtpgzp 31 NIL) (yndyrey 189 (iuzvl poinih))
+               (hkazlkt 235 (adxeaf rkfsa yzbccbx lkdkyk gcmpmnt zdqcu))
+               (bjqkaya 78 (szsntp nandmg kjlxeat kywmnbd)) (guywt 55 NIL)
+               (qwcrc 63 NIL) (asdlfku 80 NIL) (vhjcue 81 NIL)
+               (hiiqp 148 (lhvyfsb dltungt tbrznk vnyllno)) (deczzuu 92 NIL)
+               (mymke 98 NIL) (subwna 61 NIL)
+               (kmcad 1022 (bzjctqm akniuo simmjy))
+               (uufxdt 328 (hyfuy iepmwr asfqik qxkas nayudfl)) (ejkei 89 NIL)
+               (afzlar 34 NIL) (buffpzu 33 NIL) (kyjgf 8 NIL)
+               (bigkiu 748 (uegcs umgzhmp frinpfj nurclfr hvdhkw))
+               (ryfse 78 NIL) (olztzl 25 NIL) (tgkbxa 33 NIL) (nktmu 86 NIL)
+               (zlkzyr 41 NIL) (pmgwwzy 191 (rgyco qptfj)) (jfmts 56 NIL)
+               (zacsvwk 43 NIL) (znljf 175 (refya tmvkuob sngnjdu))
+               (kwozg 73 NIL) (eklqi 90 NIL) (cdwkezv 62 NIL)
+               (ugmlsij 121 (kpghxz kravhjd)) (awqat 372 (fdmbkt znkchkk))
+               (ydgzjs 110 (ymyzead yzxqp)) (tugrmnp 60 NIL)
+               (fmarl 5688 (xbtswv jvqwi slgiv uswphji syjvwzt))
+               (memkrd 7478 (nivpffu bjqkaya qegmu)) (jvfmwp 27 NIL)
+               (qhqyt 66 NIL) (lbzddgt 73 NIL) (qsmvtif 71 NIL)
+               (ytmpzku 49 (jwgrqmj nfrtom lfiqwye jkvduo)) (tdgel 61 NIL)
+               (shnrfq 45 NIL) (hhrqz 129 (rrixk jvfmwp))
+               (ojatf 9518 (qmwvc wibfie dnycw)) (yxzzaaq 55 NIL)
+               (wjipa 1180 (mqllnxu xmxzvhr qbynkmw)) (cwxgqrk 15 NIL)
+               (aotajs 133 (ucezr mmnejdx jpbiodh))
+               (lsspa 60 (paldf grmhpg exjsjxd)) (ineoncq 11 NIL)
+               (eipmjyb 61 NIL) (fjgsw 29 NIL) (wnwsbdq 50 NIL)
+               (hdgvs 37 (msyvug bntdh sjxaxv)) (npckah 6 NIL) (swqkqgz 19 NIL)
+               (eabhh 379 (jzpwsg bkwcwf mwblvo)) (ggaxx 87 NIL)
+               (rjvfwcu 64 NIL) (bwtusip 44 NIL) (slgjon 63 NIL)
+               (vlpqaxo 66 NIL) (mmoea 11 NIL) (xnltw 93 NIL) (tgpxvyr 37 NIL)
+               (phdcpp 63 NIL) (dltungt 37 NIL) (ljvrcj 83 NIL)
+               (upaqlj 44 (cobwyky pngubp)) (hwriv 97 NIL) (hopjmyt 62 NIL)
+               (sizmuwa 180 (sooqm sfyad)) (jzndr 50 NIL)
+               (ppmrgga 222 (cvvncju xmusk trmwq)) (uvswv 90 NIL)
+               (xstrla 46 NIL) (pcdvdp 64 NIL) (kszkv 164 (hgrua qhqyt))
+               (niwzp 855 (nnhknbl ichznto llmmm hpmuqvl)) (kybegv 96 NIL)
+               (rxcbsdp 30 (ynvqpm pjaxkr)) (ihpmp 85 NIL) (hseaxj 51 NIL)
+               (fuzhuf 38 NIL)
+               (plbtdq 633 (gkuma jrcng dkoxq vtylgti qifoay sizmuwa pjxttn))
+               (esooc 151 (vtdwe ezdiq))
+               (jvqwi 33 (csaqixs rnlaw hvkhvwl rkpcoen nptoou ypvztl))
+               (luqyr 81 NIL) (ggzym 91 NIL) (fcsfrg 113 (siitl dkntzn))
+               (nnbbrbf 135 (uspimc xkzgz)) (cwiwn 70 NIL) (zragt 58 NIL)
+               (glyxk 22 (pvhrim ndidblx sebxl sstvew))
+               (rhwgdsv 481 (ugkuxzz yyjqegu yrhid)) (bmltf 23 NIL)
+               (gfdyf 52 NIL) (cbirs 85 NIL) (xhtzti 21 NIL) (advhon 65 NIL)
+               (xcrkb 864 (ugmlsij jpkwter ejlgch))
+               (kfqrgj 347 (igqvq cqvyvl jzgzd ashxu clwwv))
+               (ouubjrl 36 (iodveqh wanom))
+               (nptoou 269 (yrdsj bywpbd lmcqig skgwztg suoiohi gvxhl rgdvmy))
+               (jqdmk 22 NIL) (ljmkz 20 NIL) (dxzlkz 60 NIL) (svhqwim 9 NIL)
+               (nurclfr 30 (usuaiv zyjxpjz devljb erghvss))
+               (vdzuw 146 (ostrl lmvvs)) (fsokbvd 262 (owmjbhg sshfxeu zufoz))
+               (cdvkf 6 NIL) (lrtds 202 NIL) (ybfew 377 (zuybvj bvnjiou))
+               (lfiqwye 44 NIL) (htbjl 57 (czdpe gcqaj)) (cjjbqxl 18 NIL)
+               (vucfp 53 NIL) (bnvlsm 51 NIL)
+               (ybekxtf 10703 (erylwj xgfsqq eygdy dinlw))
+               (ashxu 96 (ctinwus ypdpmwi)) (qpwiok 33 NIL) (nrdlfop 84 NIL)
+               (sbhiqhs 27 (qxnkp klnew)) (ujlhns 48 NIL) (ostrl 22 NIL)
+               (vmjbgo 155 (udmez jefztzv)) (rkaxx 27 NIL)
+               (pocxcw 823 (blhgy xptjtlm kerjqr ekfewi))
+               (gkuma 134 (kvyjyt foabep)) (ugrhs 32 (mansh hpkvfr ojqia))
+               (gbixdw 50 NIL) (phkthld 75 NIL) (mofyda 109 (finkdao mlmzsqc))
+               (lxucxpm 73 (iytknc qhxmh eltbyz dfjvh)) (qgjqyh 77 NIL)
+               (ucxgom 249 NIL) (mmufeg 13 (gcksx oybdjt xoqxg masykz))
+               (yexxg 319 NIL) (bvahtih 19 NIL) (lesmi 204 (qwsan hcptw))
+               (pmbnia 94 (jsjexer qjcqm ftegwk dxdltnx negkd jodrf))
+               (knmac 36 NIL) (hnpndnp 41 NIL) (qoijc 73 NIL)
+               (lemnz 60 (egvza mqmgirb dqwdx whglbyy lxucxpm))
+               (ihtfh 116 (fplihc vregap)) (lmxnloe 14 NIL)
+               (whglbyy 201 (vnkqnhh zragt)) (vbateme 50 NIL) (inxav 77 NIL)
+               (sykwd 860 (jeplz sttlom ynrctr cumfrfc)) (aaqcpt 79 NIL)
+               (mwpatsx 64 (nrdlfop lerycoe mygcpku uusiaqf)) (uanvh 53 NIL)
+               (pvlirjn 49 NIL) (kerjqr 150 NIL) (wrabgy 32 NIL)
+               (xjzpum 148 (vjmwqzj uwzvy vwbxg))
+               (tycqst 1112 (ytmpzku vwzmkq esooc)) (gxxzwq 7 NIL)
+               (knjbw 27 NIL) (hpkvfr 22 NIL) (xappjar 85 NIL) (oybdjt 73 NIL)
+               (qmddtb 30 NIL) (krvyy 35 NIL) (mughfl 82 NIL)
+               (hoqtxuf 74 (xrbuyn imyvlyt fvmhrf)) (xtexo 51 NIL)
+               (bknogxz 84 NIL) (rreqg 144 (nccoxir cahxjyq))
+               (icpwoof 172 (wxhsqe svhqwim)) (kszyl 113 (sqfgpm xmvdh))
+               (zyjxpjz 45 NIL) (ipxkky 25 NIL) (jxcnmmo 96 NIL)
+               (ghkdvw 72 NIL) (cwphzk 25 NIL) (mgzox 20 NIL)
+               (gcvpqk 143 (ozbfh opkvs)) (bompiu 25 NIL)
+               (ckisc 103 (alankuj phkthld)) (ngtkzm 67 (vkfrqct usvkq jfmts))
+               (qifoay 318 NIL) (rkpcoen 1788 (uyopxvt bkzdepq))
+               (vtuqq 30 (tbkhho xhzylb)) (ekfewi 96 (knjbw tpozmfd))
+               (paldf 75 NIL) (zghrr 25 NIL) (ggllv 66 NIL) (vlfpuo 32 NIL)
+               (sdgdv 89 NIL) (osryil 62 NIL) (puexzf 36 NIL) (smrvw 39 NIL)
+               (ozjbwv 74 NIL) (naglm 31 NIL) (aewie 20 NIL)
+               (etoxfc 59 (uxdeg hcceg ppmlbky uufxdt qbcscs llgoq iaafo))
+               (wxemcge 8 NIL) (xwkoc 63 (ijcfw aondpve nevkec))
+               (byckty 80 NIL) (kvyjyt 92 NIL) (pkmmfc 54 NIL) (sxnsqj 9 NIL)
+               (wtzkvm 23 NIL)
+               (kfcowx 352 (edoycls pqdfbrl nxdkpuh acrsmhw rrkqend))
+               (ngthpc 51 NIL) (nkycb 9 NIL) (otpnx 81 NIL)
+               (jusfet 39 (kivcyus nxwjvx vucfp soqvass))
+               (mvswhtp 28 (tazfdb mzlmr)) (exjsjxd 75 NIL)
+               (ugkxkqe 159 (qbdafi htdwe olztzl)) (pikvdx 82 NIL)
+               (vnvkvb 60 NIL) (sitjrw 23 NIL)
+               (yyjqegu 94 (guywt skumcr whoqvq slrdn)) (qnrjqj 61 NIL)
+               (szfxhin 17 NIL) (iiznokx 90 NIL) (vbpyoqo 97 NIL)
+               (qwdhdrk 7 NIL) (iqvhov 120 (atlrd mmufeg ouqtjz xgitr ezglz))
+               (wdnebh 94 NIL) (ylidl 82 (wejvpzr jlshk)) (qsfpaj 34 NIL)
+               (qbcscs 1680 (yazsie eayhoi btqebbp)) (auiiuv 78 NIL)
+               (ixmfiwz 55 NIL) (hcceg 1083 (dkoxwi iwsknb fkdukrv))
+               (kqaksir 152 (ydfajlk tyvhfhz yexxg)) (wixlvcp 12 NIL)
+               (tfhij 35 NIL) (vnkqnhh 58 NIL) (dkntzn 61 NIL)
+               (oggnstj 279 (ydgzjs havdbe dzqrtc nzmaui))
+               (yzyzmzw 583 (yrwyc suiyl kmcad))
+               (hfttss 5 (xatua hwriv vbpyoqo)) (kieka 80 NIL) (czdpe 69 NIL)
+               (vxrzo 48 NIL) (mpmue 9 NIL) (ujsbt 68 NIL) (oijrg 86 NIL)
+               (vaeuo 41 NIL) (qbynkmw 114 (mgyhaax cbbcj))
+               (srgmt 165 (msskvkg foxjx)) (ycxlhqo 20 NIL) (pmfprs 20 NIL)
+               (zbsxee 35 NIL) (ypvztl 1363 (xqpffoe neyeo lccoo))
+               (hwrwnh 90 NIL) (szwpt 29 NIL) (mhofo 66 (inxav osvmh))
+               (masykz 73 NIL) (gawck 98 NIL) (drtxytc 81 NIL) (wyftg 86 NIL)
+               (ssvsso 22 NIL) (koeqohh 275 (zupym hxeoxk))
+               (kcgui 335 (kguwwze gcefq)) (olqbic 911 (ihtfh ugqqv lesmi))
+               (sttlom 62 (zknesz gethyvd)) (acjtzxw 51 NIL)
+               (supnaxw 194 (iqsztjd urpnw opowpvm)) (jzjrtvd 71 NIL)
+               (rbzqabo 6 NIL)
+               (keoaqjb 59 (jqtlcm wdhbym mwpatsx mbtsi bnsivw zqurr ajhio))
+               (kkkjsil 39 NIL) (jzgzd 188 (zorvsm ainstbs))
+               (iitweo 96 (ckisc ysltqk zosskdz xjzpum rrazh htsuvhg xwwxswj))
+               (xyzbni 58 (xnltw lnufi)) (rgdvmy 53 (hwrwnh eklqi))
+               (hhdzz 227 (cragbdx iqumjrz)) (mcjgfx 68 NIL) (jlpxjeo 38 NIL)
+               (zfzum 16 (lnaoiv qkhtsa lsvqox))
+               (njatvu 26
+                (ehtsbv hkazlkt tvgwgq zktmxll jjukf kmdzlmk svtwviu))
+               (wdsbi 98 NIL) (ieuwo 196 (hdtcizc ggpjxwv)) (tuyzi 92 NIL)
+               (dkoxwi 35 (pwumvgy asdlfku aedcmjb tyuhzom))
+               (ichznto 221 (cdvkf jdpcmb))
+               (tyvhfhz 179 (nystxqv caocs zbsxee lunefek))
+               (uxdeg 443 (eewnnkx dryngd lpziczm koeqohh uijtrw))
+               (egcat 54 NIL) (kvqspmf 36 NIL) (ydmrd 90 NIL) (syurke 85 NIL)
+               (tkeuvp 159 (jtpgzp bfcdy)) (ypdpmwi 96 NIL) (nmemj 20 NIL)
+               (eewnnkx 341 NIL) (bafdzbu 53 NIL) (wgivp 71 NIL)
+               (tvgwgq 835 (prdkf pnmvk xyzbni))
+               (slgiv 7452 (oeftx erdxj oggnstj)) (gpogy 61 NIL)
+               (xdrge 889 (shciqu aotajs douvhy lasluxv sbhiqhs elgyjo))
+               (vbdcxx 93 NIL) (oydsj 80 NIL) (pjxttn 168 (jwbxyd isymgjd))
+               (edkwqih 60 NIL) (wanom 89 NIL) (hqzay 92 NIL) (xwfbb 20 NIL)
+               (phyzvno 20 NIL) (glrua 69 NIL) (ijcfw 53 NIL)
+               (alomcle 112 (fpank rfwvc)) (lmcqig 71 (ufsmed cylfwm))
+               (ltichp 80 NIL) (tzltv 63 NIL) (thknml 89 (luqyr janrdqf wkxkv))
+               (zsnatp 118 (orwbdwn tsiyp)) (zoijv 130 NIL) (aynpr 63 NIL)
+               (isymgjd 75 NIL) (pqdfbrl 117 (nicjj cdrhm mdddafe))
+               (bonjgrt 319 (fuvokrr hqlyg mozvs)) (vggsia 53 NIL)
+               (ucbuez 14 NIL) (wixfh 5 NIL) (dgszhd 18 NIL) (joernlg 67 NIL)
+               (elkflt 78 NIL) (lhvyfsb 37 NIL) (liymk 54 NIL)
+               (xgitr 139 (vhfwgvx rqrtz)) (wxhsqe 9 NIL) (wssvxr 85 NIL)
+               (bgmmb 17 NIL) (ehypcwy 334 (xvlymgg tgkbxa))
+               (qwbfod 68 (ndpwgdy knmac)) (nepxnu 6 NIL) (ftoskhn 34 NIL)
+               (ponlfyf 82 NIL) (atkmjxg 162 (xluwv dinng))
+               (rrkqend 223 (xaali sxmdnhl)) (sbnsoxi 15 NIL) (fxemb 62 NIL)
+               (sfyoyp 10 NIL) (lyhfj 79 NIL) (nnkmf 15 NIL) (xfmxo 73 NIL)
+               (dilqo 84 (ljvrcj ognax)) (jxbksoh 157 (xstrla ykudi))
+               (fkhxkeg 26 NIL) (wsvir 36 NIL) (chetpy 363 (ndcfy ftdylco))
+               (iytknc 61 NIL) (hvifpbk 202 (mhkxu gfmgl)) (gyuyb 18 NIL)
+               (whoqvq 55 NIL) (twtcx 524 (htbjl kszyl hvapnf)) (wkxkv 81 NIL)
+               (ainstbs 50 NIL) (ppfmc 35 NIL)
+               (hvkhvwl 1351 (hhrqz kzcyjtb javiioo)) (yeqnq 15 NIL)
+               (aruczxj 31 NIL) (poinih 23 NIL)
+               (kymbpe 745 (ihmqs uthjdye nmxmtaa)) (kixaco 11 NIL)
+               (oszlto 45 NIL) (ydmeqtl 34 NIL) (mojjl 34 NIL)
+               (adxeaf 212 (rdyda vlagh)) (xjuoid 45 NIL) (rndomrv 87 NIL)
+               (mhkxu 47 NIL) (znubct 69 (dasyq vlpqaxo)) (fdmbkt 50 NIL)
+               (coaznz 84 NIL) (caxbgqp 23 NIL) (uhwvnbg 28 NIL)
+               (orcyokv 92 NIL) (zgzsu 10 NIL)
+               (xgwjcx 22 (cfdpxpm pmgwwzy bscpyic vmcgj jaqwzi spxwcuv))
+               (vpqqbz 94 NIL) (wvdapsm 65 NIL) (uapwikr 12 NIL) (olydb 50 NIL)
+               (kjgtfqc 69 (pdvolf sgngx)) (cklpcr 58 (hwjhf foaayon))
+               (ottiad 63 NIL) (bjtza 250 (caxbgqp rpegyn)) (fdhdpw 18 NIL)
+               (jqjkgv 50 NIL) (kguwwze 33 NIL) (blhgy 100 (cwphzk ceeem))
+               (aedcmjb 80 NIL) (drosj 98 NIL) (jbqvpsb 12 NIL) (isrch 7 NIL)
+               (vzgsgk 10 NIL) (fjqomax 82 NIL) (twvdhg 55 NIL) (vvbcb 11 NIL)
+               (yazsie 78 (qscpjx mxbyg)) (nkkgyl 166 (kvmqsdx znkzp lyuys))
+               (mrizfl 108 (ittmm eyyokyd)) (fkkzg 145 (vgsnxlm bmltf lircjh))
+               (zepvwyv 26 NIL) (idjhk 47 NIL) (hrtgwt 25 NIL)
+               (iaixlte 717 (surri mkmci rfmiqz gyojd rxcbsdp)) (ubxke 51 NIL)
+               (imnvt 48 NIL) (hgmjvpp 35 (wrpqf uwpbnv)) (tiwakam 93 NIL)
+               (rfwvc 10 NIL) (zjqeu 120 (fuzhuf opduu ijictm))
+               (ymyzead 76 NIL)
+               (veboyvy 61 (qwjmobb fmarl hqxdyv fhphiyb cmmqbz kqoigs))
+               (nwtlu 64 NIL) (rdghpyb 46 NIL)
+               (srcyajr 77 (vxjjxhz aevhbim sldytqh))
+               (hpltoci 199 (qczhlyf mfzvywf)) (sdbmop 35 (vtkgj jovkydi))
+               (nyejrrv 89 NIL) (negkd 266 (zwoot mpmue)) (ykudi 46 NIL))
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.07)
+  (in-suite aoc.2017.07)
+  (defparameter *test-input* "pbga (66)
+  xhth (57)
+  ebii (61)
+  havc (66)
+  ktlj (57)
+  fwft (72) -> ktlj, cntj, xhth
+  qoyq (66)
+  padx (45) -> pbga, havc, qoyq
+  tknk (41) -> ugml, padx, fwft
+  jptl (61)
+  ugml (68) -> gyxo, ebii, jptl
+  gyxo (61)
+  cntj (57)")
+
+  (defparameter *parsed-test-input*
+    (with-input-from-string (in *test-input*)
+      (iter (for line in-stream in using #'read-line)
+            (collect (parse-line line)))))
+
+  (run! 'aoc.2017.07)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2017.07
+:  Didn't run anything...huh?
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day07.adb
+  with AOC2017.Day07;
+  procedure Day07 is
+  begin
+    AOC2017.Day07.Run;
+  end Day07;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day07.ads
+  package AOC2017.Day07 is
+     procedure Run;
+  end AOC2017.Day07;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day07.adb
+  <<ada-packages>>
+  package body AOC2017.Day07 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 07");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day07;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day07
+  ./day07
+#+END_SRC
+
+#+RESULTS:
