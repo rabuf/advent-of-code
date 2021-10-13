@@ -1,0 +1,248 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 11
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-11)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-11
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-11)
+#+END_SRC
+** Input
+The input is a set of steps on a hex grid separated by commas. I'm
+going to overcomplicate the parsing to leave myself with symbols for
+each direction. The output is verbose, but I'll be able to express
+conditional logic on the directions clearly.
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule northeast () "ne" (:constant 'northeast))
+      (defrule northwest () "nw" (:constant 'northwest))
+      (defrule southwest () "sw" (:constant 'southwest))
+      (defrule southeast () "se" (:constant 'southeast))
+      (defrule north () "n" (:constant 'north))
+      (defrule south () "s" (:constant 'south))
+      (defrule direction () (or northeast northwest southeast southwest north south))
+      (defrule direction-tail () (and "," direction) (:choose 1))
+      (defrule directions () (and direction (* direction-tail)) (:flatten))
+      (parseq 'directions line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (parse-line (read-line in))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/11.txt"))
+#+END_SRC
+** Part 1
+The first problem is, basically, to find the Manhattan distance on a
+hex grid from the origin. I'm going to use [[https://www.redblobgames.com/grids/hexagons/#distances][Cube Coordinates from Red
+Blob Games]]. It's pretty straightforward and worked well for some
+puzzles in the past.
+#+NAME: manhattan-distance
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun manhattan-distance (coordinates)
+    (destructuring-bind (x y z) coordinates
+      (/ (+ (abs x) (abs y) (abs z)) 2)))
+  (defun hex-step (position direction)
+    (destructuring-bind (x y z) position
+      (ecase direction
+        (north (incf x) (decf y))
+        (south (decf x) (incf y))
+        (northeast (incf z) (decf y))
+        (southwest (decf z) (incf y))
+        (northwest (incf x) (decf z))
+        (southeast (decf x) (incf z)))
+      (list x y z)))
+
+  (defun final-position (path)
+    (loop
+       for direction in path
+       with position = '(0 0 0)
+       do (setf position (hex-step position direction))
+       finally (return position)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 11 A: ~a~%" (manhattan-distance (final-position *input*))))
+#+END_SRC
+** Part 2
+Basically the same, but determine his furthest distance away. I'll
+make a modification to the above which will determine the maximum
+distance he traveled.
+#+NAME: max-distance
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun max-distance (path)
+    (loop
+       for direction in path
+       with position = '(0 0 0)
+       do (setf position (hex-step position direction))
+       maximizing (manhattan-distance position)))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (max-distance *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<manhattan-distance>>
+  <<max-distance>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 11 A: 670
+: Problem 11 B: 1426
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.11)
+  (in-suite aoc.2017.11)
+  (test parsing
+    (is (equal '(northeast northeast northeast) (parse-line "ne,ne,ne")))
+    (is (equal '(northeast northeast southwest southwest) (parse-line "ne,ne,sw,sw")))
+    (is (equal '(northeast northeast south south) (parse-line "ne,ne,s,s")))
+    (is (equal '(southeast southwest southeast southwest southwest) (parse-line "se,sw,se,sw,sw"))))
+  (test distance
+    (is (= 3 (manhattan-distance (final-position (parse-line "ne,ne,ne")))))
+    (is (= 0 (manhattan-distance (final-position (parse-line "ne,ne,sw,sw")))))
+    (is (= 2 (manhattan-distance (final-position (parse-line "ne,ne,s,s")))))
+    (is (= 3 (manhattan-distance (final-position (parse-line "se,sw,se,sw,sw"))))))
+  (run! 'aoc.2017.11)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2017.11
+:  Running test PARSING ....
+:  Running test DISTANCE ....
+:  Did 8 checks.
+:     Pass: 8 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day11.adb
+  with AOC2017.Day11;
+  procedure Day11 is
+  begin
+    AOC2017.Day11.Run;
+  end Day11;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day11.ads
+  package AOC2017.Day11 is
+     procedure Run;
+  end AOC2017.Day11;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day11.adb
+  <<ada-packages>>
+  package body AOC2017.Day11 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 11");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day11;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day11
+  ./day11
+#+END_SRC
+
+#+RESULTS:
