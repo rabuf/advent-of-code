@@ -1,0 +1,225 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 13
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-13)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-13
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-13)
+#+END_SRC
+** Input
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (map 'list #'parse-integer (cl-ppcre:all-matches-as-strings "[0-9]+" line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/13.txt"))
+#+END_SRC
+** Part 1
+Each line is a depth and range pair. The depth of a scanner from the
+start, and its range. The question is, if we send a packet through on
+the highest level (0 here), how many times will it be picked up by a
+scanner that scans over its range.
+#+NAME: scan-score
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun scan-score (scanners &optional (delay 0))
+    (loop
+       for (depth range) in scanners
+       when (zerop (mod (+ delay depth) (* 2 (1- range))))
+       sum (* depth range)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 13 A: ~a~%" (scan-score *input*)))
+#+END_SRC
+** Part 2
+So we can now delay our entry into the network, possibly reducing the
+score. I've modified the above to take an optional delay parameter,
+but the math is basically the same. The task now is to determine what
+delay will avoid capture.
+#+NAME: evade
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun caught-p (scanners &optional (delay 0))
+    (loop
+       for (depth range) in scanners
+       when (zerop (mod (+ delay depth) (* 2 (1- range))))
+       return t))
+  (defun evade (scanners)
+    (loop
+       for delay from 0
+       while (caught-p scanners delay)
+       finally (return delay)))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 13 B: ~a~%" (evade *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 13 A: 788
+: Problem 13 B: 3905748
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.13)
+  (in-suite aoc.2017.13)
+  (defparameter *test-input*
+    "0: 3
+  1: 2
+  4: 4
+  6: 4")
+  (defparameter *parsed-test-input*
+    (with-input-from-string (in *test-input*)
+      (loop for line = (read-line in nil)
+         while line
+         collect (parse-line line))))
+  (test score
+    (is (= 24 (scan-score *parsed-test-input*))))
+  (test evade
+    (is (= 10 (evade *parsed-test-input*))))
+  (run! 'aoc.2017.13)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2017.13
+:  Running test SCORE .
+:  Running test EVADE .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day13.adb
+  with AOC2017.Day13;
+  procedure Day13 is
+  begin
+    AOC2017.Day13.Run;
+  end Day13;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day13.ads
+  package AOC2017.Day13 is
+     procedure Run;
+  end AOC2017.Day13;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day13.adb
+  <<ada-packages>>
+  package body AOC2017.Day13 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 13");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day13;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day13
+  ./day13
+#+END_SRC
+
+#+RESULTS:

@@ -17,3 +17,4 @@
 *.wx32fsl
 *~
 *.html
+**/.DS_Store
