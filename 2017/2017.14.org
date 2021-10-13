@@ -1,0 +1,298 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 14
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-14)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-14
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-14)
+#+END_SRC
+** Input
+A parse-free day.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input* "stpzcrnm")
+#+END_SRC
+** Part 1
+Reusing knot hash from [[file:2017.10.org][Day 10]].
+
+#+NAME: knot-round
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun knot-reverse (orig pos len)
+    (let* ((s (copy-seq orig)))
+       (setf (cdr (last s)) s)
+       (loop for i from pos
+             for j downfrom (+ pos len -1)
+             while (< i j)
+             do (psetf (nth i s) (nth j s)
+                       (nth j s) (nth i s)))
+       (subseq s 0 (length orig))))
+
+  (defun knot-round (lengths string &optional (skip 0) (pos 0))
+    (loop
+       for l in lengths
+       with skip = skip
+       with pos = pos
+       with string = (copy-seq string)
+       finally (return (values string skip pos))
+       do (setf string (knot-reverse string pos l))
+         (incf pos (+ l skip))
+         (setf pos (mod pos (length string)))
+         (incf skip)))
+  (defun part-1 (lengths)
+    (let ((hash (knot-round lengths (loop for i from 0 below 256 collect i))))
+      (print (* (first hash) (second hash)))))
+#+END_SRC
+#+NAME: knot-hash
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun knot-dense-hash (sparse)
+    (loop
+       for i from 0 below 16
+       collect
+         (let ((vals (subseq sparse (* i 16) (* (1+ i) 16))))
+           (reduce (lambda (x y) (boole boole-xor x y)) vals))))
+  (defun knot-hash (size input)
+    (let ((sparse-hash (loop repeat 64
+                          with skip = 0
+                          with position = 0
+                          with string = (loop for i from 0 below size collect i)
+                          with key = (append (map 'list #'char-code input) (list 17 31 73 47 23))
+                          finally (return string)
+                          do (multiple-value-bind
+                                   (st sk pos) (knot-round key string skip position)
+                               (setf string st
+                                     skip sk
+                                     position pos)))))
+      (string-downcase (format nil "~{~2,'0X~}" (knot-dense-hash sparse-hash)))))
+#+END_SRC
+The task is to compute 128 knot hashes using the input with a suffix
+of "-#" where number corresponds to the row. Then count, in CL this is
+with =logcount=, the number of bits.
+#+NAME: used-squares
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun used-squares (input)
+    (loop
+       for i from 0 below 128
+       for hash = (knot-hash 256 (format nil "~A-~A" input i))
+       sum (logcount (parse-integer hash :radix 16))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 14 A: ~a~%" (used-squares *input*)))
+#+END_SRC
+** Part 2
+Now that I can identify which squares are used, I need to know how
+many groups of squares there are. The hash algorithm is not fast, and
+I don't care to optimize it right now. So I'll cache the results. I'm
+going to iterate over each one and add it to a hash table that will
+represent a grid. Then, I'll iterate over that grid (from the top left
+to bottom right) and assign each group a number.
+
+I'm going to reuse some code from an earlier round. I'll create a
+graph and use the code from [[file:2017.12.org][Day 12 Part 2]].
+
+#+NAME: group-count
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun hash-to-graph (input)
+    (let ((graph (make-hash-table)))
+      (loop
+         for i from 0 below 128
+         for hash = (parse-integer (knot-hash 256 (format nil "~A-~A" input i)) :radix 16)
+         do (loop
+               for j from 0 below 128
+               when (logtest (expt 2 j) hash)
+               do (setf (gethash (complex i j) graph) (list (complex i j)))))
+      (loop
+         for coord being the hash-keys of graph
+         do (loop
+               for offset in '(#C(0 1) #C(1 0) #C(0 -1) #C(-1 0))
+               for neighbor = (+ offset coord)
+               when (gethash neighbor graph nil)
+               do
+                 (pushnew neighbor (gethash coord graph))))
+      graph))
+
+  (defun group-count (graph)
+    (loop
+       with nodes = (loop for k being the hash-key of graph collect k)
+       with fringe
+       with visited = (make-hash-table)
+       with count = 0
+       with current
+       while nodes
+       finally (return count)
+       do (cond (fringe
+                 (setf current (pop fringe))
+                 (setf nodes (remove current nodes))
+                 (setf (gethash current visited) t)
+                 (loop
+                    for next in (gethash current graph nil)
+                    do (unless (gethash next visited)
+                         (pushnew next fringe))))
+                (t
+                 (push (pop nodes) fringe)
+                 (incf count)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (group-count (hash-to-graph *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<knot-round>>
+  <<knot-hash>>
+  <<used-squares>>
+  <<group-count>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 14 A: 8250
+: Problem 14 B: 1113
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.14)
+  (in-suite aoc.2017.14)
+  (test count
+    (is (= 8108 (used-squares "flqrgnkx"))))
+  (test group
+    (is (= 1242 (group-count (hash-to-graph "flqrgnkx")))))
+  (run! 'aoc.2017.14)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2017.14
+:  Running test COUNT .
+:  Running test GROUP .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day14.adb
+  with AOC2017.Day14;
+  procedure Day14 is
+  begin
+    AOC2017.Day14.Run;
+  end Day14;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day14.ads
+  package AOC2017.Day14 is
+     procedure Run;
+  end AOC2017.Day14;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day14.adb
+  <<ada-packages>>
+  package body AOC2017.Day14 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 14");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day14;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day14
+  ./day14
+#+END_SRC
+
+#+RESULTS:
