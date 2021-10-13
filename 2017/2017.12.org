@@ -1,0 +1,267 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 12
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-12)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-12
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-12)
+#+END_SRC
+** Input
+Each line is a mapping from one number to one or more other
+numbers. These describe an undirected graph.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule node () (+ digit) (:string) (:function #'parse-integer))
+      (defrule node-list-tail () (and ", " node) (:choose 1))
+      (defrule node-list () (and node (* node-list-tail)) (:flatten))
+      (defrule rule () (and node " <-> " node-list) (:choose 0 2))
+      (parseq 'rule line)))
+  (defun read-input (file)
+    (iter (for line in-file file using #'read-line)
+          (collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/12.txt"))
+#+END_SRC
+** Part 1
+The question is, how many nodes can be reached from node 0. I'm going
+to use my stock graph approach in CL, a hash table. The input is
+total, there are no missing links that have to be inferred.
+#+NAME: in-group
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun to-graph (nodes)
+    (loop
+       for (from to) in nodes
+       with graph = (make-hash-table)
+       finally (return graph)
+       do (setf (gethash from graph) to)))
+  (defun in-group-size (graph start)
+    (loop
+       with fringe = (list start)
+       with visited = (make-hash-table)
+       with current
+       while fringe
+       finally (return (hash-table-count visited))
+       do
+         (setf current (pop fringe))
+         (setf (gethash current visited) t)
+         (loop
+            for next in (gethash current graph nil)
+            do (unless (gethash next visited)
+                 (pushnew next fringe)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 12 A: ~a~%" (in-group-size (to-graph *input*) 0)))
+#+END_SRC
+** Part 2
+Now I need to determine how many groups, like the above, there
+are. I'll start with every key listed in one list, and remove them
+when they're visited. Once it doesn't shrink anymore I'll increase the
+number of groups.
+#+NAME: group-count
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun group-count (graph)
+    (loop
+       with nodes = (loop for k being the hash-key of graph collect k)
+       with fringe
+       with visited = (make-hash-table)
+       with count = 0
+       with current
+       while nodes
+       finally (return count)
+       do (cond (fringe
+                 (setf current (pop fringe))
+                 (setf nodes (remove current nodes))
+                 (setf (gethash current visited) t)
+                 (loop
+                    for next in (gethash current graph nil)
+                    do (unless (gethash next visited)
+                         (pushnew next fringe))))
+                (t
+                 (push (pop nodes) fringe)
+                 (incf count)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 12 B: ~a~%" (group-count (to-graph *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<in-group>>
+  <<group-count>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 12 A: 134
+: Problem 12 B: 193
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.12)
+  (in-suite aoc.2017.12)
+  (defparameter *test-input*
+    "0 <-> 2
+  1 <-> 1
+  2 <-> 0, 3, 4
+  3 <-> 2, 4
+  4 <-> 2, 3, 6
+  5 <-> 6
+  6 <-> 4, 5")
+  (test in-group
+    (is (= 6 (in-group-size
+              (to-graph (with-input-from-string (in *test-input*)
+                          (loop
+                             for line = (read-line in nil)
+                             while line
+                             collect (parse-line line))))
+              0))))
+  (test group-count
+    (is (= 2 (group-count
+              (to-graph (with-input-from-string (in *test-input*)
+                          (loop
+                             for line = (read-line in nil)
+                             while line
+                             collect (parse-line line))))))))
+
+  (run! 'aoc.2017.12)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2017.12
+:  Running test IN-GROUP .
+:  Running test GROUP-COUNT .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day12.adb
+  with AOC2017.Day12;
+  procedure Day12 is
+  begin
+    AOC2017.Day12.Run;
+  end Day12;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day12.ads
+  package AOC2017.Day12 is
+     procedure Run;
+  end AOC2017.Day12;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day12.adb
+  <<ada-packages>>
+  package body AOC2017.Day12 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 12");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day12;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day12
+  ./day12
+#+END_SRC
+
+#+RESULTS:
