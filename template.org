@@ -45,7 +45,7 @@ support for lisp installed you can run this by:
   (defun read-input (file)
     (with-open-file (in file)
       (loop
-         for line = (read-line file)
+         for line = (read-line in nil)
          while line
          collect line)))
 #+END_SRC
