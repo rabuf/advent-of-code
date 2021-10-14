@@ -1,0 +1,293 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 16
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-16)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-16
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-16)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+
+  (defun parse-step (step)
+    (with-local-rules
+      (defrule size () (+ digit) (:string) (:function #'parse-integer))
+      (defrule spin () (and "s" size) (:choose 1) (:lambda (x)
+                                                    (list 'spin x)))
+      (defrule position () (+ digit) (:string) (:function #'parse-integer))
+      (defrule exchange () (and "x" position "/" position) (:choose 1 3)
+               (:lambda (x y) (list 'exchange x y)))
+      (defrule partner () (and "p" alpha "/" alpha) (:choose 1 3)
+               (:lambda (x y) (list 'partner x y)))
+      (defrule step ()
+          (or spin exchange partner))
+      (parseq 'step step)))
+
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop for step in (cl-ppcre:split "," (read-line in))
+           collect (parse-step step))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/16.txt"))
+#+END_SRC
+** Part 1
+There are three dance steps:
+- spin :: the size of the spin number of programs move from the end to
+          the front.
+- exchange :: the programs at the two positions exchange positions.
+- partner :: the programs of the given names swap positions.
+#+NAME: dance
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun spin (size dancers)
+    (let ((back (subseq dancers (- (length dancers) size)))
+          (front (subseq dancers 0 (- (length dancers) size))))
+      (setf (subseq dancers 0 (length back)) back
+            (subseq dancers (length back)) front)))
+  (defun exchange (a b dancers)
+    (rotatef (char dancers a) (char dancers b)))
+  (defun partner (a b dancers)
+    (let ((a (position a dancers))
+          (b (position b dancers)))
+      (rotatef (char dancers a) (char dancers b))))
+  (defun perform (step dancers)
+    (case (first step)
+      (spin (spin (second step) dancers))
+      (exchange (exchange (second step) (third step) dancers))
+      (partner (partner (second step) (third step) dancers))))
+
+  (defun dance (steps &optional (size 16))
+    (let ((dancers (coerce (loop for i from 0 below size
+                              collect (code-char (+ (char-code #\a) i)))
+                           'string)))
+      (loop
+         for step in steps
+         do (perform step dancers))
+      dancers))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 16 A: ~a~%" (dance *input*)))
+#+END_SRC
+** Part 2
+Now we have to repeat all those steps a total of 1,000,000,000
+times. This could be a bit big.
+#+NAME: eternal-dance
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun make-dancers (size)
+    (coerce (loop
+               for i from 0 below size
+               collect (code-char (+ (char-code #\a) i)))
+            'string))
+  (defun perform-eternal-dance (steps dancers)
+    (loop
+       for step in steps
+       do (perform step dancers))
+    dancers)
+  (defun eternal-dance (steps &key (size 16) (duration 1000000000))
+    (multiple-value-bind (l m) (dance-cycle steps size)
+      (loop
+         repeat (mod (+ m duration) l)
+         with dancers = (make-dancers size)
+         do (perform-eternal-dance steps dancers)
+         finally (return dancers))))
+  (defun perform-eternal-dance-copy (steps dancers)
+    (loop
+       for step in steps
+       with dancers = (copy-seq dancers)
+       finally (return dancers)
+       do (perform step dancers)))
+  (defun brent (f arg &key (test #'equalp))
+    (let ((power 1)
+          (tortoise arg)
+          (hare (funcall f arg)) 
+          (mu 0)
+          (lambda 1))
+      (loop
+         while (not (funcall test tortoise hare))
+         do (when (= power lambda)
+              (setf tortoise hare
+                    power (* 2 power)
+                    lambda 0))
+           (setf hare (funcall f hare))
+           (incf lambda))
+      (setf tortoise arg
+            hare arg)
+      (loop repeat lambda
+         do (setf hare (funcall f hare)))
+      (loop
+         while (not (funcall test hare tortoise))
+         do (setf tortoise (funcall f tortoise)
+                  hare (funcall f hare))
+           (incf mu))
+      (values lambda mu)))
+
+  (defun dance-cycle (steps size)
+    (let ((dancers (make-dancers size)))
+      (flet ((dance (dancers)
+               (perform-eternal-dance-copy steps dancers)))
+        (brent #'dance dancers :test #'string=))))
+#+END_SRC
+
+The above takes way too long. I need a better way, I suspect that
+there's a cycle, I can use the algorithm from [[file:2017.06.org][Day 6]] to try and find
+it, if I'm correct then I'll be able to find the solution by taking 1
+billion modulo the cycle period. If I'm wrong, I've wasted some
+time. So the problem is that there are $16!$ permutations, which is
+more than 1 billion. There may not be a cycle in this particular set
+of dance steps.
+
+So the dance cycle detector works on the test input, I'm running it on
+the real input now and it's been going for a while.
+
+So I still like this idea, however I think I need to improve the
+performance in some way.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 16 B: ~a~%" (eternal-dance *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<dance>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 16 A: cgpfhdnambekjiol
+: Problem 16 B: gjmiofcnaehpdlbk
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.16)
+  (in-suite aoc.2017.16)
+
+  (run! 'aoc.2017.16)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day16.adb
+  with AOC2017.Day16;
+  procedure Day16 is
+  begin
+    AOC2017.Day16.Run;
+  end Day16;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day16.ads
+  package AOC2017.Day16 is
+     procedure Run;
+  end AOC2017.Day16;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day16.adb
+  <<ada-packages>>
+  package body AOC2017.Day16 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 16");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day16;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day16
+  ./day16
+#+END_SRC
+
+#+RESULTS:
