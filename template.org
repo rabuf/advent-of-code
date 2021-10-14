@@ -33,7 +33,6 @@ support for lisp installed you can run this by:
   <<packages>>
   (defpackage :aoc-YEAR-DAY
     (:use :common-lisp
-          :iterate
           :parseq
           :fiveam)
     (:export :problem-a
@@ -44,8 +43,11 @@ support for lisp installed you can run this by:
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
   (defun read-input (file)
-    (iter (for line in-file file using #'read-line)
-          (collect line)))
+    (with-open-file (in file)
+      (loop
+         for line = (read-line file)
+         while line
+         collect line)))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
