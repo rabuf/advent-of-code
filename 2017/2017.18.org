@@ -335,6 +335,7 @@ but it will give me the correct result.
   <<read-input>>
   <<input>>
   <<duet-sim>>
+  <<simulator>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no

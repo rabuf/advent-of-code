@@ -18,6 +18,8 @@ support for lisp installed you can run this by:
     (ql:quickload "iterate"))
   (unless (find-package :parseq)
     (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
   (unless (find-package :fiveam)
     (ql:quickload "fiveam"))
   (unless (find-package :series)
