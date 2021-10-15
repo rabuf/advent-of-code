@@ -1,0 +1,436 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 18
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-18)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-18
+    (:use :common-lisp
+          :parseq
+          :lparallel.queue
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-18)
+#+END_SRC
+** Input
+The input is a series of instructions. I'll simply parse them into
+their constituent parts replacing each mnemonic with a symbol, the
+registers will be left as individual characters (because why not?) and
+parsing the values.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule value () (and (? "-") (+ digit)) (:string) (:function #'parse-integer))
+      (defrule register () alpha)
+      (defrule register-or-value () (or register value))
+      (defrule snd () (and "snd " register-or-value) (:choose 1)
+               (:lambda (x)
+                 (list 'snd x)))
+      (defrule set () (and "set " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'set x y)))
+      (defrule add () (and "add " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'add x y)))
+      (defrule mul () (and "mul " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'mul x y)))
+      (defrule mod () (and "mod " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'mod x y)))
+      (defrule rcv () (and "rcv " register-or-value) (:choose 1)
+               (:lambda (x)
+                 (list 'rcv x)))
+      (defrule jgz () (and "jgz " register-or-value " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'jgz x y)))
+      (defrule instruction ()
+          (or snd set add mul mod rcv jgz))
+      (parseq 'instruction line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (coerce
+       (loop
+          for line = (read-line in nil)
+          while line
+          collect (parse-line line))
+       'vector)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/18.txt"))
+#+END_SRC
+** Part 1
+Slightly edited from the original, placed here to help me code it up:
+- snd X :: plays a sound with a frequency equal to the value of X.
+- set X Y :: sets register X to the value of Y.
+- add X Y :: increases register X by the value of Y.
+- mul X Y :: sets register X to the result of multiplying the value
+             contained in register X by the value of Y.
+- mod X Y :: sets register X to the remainder of dividing the value
+             contained in register X by the value of Y (that is, it
+             sets X to the result of X modulo Y).
+- rcv X :: recovers the frequency of the last sound played, but only
+           when the value of X is not zero. (If it is zero, the
+           command does nothing.)
+- jgz X Y :: jumps with an offset of the value of Y, but only if the
+             value of X is greater than zero. (An offset of 2 skips
+             the next instruction, an offset of -1 jumps to the
+             previous instruction, and so on.)
+
+I've parsed the input to make it a bit easier, now I need to simulate
+this machine. The question for part 1 is what sound is played the
+*first* time =rcv= is issued.
+
+#+NAME: duet-sim
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun recover-simulator (instructions)
+    (loop
+       with pc = 0
+       with registers = (make-hash-table)
+       with recovered = nil
+       with sound = 0
+       until (or (< pc 0)
+                 (>= pc (length instructions)))
+       until recovered
+       finally (return recovered)
+       for instruction = (aref instructions pc)
+       do
+         (ecase (car instruction)
+           (jgz
+            (destructuring-bind (vr offset) (cdr instruction)
+              (cond ((or (and (numberp vr) (plusp vr))
+                         (plusp (gethash vr registers 0)))
+                     (incf pc (or (and (numberp offset) offset)
+                                  (gethash offset registers 0))))
+                    (t
+                     (incf pc)))))
+           (set
+            (destructuring-bind (reg vr) (cdr instruction)
+              (setf (gethash reg registers)
+                    (or (and (numberp vr) vr)
+                        (gethash vr registers 0))))
+            (incf pc))
+           (mul
+            (destructuring-bind (reg vr) (cdr instruction)
+              (setf (gethash reg registers)
+                    (* (gethash reg registers 0)
+                       (or (and (numberp vr) vr)
+                           (gethash vr registers 0)))))
+            (incf pc))
+           (add
+            (destructuring-bind (reg vr) (cdr instruction)
+              (setf (gethash reg registers)
+                    (+ (gethash reg registers 0)
+                       (or (and (numberp vr) vr)
+                           (gethash vr registers 0)))))
+            (incf pc))
+           (mod
+            (destructuring-bind (reg vr) (cdr instruction)
+              (setf (gethash reg registers)
+                    (mod (gethash reg registers 0)
+                       (or (and (numberp vr) vr)
+                           (gethash vr registers 0)))))
+            (incf pc))
+           (snd
+            (destructuring-bind (vr) (cdr instruction)
+              (setf sound (or (and (numberp vr) vr)
+                              (gethash vr registers 0))))
+            (incf pc))
+           (rcv
+            (destructuring-bind (vr) (cdr instruction)
+              (when (or (and (numberp vr) (not (zerop vr)))
+                        (not (zerop (gethash vr registers 0))))
+                (setf recovered sound)))
+            (incf pc)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 18 A: ~a~%" (recover-simulator *input*)))
+#+END_SRC
+** Part 2
+Turns out both =snd= and =rcv= are ill-specified. They are send and
+receive. There are two programs executing simultaneously and they send
+or receive data to each other via those commands. The question is how
+many times has program 1 sent something via snd.
+
+The challenge, and why I'm stopping for now, is to not just detect
+normal termination but also deadlock. When both programs are waiting
+on a receive, there's deadlock. When one program is waiting on a
+receive while the other has terminated normally, that's deadlock (for
+the still-running program).
+
+There are several ways to process this:
+
+1. Run each program one step at a time, pausing execution if it is at
+   a receive and the other hasn't sent anything. Terminate when both
+   are in a rcv and have nothing to receive.
+2. Run one program until it tries to rcv, then run the other until the
+   same occurs, then switch back. If both are in rcv and their queues
+   are empty, they are deadlocked.
+3. Run both in separate threads using a thread safe queue. Somehow
+   detect that they've deadlocked. My present thought is to do this
+   with a third process which observes the other two. It terminates
+   them when they're deadlocked or if one has terminated and the
+   remaining one will not get anything out of a receive.
+
+I'm going to play with each approach. First, though, I'll copy/pasta
+the above implementation and start making some adjustments.
+
+I'm adapting an idea from 2019, the =intcode= simulator. In that one,
+I gave each execution of the program its instructions, somewhere to
+send its input to and get its output from (functions), and any other
+parameters. For this one the other parameter is the program's ID (0 or
+1).
+
+#+NAME: simulator
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun run-program (instructions &key
+                                     (out #'(lambda (x) (print x)))
+                                     (in #'(lambda () (read)))
+                                     (pid 0))
+    (let ((registers (make-hash-table))
+          (pc 0))
+      ;; `p' is a special register starting with the value of the
+      ;; program ID.
+      (setf (gethash #\p registers) pid)
+      (labels ((value (vr)
+                 "Determines if VR is a number and returns it, if not it
+  returns the corresponding register value from REGISTERS, defaulting to 0."
+                 (or (and (numberp vr) vr)
+                     (gethash vr registers 0)))
+               (jgz (vr offset)
+                 "If VR has a positive value, jumps by OFFSET."
+                 (cond ((plusp (value vr)) (incf pc (value offset)))
+                       (t (incf pc))))
+               (str (reg vr)
+                 "Sets register REG to the value of VR."
+                 (setf (gethash reg registers) (value vr))
+                 (incf pc))
+               (mul (reg vr)
+                 "Sets REG to REG * VR."
+                 (setf (gethash reg registers)
+                       (* (gethash reg registers) (value vr)))
+                 (incf pc))
+               (add (reg vr)
+                 "Sets REG to REG + VR."
+                 (incf (gethash reg registers) (value vr))
+                 (incf pc))
+               (mdo (reg vr)
+                 "Sets REG to REG mod VR."
+                 (setf (gethash reg registers)
+                       (mod (gethash reg registers) (value vr)))
+                 (incf pc))
+               (snd (vr)
+                 "Sends the value of VR via OUT"
+                 (funcall out (value vr))
+                 (incf pc))
+               (rcv (reg)
+                 "Stores the result of IN into REG."
+                 (setf (gethash reg registers) (funcall in))
+                 (incf pc)))
+        (loop
+           while (<= 0 pc (1- (length instructions)))
+           for instruction = (aref instructions pc)
+           do
+             (ecase (car instruction)
+               (jgz (apply #'jgz (cdr instruction)))
+               (set (apply #'str (cdr instruction)))
+               (mul (apply #'mul (cdr instruction)))
+               (add (apply #'add (cdr instruction)))
+               (mod (apply #'mdo (cdr instruction)))
+               (snd (apply #'snd (cdr instruction)))
+               (rcv (apply #'rcv (cdr instruction))))))))
+#+END_SRC
+
+So the above works well enough. Now I need to make the two programs
+run in parallel. I'm *not* going to bother with actual deadlock
+detection yet, I'm just going to use the queue from lparallel. This
+should give me the answer, then I can work out a cleaner way that
+actually terminates the two threads when they get deadlocked.
+
+#+NAME: duet
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun duet (instructions)
+    (let ((p1->p0 (make-queue))
+          (p0->p1 (make-queue))
+          (sent-queue (make-queue))
+          (p1-send-count 0))
+      (flet ((p0-in ()
+               (pop-queue p1->p0))
+             (p0-out (x)
+               (push-queue x p0->p1))
+             (p1-in ()
+               (pop-queue p0->p1))
+             (p1-out (x)
+               (push-queue x p1->p0)
+               (incf p1-send-count)
+               (push-queue p1-send-count sent-queue)))
+        (let ((p0 (bt:make-thread
+                   (lambda () (run-program instructions :out #'p0-out :in #'p0-in :pid 0))
+                   :name "Duet: Program 0"))
+              (p1 (bt:make-thread
+                   (lambda () (run-program instructions :out #'p1-out :in #'p1-in :pid 1))
+                   :name "Duet: Program 1")))
+          (loop
+             with sent = 0
+             for next = (try-pop-queue sent-queue :timeout 0.5)
+             finally
+               (bt:destroy-thread p0)
+               (bt:destroy-thread p1)
+               (return sent)
+             while next
+             do (setf sent next))))))
+#+END_SRC
+
+The above will eventually stop doing anything. What I'll do is use a
+timeout, the program is fast enough. If, after 1 second, the sent
+queue is empty then the other two threads are destroyed and the result
+returned. This does fix the performance to be no better than 1 second,
+but it will give me the correct result.
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 18 B: ~a~%" (duet *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<duet-sim>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 18 A: 3423
+: Problem 18 B: 7493
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.18)
+  (in-suite aoc.2017.18)
+
+  (run! 'aoc.2017.18)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day18.adb
+  with AOC2017.Day18;
+  procedure Day18 is
+  begin
+    AOC2017.Day18.Run;
+  end Day18;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day18.ads
+  package AOC2017.Day18 is
+     procedure Run;
+  end AOC2017.Day18;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day18.adb
+  <<ada-packages>>
+  package body AOC2017.Day18 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 18");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day18;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day18
+  ./day18
+#+END_SRC
+
+#+RESULTS:
