@@ -1,0 +1,245 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 24
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-24)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-24
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-24)
+#+END_SRC
+** Input
+The input is a series of pairs of numbers, parsing is easy today.
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "[0-9]+" line)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/24.txt"))
+#+END_SRC
+** Part 1
+This seems too straightforward. I imagine the number of recursions is
+going to be too great or something, but a simple backtracking
+recursive solution should find the answer.
+#+NAME: strongest-bridge
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun strongest-bridge (parts &optional (base 0))
+    (loop
+       for (a b) in parts
+       finally (return (max left right))
+       when (= a base)
+       maximizing (+ a b (strongest-bridge (remove (list a b) parts :test #'equal) b))
+       into left
+       when (= b base)
+       maximizing (+ a b (strongest-bridge (remove (list a b) parts :test #'equal) a))
+         into right))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (strongest-bridge *input*)))
+#+END_SRC
+** Part 2
+It actually worked, I was concerned there'd be too many branches for
+it to be efficient. The second part is to find the longest bridge, and
+the strongest if there are multiple. The structure above is fine,
+however it will need changes to provide a good answer.
+#+NAME: longest-bridge
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun longest-bridge (parts &optional (base '(0)))
+    (loop
+       for (a b) in parts
+       with c = (car base)
+       with result = base
+       finally
+         (return result)
+       when (= a c)
+       do (let ((next (longest-bridge (remove (list a b) parts :test #'equal)
+                                      (append (list b a) base))))
+            (setf result
+                  (cond ((< (length result) (length next)) next)
+                        ((< (length next) (length result)) result)
+                        ((< (reduce #'+ result) (reduce #'+ next)) next)
+                        (t result))))
+       when (= b c)
+       do (let ((next (longest-bridge (remove (list a b) parts :test #'equal)
+                                      (append (list a b) base))))
+            (setf result
+                  (cond ((< (length result) (length next)) next)
+                        ((< (length next) (length result)) result)
+                        ((< (reduce #'+ result) (reduce #'+ next)) next)
+                        (t result))))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (reduce #'+ (longest-bridge *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<strongest-bridge>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 24 A: 1511
+: Problem 24 B: 1471
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.24)
+  (in-suite aoc.2017.24)
+
+  (defparameter *test-input-string*
+    "0/2
+  2/2
+  2/3
+  3/4
+  3/5
+  0/1
+  10/1
+  9/10")
+
+  (defparameter *test-input*
+    (with-input-from-string (in *test-input-string*)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "[0-9]+" line)))))
+
+  (run! 'aoc.2017.24)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2017.24
+:  Didn't run anything...huh?
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day24.adb
+  with AOC2017.Day24;
+  procedure Day24 is
+  begin
+    AOC2017.Day24.Run;
+  end Day24;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day24.ads
+  package AOC2017.Day24 is
+     procedure Run;
+  end AOC2017.Day24;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day24.adb
+  <<ada-packages>>
+  package body AOC2017.Day24 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 24");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day24;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day24
+  ./day24
+#+END_SRC
+
+#+RESULTS:
