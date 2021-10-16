@@ -1,0 +1,361 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 23
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-23)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-23
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-23)
+#+END_SRC
+** Input
+The input is a program in the same style as [[file:2017.18.org][Day 18]]. So I'll borrow
+that parser and the simulator I used for it. Technically this parser
+is overkill, but I added the extra two instructions (=sub= and 
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (with-local-rules
+      (defrule value () (and (? "-") (+ digit)) (:string) (:function #'parse-integer))
+      (defrule register () alpha)
+      (defrule register-or-value () (or register value))
+      (defrule snd () (and "snd " register-or-value) (:choose 1)
+               (:lambda (x)
+                 (list 'snd x)))
+      (defrule set () (and "set " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'set x y)))
+      (defrule add () (and "add " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'add x y)))
+      (defrule sub () (and "sub " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'sub x y)))
+      (defrule mul () (and "mul " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'mul x y)))
+      (defrule mod () (and "mod " register " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'mod x y)))
+      (defrule rcv () (and "rcv " register-or-value) (:choose 1)
+               (:lambda (x)
+                 (list 'rcv x)))
+      (defrule jgz () (and "jgz " register-or-value " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'jgz x y)))
+      (defrule jnz () (and "jnz " register-or-value " " register-or-value) (:choose 1 3)
+               (:lambda (x y)
+                 (list 'jnz x y)))
+      (defrule instruction ()
+          (or snd set add mul mod rcv jgz jnz sub))
+      (parseq 'instruction line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (coerce
+       (loop
+          for line = (read-line in nil)
+          while line
+          collect (parse-line line))
+       'vector)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/23.txt"))
+#+END_SRC
+** Part 1
+Like the above, a bit of overkill, but it's something to start
+with. I'm taking the original and adding in the missing instructions.
+
+#+NAME: count-multiplies
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun count-multiplies (instructions &key
+                                          (out #'(lambda (x) (print x)))
+                                          (in #'(lambda () (read)))
+                                          (pid 0))
+    (let ((registers (make-hash-table))
+          (pc 0))
+      ;; `p' is a special register starting with the value of the
+      ;; program ID.
+      (setf (gethash #\p registers) pid)
+      (labels ((value (vr)
+                 "Determines if VR is a number and returns it, if not it
+  returns the corresponding register value from REGISTERS, defaulting to 0."
+                 (or (and (numberp vr) vr)
+                     (gethash vr registers 0)))
+               (jgz (vr offset)
+                 "If VR has a positive value, jumps by OFFSET."
+                 (cond ((plusp (value vr)) (incf pc (value offset)))
+                       (t (incf pc))))
+               (jnz (vr offset)
+                 "If VR has a non-zero value, jumps by OFFSET."
+                 (cond ((not (zerop (value vr))) (incf pc (value offset)))
+                       (t (incf pc))))
+               (str (reg vr)
+                 "Sets register REG to the value of VR."
+                 (setf (gethash reg registers) (value vr))
+                 (incf pc))
+               (mul (reg vr)
+                 "Sets REG to REG * VR."
+                 (setf (gethash reg registers)
+                       (* (gethash reg registers) (value vr)))
+                 (incf pc))
+               (add (reg vr)
+                 "Sets REG to REG + VR."
+                 (incf (gethash reg registers 0) (value vr))
+                 (incf pc))
+               (sub (reg vr)
+                 "Sets REG to REG - VR."
+                 (decf (gethash reg registers 0) (value vr))
+                 (incf pc))
+               (mdo (reg vr)
+                 "Sets REG to REG mod VR."
+                 (setf (gethash reg registers)
+                       (mod (gethash reg registers) (value vr)))
+                 (incf pc))
+               (snd (vr)
+                 "Sends the value of VR via OUT"
+                 (funcall out (value vr))
+                 (incf pc))
+               (rcv (reg)
+                 "Stores the result of IN into REG."
+                 (setf (gethash reg registers) (funcall in))
+                 (incf pc)))
+        (loop
+           while (<= 0 pc (1- (length instructions)))
+           for instruction = (aref instructions pc)
+           with multiplies = 0
+           finally (return multiplies)
+           do
+             (ecase (car instruction)
+               (jgz (apply #'jgz (cdr instruction)))
+               (jnz (apply #'jnz (cdr instruction)))
+               (set (apply #'str (cdr instruction)))
+               (mul (incf multiplies) (apply #'mul (cdr instruction)))
+               (add (apply #'add (cdr instruction)))
+               (sub (apply #'sub (cdr instruction)))
+               (mod (apply #'mdo (cdr instruction)))
+               (snd (apply #'snd (cdr instruction)))
+               (rcv (apply #'rcv (cdr instruction))))))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 23 A: ~a~%" (count-multiplies *input*)))
+#+END_SRC
+** Part 2
+#+NAME: coprocessor
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun coprocessor (instructions)
+    (let ((registers (make-hash-table))
+          (pc 0))
+      ;; `p' is a special register starting with the value of the
+      ;; program ID.
+      (setf (gethash #\a registers) 1)
+      (labels ((value (vr)
+                 "Determines if VR is a number and returns it, if not it
+  returns the corresponding register value from REGISTERS, defaulting to 0."
+                 (or (and (numberp vr) vr)
+                     (gethash vr registers 0)))
+               (jnz (vr offset)
+                 "If VR has a non-zero value, jumps by OFFSET."
+                 (cond ((not (zerop (value vr))) (incf pc (value offset)))
+                       (t (incf pc))))
+               (str (reg vr)
+                 "Sets register REG to the value of VR."
+                 (setf (gethash reg registers) (value vr))
+                 (incf pc))
+               (mul (reg vr)
+                 "Sets REG to REG * VR."
+                 (setf (gethash reg registers)
+                       (* (gethash reg registers) (value vr)))
+                 (incf pc))
+               (sub (reg vr)
+                 "Sets REG to REG - VR."
+                 (decf (gethash reg registers 0) (value vr))
+                 (incf pc)))
+        (loop
+           while (<= 0 pc (1- (length instructions)))
+           for instruction = (aref instructions pc)
+           with multiplies = 0
+           finally (return (gethash #\h registers))
+           do
+             (when (equalp (cadr instruction) #\h)
+               (format t "register[~A] = ~A~%" (cadr instruction) (gethash (cadr instruction) registers)))
+             (ecase (car instruction)
+               (jnz (apply #'jnz (cdr instruction)))
+               (set (apply #'str (cdr instruction)))
+               (mul (incf multiplies) (apply #'mul (cdr instruction)))
+               (sub (apply #'sub (cdr instruction))))))))
+#+END_SRC
+
+The above is running right now, but of course it's very slow. I'm
+going to work out what the instructions do. After a lot of work, it
+turns out that the loop below is all that they do:
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun quasicompiled ()
+    (loop for x from 105700 to 122700 by 17
+       count (loop for d from 2 below x
+                when (zerop (mod x d))
+                do (return t))))
+#+END_SRC
+
+In the original program, it was laid out rather cleanly into 3
+loops. An outer loop ranging over the entire range incremented
+by 17. The next two loops testing d from 2 to b and e from 2 to b to
+find a pair that multiplied to b. If found, these loops terminated. A
+large speed boost happens just be reducing this inner part to one
+loop. I called it =quasicompiled= becaus, initially, I'd just wrapped
+the entire thing in a tagbody and calculated all jumps, manually
+turning each instruction into a lisp expression. This, nominally,
+worked except it didn't give any better performance. After breaking it
+down and replacing bits of the program, I ended up with the above as a
+clean variation of it.
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 23 B: ~a~%" (quasicompiled)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<count-multiplies>>
+  <<quasicompiled>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 23 A: 3025
+: Problem 23 B: 915
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.23)
+  (in-suite aoc.2017.23)
+
+  (run! 'aoc.2017.23)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day23.adb
+  with AOC2017.Day23;
+  procedure Day23 is
+  begin
+    AOC2017.Day23.Run;
+  end Day23;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day23.ads
+  package AOC2017.Day23 is
+     procedure Run;
+  end AOC2017.Day23;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day23.adb
+  <<ada-packages>>
+  package body AOC2017.Day23 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 23");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day23;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day23
+  ./day23
+#+END_SRC
+
+#+RESULTS:
