@@ -1,0 +1,224 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 25
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-25)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-25
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-25)
+#+END_SRC
+** Input
+I gave up on parsing, I just hand-jammed the results because I didn't
+want to spend more time on this.
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    '(A 12317297
+      (A
+       (0 1 +1 B)
+       (1 0 -1 D))
+      (B
+       (0 1 +1 C)
+       (1 0 +1 F))
+      (C
+       (0 1 -1 C)
+       (1 1 -1 A))
+      (D
+       (0 0 -1 E)
+       (1 1 +1 A))
+      (E
+       (0 1 -1 A)
+       (1 0 +1 B))
+      (F
+       (0 0 +1 C)
+       (1 0 +1 E))))
+
+  (defparameter *test-input*
+    '(A 6
+      (A
+       (0 1 +1 B)
+       (1 0 -1 B))
+      (B
+       (0 1 -1 A)
+       (1 1 +1 A))))
+#+END_SRC
+** Part 1
+The challenge is to simulate a Turing machine based on the above
+description for the number of steps, then report how many 1s are on
+the tape. In order to avoid a truly massive tape I'm going to use a
+hash-table. When a 1 is written, I'll add it at that position, but
+when a 0 is written I'll remove that position from the table. In the
+end, I can just report the count of the table.
+#+NAME: turing
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun turing (machine)
+    (destructuring-bind
+          (start steps &rest states) machine
+      (loop
+         with tape = (make-hash-table)
+         for state = start then next
+         for cursor = 0 then (+ cursor move)
+         repeat steps
+         for at = (gethash cursor tape 0)
+         for (write move next) = (rest (assoc at (rest (assoc state states))))
+         finally (return (hash-table-count tape))
+         do (case write
+              (0 (remhash cursor tape))
+              (1 (setf (gethash cursor tape) 1))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 25 A: ~a~%" (turing *input*)))
+#+END_SRC
+** Part 2
+There is no Part 2 since this is Christmas Day.
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  (problem-a)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 25 A: 4230
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.25)
+  (in-suite aoc.2017.25)
+  (test turing
+    (is (= 3 (turing *test-input*))))
+  (run! 'aoc.2017.25)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2017.25
+:  Running test TURING .
+:  Did 1 check.
+:     Pass: 1 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day25.adb
+  with AOC2017.Day25;
+  procedure Day25 is
+  begin
+    AOC2017.Day25.Run;
+  end Day25;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day25.ads
+  package AOC2017.Day25 is
+     procedure Run;
+  end AOC2017.Day25;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2017-day25.adb
+  <<ada-packages>>
+  package body AOC2017.Day25 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2017 - Day 25");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2017.Day25;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day25
+  ./day25
+#+END_SRC
+
+#+RESULTS:
