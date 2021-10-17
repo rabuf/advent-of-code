@@ -1,0 +1,234 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 25
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-25)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-25
+    (:use :common-lisp
+          :iterate
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-25)
+#+END_SRC
+** Input
+
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (coerce
+     (iter (for line in-file file using #'read-line)
+           (collect (cl-ppcre:split " " line)))
+     'vector))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/25.txt"))
+#+END_SRC
+** Part 1
+Details of the computer:
+- Registers :: There are four: =a=, =b=, =c=, =d=. Initialized to 0
+               and holding any integer.
+- =copy x y= :: Copies =x= to integer =y=. =x= may be a register or integer.
+- =inc x= :: Increments the value in register =x=.
+- =dec x= :: Decrements the value in register =y=.
+- =jnz x y= :: Jumps to an instruction =y= away (relative offset) if
+               =x= is non-zero.
+
+The above came from [[file:2016.12][Day 12]]. Now there's one extra instruction, =out=:
+- =out x= :: transmits =x= which can be a register or value.
+#+NAME: assembunny
+#+BEGIN_SRC lisp :results silent
+  (defun assembunny-sim (program &optional (state (make-hash-table :test #'equal)))
+    (labels ((copy (x y)
+               (let ((n (parse-integer x :junk-allowed t)))
+                 (cond (n (setf (gethash y state) n))
+                       (t (setf (gethash y state) (gethash x state 0))))))
+             (inc (x)
+               (incf (gethash x state 0)))
+             (dec (x)
+               (decf (gethash x state 0)))
+             (out (x)
+               (format t "~A" (gethash x state 0)))
+             (jnz (x offset)
+               (let ((n (parse-integer x :junk-allowed t)))
+                 (if (or (and (integerp n) (not (zerop n)))
+                         (not (zerop (gethash x state 0))))
+                   (incf (gethash "pc" state 0) (parse-integer offset))
+                   (inc "pc")))))
+      (loop
+         for (op x y) = (elt program (gethash "pc" state 0))
+         finally (format t "(~a) ~a ~a ~a: ~a ~a ~a ~a ~%"
+                         (gethash "pc" state 0)
+                         op x y
+                         (gethash "a" state 0)
+                         (gethash "b" state 0)
+                         (gethash "c" state 0)
+                         (gethash "d" state 0))
+
+         do (cond ((string= op "cpy")
+                   (copy x y)
+                   (inc "pc"))
+                  ((string= op "inc")
+                   (inc x)
+                   (inc "pc"))
+                  ((string= op "dec")
+                   (dec x)
+                   (inc "pc"))
+                  ((string= op "out")
+                   (out x)
+                   (inc "pc"))
+                  ((string= op "jnz")
+                   (jnz x y)))
+         until (>= (gethash "pc" state 0) (length program))))
+    state)
+#+END_SRC
+
+The above should be a correct implementation of the program, the
+question is what positive integer in register a results in an infinite
+series of 0, 1, 0, 1, 0, ...
+
+So one of the problems is that the initial input has a loop that
+multiplies =a= by $231\cdot11$. It takes a *lot* of time to do for
+larger inputs, then the other loops basically just countdown from
+there. I'm going to hand-compile this program:
+
+#+NAME: solve-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun clock-output (&optional (a 0))
+    (let ((a a)
+          (b 0)
+          (c 0)
+          (d 0)
+          (output nil))
+      (flet ((print-state () (format t "[~A,~A,~A,~A]~%" a b c d)))
+        (tagbody
+         00 (setf d a)         ;; cpy a d
+         01 (setf c 11)        ;; cpy 11 c
+         02 (setf b 231)       ;; cpy 231 b
+         03 (incf d)           ;; inc d
+         04 (decf b)           ;; dec b
+         05 (unless (zerop b)
+              (go 3))           ;; jnz b -2
+         06 (decf c)           ;; dec c
+         07 (unless (zerop c)
+              (go 2))            ;; jnz c -5
+         08 (setf a d)         ;; cpy d a
+         09 (unless (zerop 0)
+              (go 09))         ;; jnz 0 0 -- noop
+         10 (setf b a)         ;; cpy a b
+         11 (setf a 0)         ;; cpy 0 a
+         12 (setf c 2)         ;; cpy 2 c
+         13 (unless (zerop b)
+              (go 15))         ;; jnz b 2
+         14 (unless (zerop 1)
+              (go 20))         ;; jnz 1 6 -- unconditional jump
+         15 (decf b)           ;; dec b
+         16 (decf c)           ;; dec c
+         17 (unless (zerop c)
+              (go 13))         ;; jnz c -4
+         18 (incf a)           ;; inc a
+         19 (unless (zerop 1)
+              (go 12))         ;; jnz 1 -7 -- unconditional jump
+         20 (setf b 2)         ;; cpy 2 b
+         21 (unless (zerop c)
+              (go 23))         ;; jnz c 2
+         22 (unless (zerop 1)
+              (go 26))         ;; jnz 1 4 -- unconditional jump
+         23 (decf b)           ;; dec b
+         24 (decf c)           ;; dec c
+         25 (unless (zerop 1)
+              (go 21))         ;; jnz 1 -4
+         26 (unless (zerop 0)
+              (go 26))         ;; jnz 0 0 -- noop
+         27 (push b output)          ;; out b
+         28 (unless (zerop a)
+              (go 9))))          ;; jnz a -19
+      (reverse output)))
+
+  (defun find-solution (&optional (pattern '(0 1 0 1 0 1 0 1 0 1 0 1)))
+    (loop
+       for a from 1
+       for output = (clock-output a)
+       until (equal pattern output)
+       finally (return a)))
+#+END_SRC
+
+The value of =a= was being added to 2541, and that number was being
+printed in binary, in reverse, via =out. The last line of the original
+program was causing the whole thing to loop infinitely, so I removed
+that. For grins, I wrote a proper search program above.
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<assembunny>>
+  (defun problem-a () (format t "Problem 25 A: ~a~%" (find-solution)))
+#+END_SRC
+** Part 2
+No Part 2, Merry Christmas!
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<solve-a>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  (problem-a)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 25 A: 189
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.25)
+  (in-suite aoc.2016.25)
+  (run! 'aoc.2016.25)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2016.25
+:  Didn't run anything...huh?
+** Thoughts
