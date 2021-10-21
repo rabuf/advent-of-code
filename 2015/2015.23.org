@@ -218,3 +218,59 @@ an easy way to simulate this machine would be a macro that accepts the
 input and sticks it inside a tag body like this. The tags become just
 the instruction number in the sequence and jumps can be calculated (in
 the macro form).
+
+So I never actually tried running this one straight, I already have
+the input so why not try implementing it properly in Common Lisp?
+#+BEGIN_SRC lisp
+  (defun parse-instruction (instruction)
+    (with-local-rules
+      (defrule ra () "a" (:constant :a))
+      (defrule rb () "b" (:constant :b))
+      (defrule register () (or ra rb))
+      (defrule offset () (and (or "+" "-") (+ digit)) (:string) (:function #'parse-integer))
+      (defrule hlf () (and "hlf " register) (:choose 1) (:lambda (r) (list :hlf r)))
+      (defrule tpl () (and "tpl " register) (:choose 1) (:lambda (r) (list :tpl r)))
+      (defrule inc () (and "inc " register) (:choose 1) (:lambda (r) (list :inc r)))
+      (defrule jmp () (and "jmp " offset) (:choose 1) (:lambda (o) (list :jmp o)))
+      (defrule jie () (and "jie " register ", " offset) (:choose 1 3) (:lambda (r o) (list :jie r o)))
+      (defrule jio () (and "jio " register ", " offset) (:choose 1 3) (:lambda (r o) (list :jio r o)))
+      (defrule instruction ()
+          (or jio jie jmp inc tpl hlf))
+      (parseq 'instruction instruction)))
+
+  (defun parse-input (input)
+    (loop for i in input
+         collect (parse-instruction i)))
+  (defun run-lock (instructions &optional (a 0))
+      (loop
+         with pc = 0
+         with a = a
+         with b = 0
+         with instructions = (coerce instructions 'vector)
+         while (<= 0 pc (1- (length instructions)))
+         for i = (aref instructions pc)
+         finally (return b)
+         do (ecase (first i)
+              (:hlf (case (second i)
+                      (:a (setf a (/ a 2)))
+                      (:b (setf b (/ b 2))))
+                    (incf pc))
+              (:tpl (case (second i)
+                      (:a (setf a (* a 3)))
+                      (:b (setf b (* b 3))))
+                    (incf pc))
+              (:inc (case (second i)
+                      (:a (incf a))
+                      (:b (incf b)))
+                    (incf pc))
+              (:jmp (incf pc (second i)))
+              (:jio (if (= 1 (case (second i) (:a a) (:b b)))
+                        (incf pc (third i))
+                        (incf pc)))
+              (:jie (if (evenp (case (second i) (:a a) (:b b)))
+                        (incf pc (third i))
+                        (incf pc))))))
+#+END_SRC
+
+#+RESULTS:
+: RUN-LOCK
