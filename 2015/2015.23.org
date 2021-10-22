@@ -221,7 +221,7 @@ the macro form).
 
 So I never actually tried running this one straight, I already have
 the input so why not try implementing it properly in Common Lisp?
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :results all
   (defun parse-instruction (instruction)
     (with-local-rules
       (defrule ra () "a" (:constant :a))
@@ -270,7 +270,92 @@ the input so why not try implementing it properly in Common Lisp?
               (:jie (if (evenp (case (second i) (:a a) (:b b)))
                         (incf pc (third i))
                         (incf pc))))))
+  (defun get-benchmarks ()
+    (with-output-to-string (*standard-output*)
+      (print "A=0, parsing input:")
+      (trivial-benchmark:with-timing (1000) (run-lock (parse-input *input*) 0))
+      (print "A=0, pre-parsed:")
+      (let ((parsed (parse-input *input*)))
+        (trivial-benchmark:with-timing (1000) (run-lock parsed 0)))
+      (print "collatz 20895")
+      (trivial-benchmark:with-timing (1000) (collatz 20895))
+      (print "A=1, parsing input:")
+      (trivial-benchmark:with-timing (1000) (run-lock (parse-input *input*) 1))
+      (print "A=1, pre-parsed:")
+      (let ((parsed (parse-input *input*)))
+        (trivial-benchmark:with-timing (1000) (run-lock parsed 1)))
+      (print "collatz 60965")
+      (trivial-benchmark:with-timing (1000) (collatz 60975))
+      *standard-output*))
+  (get-benchmarks)
 #+END_SRC
 
 #+RESULTS:
-: RUN-LOCK
+#+begin_example
+
+"A=0, parsing input:" 
+-                SAMPLES  TOTAL      MINIMUM   MAXIMUM   MEDIAN    AVERAGE   DEVIATION  
+REAL-TIME        1000     0.507      0         0.056     0         0.000507  0.002147   
+RUN-TIME         1000     0.502      0         0.057     0         0.000502  0.002171   
+USER-RUN-TIME    1000     0.462241   0.000304  0.047104  0.00031   0.000462  0.001787   
+SYSTEM-RUN-TIME  1000     0.039526   0.000001  0.009172  0.000002  0.00004   0.000323   
+PAGE-FAULTS      1000     0          0         0         0         0         0.0        
+GC-RUN-TIME      1000     0.134      0         0.055     0         0.000134  0.002041   
+BYTES-CONSED     1000     456500512  425376    484128    458256    456500.5  7379.692   
+EVAL-CALLS       1000     0          0         0         0         0         0.0        
+
+"A=0, pre-parsed:" 
+-                SAMPLES  TOTAL     MINIMUM   MAXIMUM   MEDIAN    AVERAGE   DEVIATION  
+REAL-TIME        1000     0.026     0         0.001     0         0.000026  0.000159   
+RUN-TIME         1000     0.024     0         0.001     0         0.000024  0.000153   
+USER-RUN-TIME    1000     0.021337  0.00002   0.000044  0.000021  0.000021  0.000002   
+SYSTEM-RUN-TIME  1000     0.001422  0.000001  0.00004   0.000001  0.000001  0.000001   
+PAGE-FAULTS      1000     0         0         0         0         0         0.0        
+GC-RUN-TIME      1000     0         0         0         0         0         0.0        
+BYTES-CONSED     1000     456320    0         32640     0         456.32    3829.5178  
+EVAL-CALLS       1000     0         0         0         0         0         0.0        
+
+"collatz 20895" 
+-                SAMPLES  TOTAL     MINIMUM   MAXIMUM   MEDIAN    AVERAGE   DEVIATION  
+REAL-TIME        1000     0.007     0         0.001     0         0.000007  0.000083   
+RUN-TIME         1000     0.006     0         0.001     0         0.000006  0.000077   
+USER-RUN-TIME    1000     0.005692  0.000005  0.000012  0.000006  0.000006  0.000001   
+SYSTEM-RUN-TIME  1000     0.001342  0.000001  0.000009  0.000001  0.000001  0.000001   
+PAGE-FAULTS      1000     0         0         0         0         0         0.0        
+GC-RUN-TIME      1000     0         0         0         0         0         0.0        
+BYTES-CONSED     1000     0         0         0         0         0         0.0        
+EVAL-CALLS       1000     0         0         0         0         0         0.0        
+
+"A=1, parsing input:" 
+-                SAMPLES  TOTAL      MINIMUM   MAXIMUM   MEDIAN    AVERAGE    DEVIATION  
+REAL-TIME        1000     0.397      0         0.01      0         0.000397   0.000878   
+RUN-TIME         1000     0.395      0         0.01      0         0.000395   0.000858   
+USER-RUN-TIME    1000     0.385121   0.000309  0.009117  0.000313  0.000385   0.000668   
+SYSTEM-RUN-TIME  1000     0.009723   0.000001  0.000928  0.000002  0.00001    0.000063   
+PAGE-FAULTS      1000     0          0         0         0         0          0.0        
+GC-RUN-TIME      1000     0.061      0         0.009     0         0.000061   0.000682   
+BYTES-CONSED     1000     456480848  425344    482976    458272    456480.84  7479.2925  
+EVAL-CALLS       1000     0          0         0         0         0          0.0        
+
+"A=1, pre-parsed:" 
+-                SAMPLES  TOTAL     MINIMUM   MAXIMUM   MEDIAN    AVERAGE   DEVIATION  
+REAL-TIME        1000     0.032     0         0.001     0         0.000032  0.000176   
+RUN-TIME         1000     0.031     0         0.001     0         0.000031  0.000173   
+USER-RUN-TIME    1000     0.028017  0.000026  0.000068  0.000027  0.000028  0.000004   
+SYSTEM-RUN-TIME  1000     0.001973  0.000001  0.000037  0.000001  0.000002  0.000003   
+PAGE-FAULTS      1000     0         0         0         0         0         0.0        
+GC-RUN-TIME      1000     0         0         0         0         0         0.0        
+BYTES-CONSED     1000     456768    0         32704     0         456.768   3833.2788  
+EVAL-CALLS       1000     0         0         0         0         0         0.0        
+
+"collatz 60965" 
+-                SAMPLES  TOTAL     MINIMUM   MAXIMUM   MEDIAN    AVERAGE   DEVIATION  
+REAL-TIME        1000     0.008     0         0.001     0         0.000008  0.000089   
+RUN-TIME         1000     0.006     0         0.001     0         0.000006  0.000077   
+USER-RUN-TIME    1000     0.006939  0.000006  0.000023  0.000007  0.000007  0.000001   
+SYSTEM-RUN-TIME  1000     0.001278  0.000001  0.000006  0.000001  0.000001  0.0        
+PAGE-FAULTS      1000     0         0         0         0         0         0.0        
+GC-RUN-TIME      1000     0         0         0         0         0         0.0        
+BYTES-CONSED     1000     0         0         0         0         0         0.0        
+EVAL-CALLS       1000     0         0         0         0         0         0.0        
+#+end_example
