@@ -14,6 +14,8 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :results silent
   (unless (find-package :cl-ppcre)
     (ql:quickload "cl-ppcre"))
+  (unless (find-package :cl-heap)
+    (ql:quickload "cl-heap"))
   (unless (find-package :iterate)
     (ql:quickload "iterate"))
   (unless (find-package :parseq)
@@ -75,14 +77,79 @@ new string.
       :md5 (ironclad:ascii-string-to-byte-array string))))
 #+END_SRC
 
+#+NAME: solve-maze
+#+BEGIN_SRC lisp :results silent
+  (defun current-position (steps)
+    (loop for c across steps
+          sum (ecase c
+                (#\L #C(0 -1))
+                (#\R #C(0 1))
+                (#\U #C(-1 0))
+                (#\D #C(1 0)))))
+  (defun valid-moves (string steps)
+    (let* ((hash (md5-string (concatenate 'string string steps)))
+           (position (current-position steps))
+           (available (append
+                       (case (realpart position)
+                         (0 (list #\D))
+                         (3 (list #\U))
+                         (otherwise (list #\D #\U)))
+                       (case (imagpart position)
+                         (0 (list #\R))
+                         (3 (list #\L))
+                         (otherwise (list #\R #\L))))))
+      (intersection
+       available
+       (loop
+         for dir in '(#\U #\D #\L #\R)
+         for c across hash
+         if (member c '(#\b #\c #\d #\e #\f))
+           collect dir))))
+  (defun at-vault-p (position)
+    (= #C(3 3) position))
+  (defun shortest-path (string)
+    (let ((fringe (make-instance 'cl-heap:priority-queue)))
+      (cl-heap:enqueue fringe "" 0)
+      (loop
+        for path = (cl-heap:dequeue fringe)
+        for open-doors = (valid-moves string path)
+        until (at-vault-p (current-position path))
+        finally (return path)
+        do (loop for direction in (valid-moves string path)
+                 do (let ((new-path (format nil "~A~A" path direction)))
+                      (cl-heap:enqueue fringe new-path (length new-path)))))))
+
+#+END_SRC
+
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 17 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 17 A: ~a~%" (shortest-path *input*)))
 #+END_SRC
 ** Part 2
+Now we need the *longest* path, not the shortest.
+#+NAME: longest-path
+#+BEGIN_SRC lisp :results silent
+  (defun longest-path (string)
+    (let ((fringe (make-instance 'cl-heap:priority-queue)))
+      (cl-heap:enqueue fringe "" 0)
+      (loop
+        with longest-path-length = 0
+        for path = (cl-heap:dequeue fringe)
+        for open-doors = (valid-moves string path)
+        unless (at-vault-p (current-position path)) ;; don't keep going
+        do (loop for direction in (valid-moves string path)
+                 do (let ((new-path (format nil "~A~A" path direction)))
+                      (cl-heap:enqueue fringe new-path (length new-path))))
+        until (zerop (cl-heap:queue-size fringe))
+        finally (return longest-path-length)
+        when (and (at-vault-p (current-position path))
+                  (< longest-path-length (length path)))
+          do (setf longest-path-length (length path)))))
+
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 17 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 17 B: ~a~%" (longest-path *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -94,6 +161,8 @@ new string.
   <<read-input>>
   <<input>>
   <<md5-string>>
+  <<solve-maze>>
+  <<longest-path>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
@@ -108,16 +177,31 @@ new string.
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 17 A: rrrbmfta
-: Problem 17 B: rrrbmfta
+: Problem 17 A: RLRDRDUDDR
+: Problem 17 B: 420
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2016.17)
   (in-suite aoc.2016.17)
-
+  (test shortest-path
+    (is (string= "DDRRRD" (shortest-path "ihgpwlah")))
+    (is (string= "DDUDRLRRUDRD" (shortest-path "kglvqrro")))
+    (is (string= "DRURDRUDDLLDLUURRDULRLDUUDDDRR" (shortest-path "ulqzkmiv"))))
+  (test longest-path
+    (is (= 370 (longest-path "ihgpwlah")))
+    (is (= 492 (longest-path "kglvqrro")))
+    (is (= 830 (longest-path "ulqzkmiv"))))
   (run! 'aoc.2016.17)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2016.17
+:  Running test SHORTEST-PATH ...
+:  Running test LONGEST-PATH ...
+:  Did 6 checks.
+:     Pass: 6 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
