@@ -137,7 +137,7 @@ Now we need the *longest* path, not the shortest.
         for path = (cl-heap:dequeue fringe)
         for open-doors = (valid-moves string path)
         unless (at-vault-p (current-position path)) ;; don't keep going
-        do (loop for direction in (valid-moves string path)
+        do (loop for direction in open-doors
                  do (let ((new-path (format nil "~A~A" path direction)))
                       (cl-heap:enqueue fringe new-path (length new-path))))
         until (zerop (cl-heap:queue-size fringe))
@@ -147,9 +147,26 @@ Now we need the *longest* path, not the shortest.
           do (setf longest-path-length (length path)))))
 
 #+END_SRC
+
+The above is *very* slow, I'm going to make a DFS version that, I
+think, should be faster. In particular, it will use much less memory:
+#+NAME: longest-path-dfs
+#+BEGIN_SRC lisp :results silent
+  (defun longest-path-dfs (string &optional (path ""))
+    (let ((open-doors (valid-moves string path)))
+      (cond ((at-vault-p (current-position path))
+             (length path))
+            (t
+             (loop
+               for direction in open-doors
+               maximize (longest-path-dfs string (concatenate 'string path (string direction))))))))
+#+END_SRC
+
+The above is pretty reliably 2x faster than the initial BFS based
+version.
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 17 B: ~a~%" (longest-path *input*)))
+  (defun problem-b () (format t "Problem 17 B: ~a~%" (longest-path-dfs *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -163,6 +180,7 @@ Now we need the *longest* path, not the shortest.
   <<md5-string>>
   <<solve-maze>>
   <<longest-path>>
+  <<longest-path-dfs>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
@@ -192,6 +210,10 @@ Now we need the *longest* path, not the shortest.
     (is (= 370 (longest-path "ihgpwlah")))
     (is (= 492 (longest-path "kglvqrro")))
     (is (= 830 (longest-path "ulqzkmiv"))))
+  (test longest-path-dfs
+    (is (= 370 (longest-path-dfs "ihgpwlah")))
+    (is (= 492 (longest-path-dfs "kglvqrro")))
+    (is (= 830 (longest-path-dfs "ulqzkmiv"))))
   (run! 'aoc.2016.17)
 #+END_SRC
 ** Test Results
@@ -200,8 +222,9 @@ Now we need the *longest* path, not the shortest.
 : Running test suite AOC.2016.17
 :  Running test SHORTEST-PATH ...
 :  Running test LONGEST-PATH ...
-:  Did 6 checks.
-:     Pass: 6 (100%)
+:  Running test LONGEST-PATH-DFS ...
+:  Did 9 checks.
+:     Pass: 9 (100%)
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
