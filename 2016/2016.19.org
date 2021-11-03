@@ -58,11 +58,10 @@ $g(n) = 2 \cdot (n - 2^{\floor{\log_2 n}}) + 1$
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun greediest (n)
-    (+ (* 2
+    (1+ (* 2
           (- n
              (expt 2
-                   (floor (log n 2)))))
-       1))
+                   (floor (log n 2)))))))
   (defun problem-a () (format t "Problem 19 A: ~a~%" (greediest *input*)))
 #+END_SRC
 ** Part 2
@@ -97,8 +96,7 @@ The simulation isn't necessary. The count is as follows:
             ((< (- n lower) lower)
              (- n lower))
             (t
-             (+ lower
-                (* 2 (- n lower lower)))))))
+             (- (* 2 n) (* 3 lower))))))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
