@@ -11,8 +11,6 @@ fn day01_01() -> i64 {
         }
     };
     let reader = BufReader::new(file);
-    //reader
-    //    .lines()
     reader
         .lines()
         .enumerate()
@@ -32,8 +30,6 @@ fn day01_02() -> i64 {
         }
     };
     let reader = BufReader::new(file);
-    //reader
-    //    .lines()
     reader
         .lines()
         .enumerate()
