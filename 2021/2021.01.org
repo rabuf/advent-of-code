@@ -117,11 +117,28 @@ increase (using previous function).
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2021.01)
   (in-suite aoc.2021.01)
-
+  (test count-increases
+    (is (= 7 (increase-count '(199 200 208 210 200 207 240 269 260 263))))
+    (is (= 5 (increase-count (rolling-sum '(199 200 208 210 200 207 240 269 260 263))))))
+  (test rolling-sum
+    (is (equal (rolling-sum '(199 200 208 210 200 207 240 269 260 263))
+               '(607 618 618 617 647 716 769 792))))
+  (test rolling-sum-reduces-length-by-two
+    (for-all ((list (gen-list :elements (gen-integer :min 0 :max 100) :length (gen-integer :min 3 :max 20))))
+      (is (= 2 (- (length list) (length (rolling-sum list)))))))
   (run! 'aoc.2021.01)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2021.01
+:  Running test COUNT-INCREASES ..
+:  Running test ROLLING-SUM .
+:  Running test ROLLING-SUM-REDUCES-LENGTH-BY-TWO .....................................................................................................
+:  Did 4 checks.
+:     Pass: 4 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
 *** Functional version
 I could've done the first part more cleanly using map and count:
