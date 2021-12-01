@@ -122,6 +122,7 @@ increase (using previous function).
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
+*** Functional version
 I could've done the first part more cleanly using map and count:
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun cleaner-count (list)
@@ -131,6 +132,20 @@ And for the second I could have used map again to generate the sums:
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun cleaner-sum (list)
     (mapcar #'+ list (cdr list) (cddr list)))
+#+END_SRC
+*** SERIES
+SERIES allows for a kind of lazy evaluation in Common Lisp. It will
+convert the version below into a more optimized iterative
+form. Letting me write in a functional style but getting the better
+performance of the loop form.
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (series::defun series-count (list)
+    (series::let ((a (series:scan list))
+                 (b (series:scan (cdr list))))
+      (series:collect-fn 'integer #'(lambda () 0)
+                         #'(lambda (count increased?)
+                             (if increased? (1+ count) count))
+                         (series:map-fn 'boolean #'< a b))))
 #+END_SRC
 ** Ada
 *** Runner
