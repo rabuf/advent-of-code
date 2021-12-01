@@ -5,16 +5,12 @@ fn day01_01() -> i64 {
     let filename = "../input/01.txt";
     let file = match File::open(filename) {
         Ok(f) => f,
-        Err(_) => {
-            println!("{0} not found", filename);
-            std::process::exit(1)
-        }
+        Err(_) => panic!("{} not found.", filename),
     };
     let reader = BufReader::new(file);
     reader
         .lines()
-        .enumerate()
-        .map(|(_, l)| l.unwrap().parse::<i64>().unwrap())
+        .map(|l| l.unwrap().parse::<i64>().unwrap())
         .fold((0 as i64, i64::max_value()), |(sum, prev), curr| {
             (sum + if prev < curr { 1 } else { 0 }, curr)
         })
@@ -24,16 +20,12 @@ fn day01_02() -> i64 {
     let filename = "../input/01.txt";
     let file = match File::open(filename) {
         Ok(f) => f,
-        Err(_) => {
-            println!("{0} not found", filename);
-            std::process::exit(1)
-        }
+        Err(_) => panic!("{} not found.", filename),
     };
     let reader = BufReader::new(file);
     reader
         .lines()
-        .enumerate()
-        .map(|(_, l)| l.unwrap().parse::<i64>().unwrap())
+        .map(|l| l.unwrap().parse::<i64>().unwrap())
         .fold(
             (
                 0 as i64,
