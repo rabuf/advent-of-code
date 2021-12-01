@@ -122,6 +122,16 @@ increase (using previous function).
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
+I could've done the first part more cleanly using map and count:
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun cleaner-count (list)
+    (count t (mapcar #'< list (cdr list))))
+#+END_SRC
+And for the second I could have used map again to generate the sums:
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun cleaner-sum (list)
+    (mapcar #'+ list (cdr list) (cddr list)))
+#+END_SRC
 ** Ada
 *** Runner
 Simple runner.
