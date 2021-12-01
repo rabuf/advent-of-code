@@ -4,12 +4,31 @@
 This is my collection of solutions for [[http://adventofcode.com][Advent of Code]] challenges. Most
 of these will be done in Common Lisp. I may go back and do some of
 them in other languages, too.
+
+Random problems have solutions in other languages. In 2020 I made an
+effort to solve problems in Ada, which I did through the first
+half. I'm repeating that effort in 2021 as well as attempting the
+problems in Rust.
 * Organization
 Each year has its own org file (linked below). From there you can get
 to my code and write up for each of the problems I've solved for that
 year.
 * Events
-** TODO [[file:2020/aoc2020.org][Advent of Code 2020]]
+** TODO [[file:2021/aoc2021.org][Advent of Code 2021]]
+| M | T | W | R | F | S | S |
+|---+---+---+---+---+---+---|
+|   |   | X |   |   |   |   |
+|   |   |   |   |   |   |   |
+|   |   |   |   |   |   |   |
+|   |   |   |   |   |   |   |
+
+** DONE [[file:2020/aoc2020.org][Advent of Code 2020]]
+| M | T | W | R | F | S | S |
+|---+---+---+---+---+---+---|
+|   | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X |   |   |
 ** TODO [[file:2019/aoc2019.org][Advent of Code 2019]]
 | M | T | W | R | F | S | S |
 |---+---+---+---+---+---+---|
@@ -19,6 +38,32 @@ year.
 | X | X | 0 | X | 0 | 1 | X |
 | X | X | 1 |   |   |   |   |
 ** DONE [[file:2018/aoc2018.org][Advent of Code 2018]]
+| M | T | W | R | F | S | S |
+|---+---+---+---+---+---+---|
+|   |   |   |   |   | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X |   |   |   |   |   |
 ** TODO [[file:2017/aoc2017.org][Advent of Code 2017]]
+| M | T | W | R | F | S | S |
+|---+---+---+---+---+---+---|
+|   |   |   |   | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | 0 | X | X | X |
+| 1 |   |   |   |   |   |   |
 ** TODO [[file:2016/aoc2016.org][Advent of Code 2016]]
+| M | T | W | R | F | S | S |
+|---+---+---+---+---+---+---|
+|   |   |   | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | 0 | 1 |
 ** DONE [[file:2015/aoc2015.org][Advent of Code 2015]]
+| M | T | W | R | F | S | S |
+|---+---+---+---+---+---+---|
+|   | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X | X | X |
+| X | X | X | X | X |   |   |
