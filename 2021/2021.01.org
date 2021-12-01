@@ -165,15 +165,6 @@ performance of the loop form.
                              (if increased? (1+ count) count))
                          (series:map-fn 'boolean #'< a b))))
 #+END_SRC
-#+BEGIN_SRC lisp :noweb yes :results silent
-  (defun series-count (list)
-    (let ((a (series:scan list))
-          (b (series:scan (cdr list))))
-      (collect-fn 'integer #'(lambda () 0)
-                  #'(lambda (count increased?)
-                      (if increased? (1+ count) count))
-                  (map-fn 'boolean #'< a b))))
-#+END_SRC
 ** Ada
 *** Runner
 Simple runner.
