@@ -95,6 +95,7 @@ increase (using previous function).
   <<read-input>>
   <<input>>
   <<solve-a>>
+  <<solve-b>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
