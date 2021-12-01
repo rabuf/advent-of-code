@@ -165,6 +165,32 @@ performance of the loop form.
                              (if increased? (1+ count) count))
                          (series:map-fn 'boolean #'< a b))))
 #+END_SRC
+Using SERIES's =scan-file= function:
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun series-part-1 ()
+    (collect-fn 'integer
+                (lambda () 0)
+                (lambda (sum bool)
+                  (if bool (1+ sum) sum))
+                (mapping (((a b) (chunk 2 1 (scan-file "input/01.txt"))))
+                         (< a b))))
+  (defun series-part-2 ()
+    (collect-fn 'integer
+                (lambda () 0)
+                (lambda (sum bool)
+                  (if bool (1+ sum) sum))
+                (mapping (((a b)
+                           (chunk 2 1 (mapping (((a b c) (chunk 3 1 (scan-file "input/01.txt"))))
+                                               (+ a b c)))))
+                         (< a b))))
+#+END_SRC
+
+Playing around with some benchmarking, the above is faster when paired
+with reading the input file for the original solution. However, it's
+slower when they're separated. Except for part 2. Part 2 is about 10x
+slower even without reading the input file compared to the SERIES
+version. The SERIES versions also greatly reduce the amount of memory
+used.
 ** Ada
 *** Runner
 Simple runner.
