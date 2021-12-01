@@ -148,6 +148,15 @@ performance of the loop form.
                              (if increased? (1+ count) count))
                          (series:map-fn 'boolean #'< a b))))
 #+END_SRC
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun series-count (list)
+    (let ((a (series:scan list))
+          (b (series:scan (cdr list))))
+      (collect-fn 'integer #'(lambda () 0)
+                  #'(lambda (count increased?)
+                      (if increased? (1+ count) count))
+                  (map-fn 'boolean #'< a b))))
+#+END_SRC
 ** Ada
 *** Runner
 Simple runner.
@@ -165,47 +174,76 @@ Specification for solution.
      procedure Run;
   end AOC2021.Day01;
 #+END_SRC
-*** Packages
-#+NAME: ada-packages
-#+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
-  with Text_IO; use Text_IO;
-#+END_SRC
-*** Types and generics
-#+NAME: types-and-generics
-#+BEGIN_SRC ada
-
-#+END_SRC
 *** Implementation
 Actual implementation body.
 #+BEGIN_SRC ada :tangle ada/aoc2021-day01.adb
-  <<ada-packages>>
+  with Text_IO; use Text_IO;
+  with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
+  with Ada.Containers.Vectors;
   package body AOC2021.Day01 is
-     <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
+     package Integer_Vectors is new
+       Ada.Containers.Vectors
+         (Element_Type => Integer,
+          Index_Type => Natural);
+     use Integer_Vectors;
+
+     function Solve_01 (V : Vector) return Integer
+     is
+        Prev : Cursor := V.First;
+        Curr : Cursor := Next(Prev);
+        Count : Integer := 0;
      begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+        while Curr /= No_Element loop
+           if V (Prev) < V (Curr) then
+              Count := Count + 1;
+           end if;
+           Prev := Curr;
+           Curr := Next(Curr);
+        end loop;
+        return Count;
+     end Solve_01;
+
+     function Solve_02 (V : Vector) return Integer
+     is
+        A : Cursor := V.First;
+        B : Cursor := Next(A);
+        C : Cursor := Next(B);
+        D : Cursor := Next(C);
+        Prev : Integer;
+        Curr : Integer;
+        Count : Integer := 0;
+     begin
+        while D /= No_Element loop
+           Prev := V(A) + V(B) + V(C);
+           Curr := V(B) + V(C) + V(D);
+           if Prev < Curr then
+              Count := Count + 1;
+           end if;
+           A := B;
+           B := C;
+           C := D;
+           D := Next (D);
+        end loop;
+        return Count;
+     end Solve_02;
+
      procedure Run is
+        Input : Vector;
      begin
-        Put_Line("Advent of Code 2021 - Day 01");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        declare
+           input_file : file_type;
+           line : integer;
+        begin
+           Open (Input_File, in_file, "../input/01.txt");
+           loop
+              exit when end_of_file (input_file);
+              Get (input_file, Line);
+              Input.Append (Line);
+           end loop;
+        end;
+        Put_Line("Advent of Code 2021 - Day 01:"); New_Line;
+        Put_Line("The result for part 1 is: " & Integer'Image(Solve_01 (Input)));
+        Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02 (Input)));
      end Run;
   end AOC2021.Day01;
 #+END_SRC
@@ -220,3 +258,7 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2021 - Day 01:
+: 
+: The result for part 1 is:  1342
+: The result for Part 2 is:  1378
