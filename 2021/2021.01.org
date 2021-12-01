@@ -296,3 +296,67 @@ C-v C-t=.
 : 
 : The result for part 1 is:  1342
 : The result for Part 2 is:  1378
+** Rust
+For completeness I'm going to include this code here, however unlike
+the Ada code it is not meant to be tangled from here. I'm using an IDE
+with Rust right now. To see the actual source code go to [[file:rust/src/][Rust
+Source]]. That said, I've still extracted out a couple of blocks.
+
+For today I only needed =std::fs= and =std::io=.
+#+NAME: rs-imports
+#+BEGIN_SRC rust :results silent
+  use std::fs::File;
+  use std::io::{BufRead, BufReader};
+#+END_SRC
+
+Both functions have the same preamble, this could be extracted into a
+new function (and probably should be).
+
+#+NAME: rs-read-file
+#+BEGIN_SRC rust :results silent
+      let filename = "../input/01.txt";
+      let file = File::open(filename).unwrap();
+      let reader = BufReader::new(file);
+#+END_SRC
+
+My understanding of Rust's Iterators is that they are lazy, and
+consequently keeping everything in an Iterator (until it is consumed)
+should be about as fast as using raw loops. With that in mind, I did a
+minor contortion to fold the values in the next two segments. An
+arguably better solution would have used =windows=, but that's not
+available for Iterators. If I could have used that without forcing
+everything into memory at once, I would have. I could have made one
+function that would solve both parts using a configurable window size
+(2 or 4). If I can figure out how to zip an Iterator with itself that
+would also have cleaned it up by having the second one (being zipped
+with the first) drop a configurable number of elements (1 or 3).
+#+NAME: rs-part-1
+#+BEGIN_SRC rust :noweb yes :results silent
+  pub fn day01_01() -> i64 {
+      <<rs-read-file>>
+      reader
+          .lines()
+          .map(|l| l.unwrap().parse::<i64>().unwrap())
+          .fold((0 as i64, i64::max_value()), |(sum, prev), curr| {
+              (sum + if prev < curr { 1 } else { 0 }, curr)
+          })
+          .0
+  }
+#+END_SRC
+#+NAME: rs-part-2
+#+BEGIN_SRC rust :noweb yes :results silent
+  pub fn day01_02() -> i64 {
+      <<rs-read-file>>
+      reader
+          .lines()
+          .map(|l| l.unwrap().parse::<i64>().unwrap())
+          .fold(
+              (
+                  0 as i64,
+                  (i64::max_value(), i64::max_value(), i64::max_value()),
+              ),
+              |(sum, (prev, b, c)), curr| (sum + if prev < curr { 1 } else { 0 }, (b, c, curr)),
+          )
+          .0
+  }
+#+END_SRC
