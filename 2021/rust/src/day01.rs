@@ -3,11 +3,9 @@ use std::io::{BufRead, BufReader};
 
 pub fn day01_01() -> i64 {
     let filename = "../input/01.txt";
-    let file = match File::open(filename) {
-        Ok(f) => f,
-        Err(why) => panic!("Error opening {}: {}", filename, why),
-    };
+    let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
+
     reader
         .lines()
         .map(|l| l.unwrap().parse::<i64>().unwrap())
@@ -18,11 +16,9 @@ pub fn day01_01() -> i64 {
 }
 pub fn day01_02() -> i64 {
     let filename = "../input/01.txt";
-    let file = match File::open(filename) {
-        Ok(f) => f,
-        Err(why) => panic!("Error opening {}: {}", filename, why),
-    };
+    let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
+
     reader
         .lines()
         .map(|l| l.unwrap().parse::<i64>().unwrap())
