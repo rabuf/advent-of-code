@@ -192,6 +192,52 @@ slower even without reading the input file compared to the SERIES
 version. The SERIES versions also greatly reduce the amount of memory
 used.
 ** Ada
+*** Improvements:
+Taking advantage of the fact that Part 2 is just Part 1 with an offset
+(compare values 3 apart instead of 1) I've modified the original
+program. The original code will be preserved, though.
+*** Original Part 1 & Part 2
+#+BEGIN_SRC ada
+  function Solve_01 (V : Vector) return Integer
+  is
+     Prev : Cursor := V.First;
+     Curr : Cursor := Next(Prev);
+     Count : Integer := 0;
+  begin
+     while Curr /= No_Element loop
+        if V (Prev) < V (Curr) then
+           Count := Count + 1;
+        end if;
+        Prev := Curr;
+        Curr := Next(Curr);
+     end loop;
+     return Count;
+  end Solve_01;
+
+  function Solve_02 (V : Vector) return Integer
+  is
+     A : Cursor := V.First;
+     B : Cursor := Next(A);
+     C : Cursor := Next(B);
+     D : Cursor := Next(C);
+     Prev : Integer;
+     Curr : Integer;
+     Count : Integer := 0;
+  begin
+     while D /= No_Element loop
+        Prev := V(A) + V(B) + V(C);
+        Curr := V(B) + V(C) + V(D);
+        if Prev < Curr then
+           Count := Count + 1;
+        end if;
+        A := B;
+        B := C;
+        C := D;
+        D := Next (D);
+     end loop;
+     return Count;
+  end Solve_02;
+#+END_SRC
 *** Runner
 Simple runner.
 #+BEGIN_SRC ada :tangle ada/day01.adb
@@ -221,46 +267,22 @@ Actual implementation body.
           Index_Type => Natural);
      use Integer_Vectors;
 
-     function Solve_01 (V : Vector) return Integer
+     function Solve (V : Vector; N : Positive := 1) return Integer
      is
         Prev : Cursor := V.First;
-        Curr : Cursor := Next(Prev);
+        Curr : Cursor := V.To_Cursor(N); --Next(Prev);
         Count : Integer := 0;
      begin
         while Curr /= No_Element loop
            if V (Prev) < V (Curr) then
               Count := Count + 1;
            end if;
-           Prev := Curr;
+           Prev := Next(Prev);
            Curr := Next(Curr);
         end loop;
         return Count;
-     end Solve_01;
-
-     function Solve_02 (V : Vector) return Integer
-     is
-        A : Cursor := V.First;
-        B : Cursor := Next(A);
-        C : Cursor := Next(B);
-        D : Cursor := Next(C);
-        Prev : Integer;
-        Curr : Integer;
-        Count : Integer := 0;
-     begin
-        while D /= No_Element loop
-           Prev := V(A) + V(B) + V(C);
-           Curr := V(B) + V(C) + V(D);
-           if Prev < Curr then
-              Count := Count + 1;
-           end if;
-           A := B;
-           B := C;
-           C := D;
-           D := Next (D);
-        end loop;
-        return Count;
-     end Solve_02;
-
+     end Solve;
+   
      procedure Run is
         Input : Vector;
      begin
@@ -276,8 +298,8 @@ Actual implementation body.
            end loop;
         end;
         Put_Line("Advent of Code 2021 - Day 01:"); New_Line;
-        Put_Line("The result for part 1 is: " & Integer'Image(Solve_01 (Input)));
-        Put_Line("The result for Part 2 is: " & Integer'Image(Solve_02 (Input)));
+        Put_Line("The result for part 1 is: " & Integer'Image(Solve (Input)));
+        Put_Line("The result for Part 2 is: " & Integer'Image(Solve (Input, 3)));
      end Run;
   end AOC2021.Day01;
 #+END_SRC
