@@ -5,7 +5,7 @@ pub fn day02_01() -> i64 {
     let filename = "../input/02.txt";
     let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
-    let (mut h, mut d) = (0, 0);
+    let (mut h, mut d): (i64, i64) = (0, 0);
     for line in reader.lines() {
         let line = line.unwrap();
         let parts: Vec<_> = line.split_whitespace().collect();
@@ -23,7 +23,7 @@ pub fn day02_02() -> i64 {
     let filename = "../input/02.txt";
     let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
-    let (mut h, mut d, mut aim) = (0, 0, 0);
+    let (mut h, mut d, mut aim): (i64, i64, i64) = (0, 0, 0);
     for line in reader.lines() {
         let line = line.unwrap();
         let parts: Vec<_> = line.split_whitespace().collect();
