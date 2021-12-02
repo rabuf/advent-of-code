@@ -244,3 +244,62 @@ C-v C-t=.
 : Advent of Code 2021 - Day 02
 : The result for Part 1 is  2091984
 : The result for Part 2 is  2086261056
+** Rust
+I'm not splitting it up this time, placing here for completeness. This
+is also located in [[file:rust/src/day02.rs][Day 2 Rust Source]].
+
+Some thoughts:
+- Type inference is great. I need to remember to specify types more
+  often, but Rust does a good job of propagating type
+  information. =d=, =h=, and =aim= didn't have to be specified as
+  =i64= since this could be determined by the function return type.
+- str/string is confusing.
+- The borrow checker is both friend and foe. I had a version that used
+  an iterator (like day 1) but ran into a problem after splitting the
+  input. Now I think I know the solution, but this version is probably
+  clearer anyways.
+
+#+BEGIN_SRC rust
+  use std::fs::File;
+  use std::io::{BufRead, BufReader};
+
+  pub fn day02_01() -> i64 {
+      let filename = "../input/02.txt";
+      let file = File::open(filename).unwrap();
+      let reader = BufReader::new(file);
+      let (mut h, mut d) = (0, 0);
+      for line in reader.lines() {
+          let line = line.unwrap();
+          let parts: Vec<_> = line.split_whitespace().collect();
+          let distance = parts[1].parse::<i64>().unwrap();
+          match parts[0] {
+              "forward" => h = h + distance,
+              "up" => d = d - distance,
+              "down" => d = d + distance,
+              _ => (),
+          }
+      }
+      return h * d;
+  }
+  pub fn day02_02() -> i64 {
+      let filename = "../input/02.txt";
+      let file = File::open(filename).unwrap();
+      let reader = BufReader::new(file);
+      let (mut h, mut d, mut aim) = (0, 0, 0);
+      for line in reader.lines() {
+          let line = line.unwrap();
+          let parts: Vec<_> = line.split_whitespace().collect();
+          let distance = parts[1].parse::<i64>().unwrap();
+          match parts[0] {
+              "forward" => {
+                  h = h + distance;
+                  d = d + distance * aim;
+              }
+              "up" => aim = aim - distance,
+              "down" => aim = aim + distance,
+              _ => (),
+          }
+      }
+      return h * d;
+  }
+#+END_SRC
