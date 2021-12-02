@@ -151,44 +151,82 @@ Specification for solution.
 *** Packages
 #+NAME: ada-packages
 #+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
 #+END_SRC
 *** Types and generics
 #+NAME: types-and-generics
 #+BEGIN_SRC ada
-
+  type Direction is (Up, Down, Forward);
+  package Direction_IO is new Enumeration_IO(Direction);
+  use Direction_IO;
+#+END_SRC
+*** Part 1
+#+NAME: ada-part-1
+#+BEGIN_SRC ada
+  function Follow_Directions return Integer is
+     Input_File : File_Type;
+     To : Direction;
+     By : Integer;
+     Depth : Integer := 0;
+     Horizontal : Integer := 0;
+  begin
+     Open (Input_File, In_File, "../input/02.txt");
+     loop
+        exit when end_of_file (Input_File);
+        Get (Input_File, To);
+        Get (Input_File, By);
+        case To is
+           when Up => Depth := Depth - By;
+           when Down => Depth := Depth + By;
+           when Forward => Horizontal := Horizontal + By;
+        end case;
+     end loop;
+     Close (Input_File);
+     return Depth * Horizontal;
+  end Follow_Directions;
+#+END_SRC
+*** Part 2
+#+NAME: ada-part-2
+#+BEGIN_SRC ada
+  function Follow_Directions_Aim return Integer is
+     Input_File : File_Type;
+     To : Direction;
+     By : Integer;
+     Depth : Integer := 0;
+     Horizontal : Integer := 0;
+     Aim : Integer := 0;
+  begin
+     Open (Input_File, In_File, "../input/02.txt");
+     loop
+        exit when end_of_file (Input_File);
+        Get (Input_File, To);
+        Get (Input_File, By);
+        case To is
+           when Up => Aim := Aim - By;
+           when Down => Aim := Aim + By;
+           when Forward =>
+              Horizontal := Horizontal + By;
+              Depth := Depth + Aim * By;
+        end case;
+     end loop;
+     Close (Input_File);
+     return Depth * Horizontal;
+  end Follow_Directions_Aim;
 #+END_SRC
 *** Implementation
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2021-day02.adb
+#+BEGIN_SRC ada :noweb yes :tangle ada/aoc2021-day02.adb
   <<ada-packages>>
   package body AOC2021.Day02 is
      <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+     <<ada-part-1>>
+     <<ada-part-2>>
      procedure Run is
      begin
         Put_Line("Advent of Code 2021 - Day 02");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Put_Line("The result for Part 1 is " & Integer'Image(Follow_Directions));
+        Put_Line("The result for Part 2 is " & Integer'Image(Follow_Directions_Aim));
      end Run;
   end AOC2021.Day02;
 #+END_SRC
@@ -203,3 +241,6 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2021 - Day 02
+: The result for Part 1 is  2091984
+: The result for Part 2 is  2086261056
