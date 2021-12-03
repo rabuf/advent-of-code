@@ -127,9 +127,9 @@ support for lisp installed you can run this by:
                                           numbers))))
        finally (return (car numbers))))
 
-  (defun life-support (numbers)
-    (let ((co2 (co2 numbers))
-          (oxygen (oxygen numbers)))
+  (defun life-support (numbers &optional (digits 12))
+    (let ((co2 (co2 numbers digits))
+          (oxygen (oxygen numbers digits)))
       (* co2 oxygen)))
 #+END_SRC
 #+NAME: problem-b
@@ -171,10 +171,44 @@ support for lisp installed you can run this by:
   (defparameter *test-input* '(#2r00100 #2r11110 #2r10110 #2r10111
                                #2r10101 #2r01111 #2r00111 #2r11100 #2r10000 #2r11001 #2r00010
                                #2r01010))
+
+  (test gamma
+    (is (= 22 (gamma *test-input* 5)))
+    (is (= 3529 (gamma *input*))))
+  (test epsilon
+    (is (= 9 (epsilon *test-input* 5)))
+    (is (= 566 (epsilon *input*))))
+  (test power-consumption
+    (is (= 198 (power-consumption *test-input* 5)))
+    (is (= 1997414 (power-consumption *input*))))
+
+  (test oxygen
+    (is (= 23 (oxygen *test-input* 5)))
+    (is (= 3573 (oxygen *input*))))
+  (test co2
+    (is (= 10 (co2 *test-input* 5)))
+    (is (= 289 (co2 *input*))))
+  (test life-support
+    (is (= 230 (life-support *test-input* 5)))
+    (is (= 1032597 (life-support *input*))))
   (run! 'aoc.2021.03)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+#+begin_example
+
+Running test suite AOC.2021.03
+ Running test GAMMA ..
+ Running test EPSILON ..
+ Running test POWER-CONSUMPTION ..
+ Running test OXYGEN ..
+ Running test CO2 ..
+ Running test LIFE-SUPPORT ..
+ Did 12 checks.
+    Pass: 12 (100%)
+    Skip: 0 ( 0%)
+    Fail: 0 ( 0%)
+#+end_example
 ** Thoughts
 ** Ada
 *** Runner
