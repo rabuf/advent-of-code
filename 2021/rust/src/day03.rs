@@ -1,8 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-fn get_input() -> (u32, Vec<u64>) {
-    let filename = "../input/03.txt";
+fn get_input(filename: &str) -> (u32, Vec<u64>) {
     let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
     let mut width: u32 = 0;
@@ -27,20 +26,22 @@ fn gamma(codes: &[u64], width: u32) -> u64 {
         }
         mask = mask * 2;
     }
-    return result;
+    result
+}
+
+fn power_consumption(codes: &[u64], width: u32) -> u64 {
+    let g = gamma(&codes, width);
+    let e = !g & (2_u64.pow(width) - 1);
+    g * e
 }
 
 pub fn day03_01() -> u64 {
-    let (width, codes) = get_input();
-
-    let g = gamma(&codes, width);
-    let e = !g & (2_u64.pow(width) - 1);
-
-    return g * e;
+    let (width, codes) = get_input("../input/03.txt");
+    power_consumption(&codes, width)
 }
 
 pub fn day03_02() -> u64 {
-    let (width, mut codes) = get_input();
+    let (width, mut codes) = get_input("../input/03.txt");
 
     codes.sort();
     let mut o_lower = 0;
@@ -66,7 +67,7 @@ pub fn day03_02() -> u64 {
             }
         }
     }
-    return codes[c_lower] * codes[o_lower];
+    codes[c_lower] * codes[o_lower]
 }
 
 fn binary_search(codes: &[u64], lower: usize, upper: usize, mask: u64) -> usize {
@@ -83,4 +84,24 @@ fn binary_search(codes: &[u64], lower: usize, upper: usize, mask: u64) -> usize 
         }
     }
     mid + 1
+}
+
+#[test]
+fn gamma_test() {
+    let (width, codes) = get_input("../test/03.txt");
+    let g = gamma(&codes, width);
+    assert_eq!(22, g);
+}
+#[test]
+fn epsilon_test() {
+    let (width, codes) = get_input("../test/03.txt");
+    let g = gamma(&codes, width);
+    let e = !g & (2_u64.pow(width) - 1);
+    assert_eq!(9, e);
+}
+
+#[test]
+fn power_consumption_test() {
+    let (width, codes) = get_input("../test/03.txt");
+    assert_eq!(198, power_consumption(&codes, width))
 }
