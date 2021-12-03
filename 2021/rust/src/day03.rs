@@ -50,27 +50,37 @@ pub fn day03_02() -> u64 {
     for i in (0..width).rev() {
         let mask = 2_u64.pow(i);
         if o_upper - o_lower > 1 {
-            let mut o_mid = o_lower + 1;
-            while o_mid < o_upper && codes[o_mid] & mask == codes[o_mid - 1] & mask {
-                o_mid = o_mid + 1;
-            }
-            if o_mid - o_lower <= o_upper - o_mid {
-                o_lower = o_mid;
+            let mid = binary_search(&codes, o_lower, o_upper, mask);
+            if mid - o_lower <= o_upper - mid {
+                o_lower = mid;
             } else {
-                o_upper = o_mid;
+                o_upper = mid;
             }
         }
         if c_upper - c_lower > 1 {
-            let mut c_mid = c_lower + 1;
-            while c_mid < c_upper && codes[c_mid] & mask == codes[c_mid - 1] & mask {
-                c_mid = c_mid + 1;
-            }
-            if c_mid - c_lower > c_upper - c_mid {
-                c_lower = c_mid;
+            let mid = binary_search(&codes, c_lower, c_upper, mask);
+            if mid - c_lower > c_upper - mid {
+                c_lower = mid;
             } else {
-                c_upper = c_mid;
+                c_upper = mid;
             }
         }
     }
     return codes[c_lower] * codes[o_lower];
+}
+
+fn binary_search(codes: &[u64], lower: usize, upper: usize, mask: u64) -> usize {
+    let mut mid = (upper - lower) / 2 + lower;
+    let mut lower = lower;
+    let mut upper = upper;
+    while lower + 1 != upper {
+        if codes[mid] & mask > 0 {
+            upper = mid;
+            mid = (lower + mid) / 2;
+        } else {
+            lower = mid;
+            mid = (upper + mid) / 2;
+        }
+    }
+    mid + 1
 }
