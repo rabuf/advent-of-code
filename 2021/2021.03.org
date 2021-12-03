@@ -59,11 +59,13 @@ support for lisp installed you can run this by:
 ** Part 1
 #+NAME: power-consumption
 #+BEGIN_SRC lisp :noweb yes :results silent
+  (defun bit-is-one-p (n bit) (ldb-test (byte 1 bit) n))
   (defun count-ones-at (numbers power)
     (loop for n in numbers
-         count (plusp (boole boole-and (expt 2 power) n))))
+         count (bit-is-one-p n power)))
   (defun count-zeroes-at (numbers power)
-    (- (length numbers) (count-ones-at numbers power)))
+    (loop for n in numbers
+         count (not (bit-is-one-p n power))))
   (defun epsilon (numbers &optional (digits 12))
     (loop
        for power from (1- digits) downto 0
@@ -84,7 +86,7 @@ support for lisp installed you can run this by:
        do (incf result)))
   (defun power-consumption (numbers &optional (digits 12))
     (let* ((gamma (gamma numbers digits))
-           (epsilon (epsilon numbers digits))) ; boole boole-xor (1- (expt 2 12)) gamma)))
+           (epsilon (epsilon numbers digits)))
       (* gamma epsilon)))
 #+END_SRC
 #+NAME: problem-a
@@ -102,12 +104,12 @@ support for lisp installed you can run this by:
        for ones = (count-ones-at numbers power)
        for zeroes = (count-zeroes-at numbers power)
        do (cond ((<= zeroes ones)
-                 (setf numbers (remove-if-not (lambda (n)
-                                                (plusp (boole boole-and (expt 2 power) n)))
+                 (setf numbers (delete-if-not (lambda (n)
+                                                (bit-is-one-p n power))
                                               numbers)))
                 (t
-                 (setf numbers (remove-if (lambda (n)
-                                            (plusp (boole boole-and (expt 2 power) n)))
+                 (setf numbers (delete-if (lambda (n)
+                                            (bit-is-one-p n power))
                                           numbers))))
        finally (return (car numbers))))
   (defun co2 (numbers &optional (digits 12))
@@ -118,12 +120,12 @@ support for lisp installed you can run this by:
        for ones = (count-ones-at numbers power)
        for zeroes = (count-zeroes-at numbers power)
        do (cond ((< ones zeroes)
-                 (setf numbers (remove-if-not (lambda (n)
-                                                (plusp (boole boole-and (expt 2 power) n)))
+                 (setf numbers (delete-if-not (lambda (n)
+                                                (bit-is-one-p n power))
                                               numbers)))
                 (t
-                 (setf numbers (remove-if (lambda (n)
-                                            (plusp (boole boole-and (expt 2 power) n)))
+                 (setf numbers (delete-if (lambda (n)
+                                            (bit-is-one-p n power))
                                           numbers))))
        finally (return (car numbers))))
 
