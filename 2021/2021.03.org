@@ -70,6 +70,8 @@ support for lisp installed you can run this by:
     (loop
        for power from (1- digits) downto 0
        with result = 0
+       for ones = (count-ones-at numbers power)
+       for zereos = (count-zeroes-at numbers power)
        finally (return result)
        do (setf result (ash result 1))
        if (<= (count-ones-at numbers power)
@@ -212,6 +214,8 @@ Running test suite AOC.2021.03
     Fail: 0 ( 0%)
 #+end_example
 ** Thoughts
+I'm not proud of that Lisp version, but it works so it's time to move
+on. Two more versions to create to reach my goal.
 ** Ada
 *** Runner
 Simple runner.
@@ -229,47 +233,109 @@ Specification for solution.
      procedure Run;
   end AOC2021.Day03;
 #+END_SRC
-*** Packages
-#+NAME: ada-packages
-#+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
-  with Text_IO; use Text_IO;
-#+END_SRC
-*** Types and generics
-#+NAME: types-and-generics
-#+BEGIN_SRC ada
-
-#+END_SRC
 *** Implementation
 Actual implementation body.
 #+BEGIN_SRC ada :tangle ada/aoc2021-day03.adb
-  <<ada-packages>>
+  with Text_IO; use Text_IO;
+  with Ada.Containers.Vectors;
   package body AOC2021.Day03 is
-     <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
+     subtype Binary_Digits is Character range '0'..'1';
+     type Diagnostic_Code is mod 2**12;
+     package Diagnostic_Code_Vectors is new Ada.Containers.Vectors
+       (Element_Type => Diagnostic_Code,
+        Index_Type => Natural);
+     use Diagnostic_Code_Vectors;
+     procedure Read_File(Filename : String; Codes : out Vector) is
+
      begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+        declare
+           subtype Line_T is String (1..12);
+           Input_File : File_Type;
+           Line : Line_T;
+           Code : Diagnostic_Code;
+        begin
+           Open (Input_File, In_File, Filename);
+           while not End_Of_File(Input_File) loop
+              Code := 0;
+              Get(Input_File, Line);
+              Skip_Line(Input_File);
+              for C of Line loop
+                 Code := Code * 2 + (if C = '1' then 1 else 0);
+              end loop;
+              Codes.Append(Code);
+           end loop;
+           Close (Input_File);
+        end;
+     end Read_File;
+
+     function Gamma (Codes : Vector) return Diagnostic_Code is
+        Tally : array (Boolean, 0..11) of Natural := (others => (others => 0));
+        Result : Diagnostic_Code := 0;
+        Test : Boolean;
+     begin
+        for Code of Codes loop
+           for I in 0..11 loop
+              Test := (2 ** I and Code) = 0;
+              Tally(Test, I) := Tally(Test, I) + 1;
+           end loop;
+        end loop;
+        for I in reverse 0..11 loop
+           Result := Result * 2;
+           case Tally(True, I) <= Tally(False, I) is
+              when True => Result := Result + 1;
+              when False => null;
+           end case;
+        end loop;
+        return Result;
+     end Gamma;
+
+     function Power_Consumption (Codes : Vector) return Integer is
+        G : Diagnostic_Code := Gamma (Codes);
+        E : Diagnostic_Code := not G;
+     begin
+        return Integer(G) * Integer(E);
+     end Power_Consumption;
+
+     function Life_Support (Codes : Vector) return Integer is
+        CO2 : Vector := Codes;
+        O2  : Vector := Codes;
+        GC, GO : Diagnostic_Code;
+        EC, EO : Diagnostic_Code;
+        Next : Vector;
+     begin
+        for I in reverse 0..11 loop
+           GC := Gamma (CO2);
+           EC := not GC;
+           GO := Gamma (O2);
+           EO := not GO;
+           Next.Clear;
+           if 1 <= CO2.Last_Index then
+              for Code of CO2 loop
+                 if (2 ** I and EC) = (2 ** I and Code) then
+                    Next.Append(Code);
+                 end if;
+              end loop;
+              CO2 := Next;
+              Next.Clear;
+           end if;
+           if 1 <= O2.Last_Index then
+              for Code of O2 loop
+                 if (2 ** I and GO) = (2 ** I and Code) then
+                    Next.Append(Code);
+                 end if;
+              end loop;
+              O2 := Next;
+           end if;
+        end loop;
+        return Integer(CO2.First_Element) * Integer(O2.First_Element);
+     end Life_Support;
      procedure Run is
+        Codes : Vector;
      begin
+        Read_File("../input/03.txt", Codes);
         Put_Line("Advent of Code 2021 - Day 03");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Put_Line("The result for Part 1 is " & Integer'Image(Power_Consumption (Codes)));
+        Put_Line("The result for Part 2 is " & Integer'Image(Life_Support (Codes)));
      end Run;
   end AOC2021.Day03;
 #+END_SRC
@@ -284,3 +350,8 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2021 - Day 03
+: Gamma:    3529
+: Echelon:  566
+: The result for Part 1 is  1997414
+: The result for Part 2 is  505
