@@ -95,7 +95,6 @@ support for lisp installed you can run this by:
 #+NAME: life-support
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun oxygen (numbers &optional (digits 12))
-    (let ((*print-base* 2))
     (loop
        with numbers = (copy-seq numbers)
        while (< 1 (length numbers))
@@ -110,9 +109,8 @@ support for lisp installed you can run this by:
                  (setf numbers (remove-if (lambda (n)
                                             (plusp (boole boole-and (expt 2 power) n)))
                                           numbers))))
-       finally (return (car numbers)))))
+       finally (return (car numbers))))
   (defun co2 (numbers &optional (digits 12))
-    (let ((*print-base* 2))
     (loop
        with numbers = (copy-seq numbers)
        while (< 1 (length numbers))
@@ -127,7 +125,7 @@ support for lisp installed you can run this by:
                  (setf numbers (remove-if (lambda (n)
                                             (plusp (boole boole-and (expt 2 power) n)))
                                           numbers))))
-       finally (return (car numbers)))))
+       finally (return (car numbers))))
 
   (defun life-support (numbers)
     (let ((co2 (co2 numbers))
