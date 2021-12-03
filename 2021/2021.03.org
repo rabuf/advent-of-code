@@ -351,7 +351,5 @@ C-v C-t=.
 
 #+RESULTS:
 : Advent of Code 2021 - Day 03
-: Gamma:    3529
-: Echelon:  566
 : The result for Part 1 is  1997414
-: The result for Part 2 is  505
+: The result for Part 2 is  1032597
