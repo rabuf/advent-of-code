@@ -245,6 +245,7 @@ Actual implementation body.
        (Element_Type => Diagnostic_Code,
         Index_Type => Natural);
      use Diagnostic_Code_Vectors;
+     package DCSorter is new Diagnostic_Code_Vectors.Generic_Sorting;
      procedure Read_File(Filename : String; Codes : out Vector) is
 
      begin
@@ -252,17 +253,12 @@ Actual implementation body.
            subtype Line_T is String (1..12);
            Input_File : File_Type;
            Line : Line_T;
-           Code : Diagnostic_Code;
         begin
            Open (Input_File, In_File, Filename);
            while not End_Of_File(Input_File) loop
-              Code := 0;
               Get(Input_File, Line);
               Skip_Line(Input_File);
-              for C of Line loop
-                 Code := Code * 2 + (if C = '1' then 1 else 0);
-              end loop;
-              Codes.Append(Code);
+              Codes.Append (Diagnostic_Code'Value("2#" & Line & "#"));
            end loop;
            Close (Input_File);
         end;
@@ -329,10 +325,12 @@ Actual implementation body.
         end loop;
         return Integer(CO2.First_Element) * Integer(O2.First_Element);
      end Life_Support;
+
      procedure Run is
         Codes : Vector;
      begin
         Read_File("../input/03.txt", Codes);
+        DCSorter.Sort(Codes);
         Put_Line("Advent of Code 2021 - Day 03");
         Put_Line("The result for Part 1 is " & Integer'Image(Power_Consumption (Codes)));
         Put_Line("The result for Part 2 is " & Integer'Image(Life_Support (Codes)));
