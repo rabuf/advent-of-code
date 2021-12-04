@@ -58,14 +58,8 @@ support for lisp installed you can run this by:
   (defun parse-boards (board-list)
     (let ((step (lambda (l) (nthcdr 6 l))))
       (loop
-         for nil in board-list by step
-         for r0 in (cdr board-list) by step
-         for r1 in (cddr board-list) by step
-         for r2 in (cdddr board-list) by step
-         for r3 in (cddddr board-list) by step
-         for r4 in (nthcdr 5 board-list) by step
-         while r0
-         collect (make-array '(5 5) :initial-contents (list r0 r1 r2 r3 r4)))))
+         for pos on board-list by step
+         collect (make-array '(5 5) :initial-contents (subseq pos 1 6)))))
   (defparameter *input*
     (let ((lines (read-input "input/04.txt")))
       (list (car lines) (parse-boards (cdr lines)))))
@@ -89,17 +83,7 @@ down) negative numbers.
        do (loop
              for j from 0 to 4
              thereis (plusp (aref board j i))
-             finally (return-from winning-board t)))
-    (loop for i from 0 to 4
-       thereis (plusp (aref board i i))
-       finally (return-from winning-board t))
-    (loop
-       for i from 0 to 4
-       do (loop
-             for j from 4 downto 0
-             thereis (plusp (aref board i j))
              finally (return-from winning-board t))))
-
   (defun score-board (board last-number)
     (* last-number
        (loop
