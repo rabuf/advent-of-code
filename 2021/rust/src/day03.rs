@@ -31,7 +31,7 @@ fn gamma(codes: &[u64], width: u32) -> u64 {
 
 fn power_consumption(codes: &[u64], width: u32) -> u64 {
     let g = gamma(&codes, width);
-    let e = !g & (2_u64.pow(width) - 1);
+    let e = !g & ((1 << width) - 1);
     g * e
 }
 
@@ -49,7 +49,7 @@ pub fn day03_02() -> u64 {
     let mut c_lower = 0;
     let mut c_upper = codes.len();
     for i in (0..width).rev() {
-        let mask = 2_u64.pow(i);
+        let mask = 1 << i;
         if o_upper - o_lower > 1 {
             let mid = binary_search(&codes, o_lower, o_upper, mask);
             if mid - o_lower <= o_upper - mid {
@@ -101,7 +101,7 @@ mod test {
     fn epsilon_test() {
         let (width, codes) = get_input("../test/03.txt");
         let g = gamma(&codes, width);
-        let e = !g & (2_u64.pow(width) - 1);
+        let e = !g & ((1 << width) - 1);
         assert_eq!(9, e);
     }
 
