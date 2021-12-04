@@ -86,22 +86,28 @@ fn binary_search(codes: &[u64], lower: usize, upper: usize, mask: u64) -> usize 
     mid + 1
 }
 
-#[test]
-fn gamma_test() {
-    let (width, codes) = get_input("../test/03.txt");
-    let g = gamma(&codes, width);
-    assert_eq!(22, g);
-}
-#[test]
-fn epsilon_test() {
-    let (width, codes) = get_input("../test/03.txt");
-    let g = gamma(&codes, width);
-    let e = !g & (2_u64.pow(width) - 1);
-    assert_eq!(9, e);
-}
+#[cfg(test)]
+mod test {
+    use super::*;
 
-#[test]
-fn power_consumption_test() {
-    let (width, codes) = get_input("../test/03.txt");
-    assert_eq!(198, power_consumption(&codes, width))
+    #[test]
+    fn gamma_test() {
+        let (width, codes) = get_input("../test/03.txt");
+        let g = gamma(&codes, width);
+        assert_eq!(22, g);
+    }
+
+    #[test]
+    fn epsilon_test() {
+        let (width, codes) = get_input("../test/03.txt");
+        let g = gamma(&codes, width);
+        let e = !g & (2_u64.pow(width) - 1);
+        assert_eq!(9, e);
+    }
+
+    #[test]
+    fn power_consumption_test() {
+        let (width, codes) = get_input("../test/03.txt");
+        assert_eq!(198, power_consumption(&codes, width))
+    }
 }

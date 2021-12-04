@@ -1,6 +1,4 @@
-mod day01;
-mod day02;
-mod day03;
+use aoc::{day01, day02, day03};
 
 fn main() {
     println!("Hello AoC 2021!");
