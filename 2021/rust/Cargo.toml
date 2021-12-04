@@ -9,6 +9,16 @@ edition = "2018"
 [[bin]]
 name = "day2021_01"
 
+[[bin]]
+name = "day2021_02"
+
+[[bin]]
+name = "day2021_03"
+
+[[bin]]
+name = "day2021_04"
+
+
 [lib]
 name = "aoc"
 src = "src/lib.rs"
