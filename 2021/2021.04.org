@@ -203,44 +203,197 @@ Specification for solution.
 *** Packages
 #+NAME: ada-packages
 #+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Integer_Text_IO; use Ada.Integer_Text_IO;
+  with Ada.Containers.Vectors;
+  with Ada.Text_IO.Unbounded_IO; use Ada.Text_IO.Unbounded_IO;
+  with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 #+END_SRC
 *** Types and generics
+Making a couple vector types. One to handle the Bingo numbers and the
+other to handle the Bingo cards.
 #+NAME: types-and-generics
 #+BEGIN_SRC ada
-
+  type Bingo_Card is array (1..5, 1..5) of Natural;
+  package Bingo_Draw_Vectors is new Ada.Containers.Vectors
+    (Element_Type => Natural, Index_Type => Natural);
+  use Bingo_Draw_Vectors;
+  subtype Bingo_Draw is Bingo_Draw_Vectors.Vector;
+  package Bingo_Card_Vectors is new Ada.Containers.Vectors
+    (Element_Type => Bingo_Card, Index_Type => Natural);
+  use Bingo_Card_Vectors;
+  subtype Bingo_Cards is Bingo_Card_Vectors.Vector;
+#+END_SRC
+*** Gathering Input
+Ok, so this shouldn't be /too/ hard. I read the first line entirely
+and walk through it, skipping to the next comma, and then grabbing the
+tail of the string. For the cards, I'm naive in my approach. I assume
+valid input and read 25 numbers at a time.
+#+NAME: ada-input
+#+BEGIN_SRC ada
+  procedure Read_File (Filename : String; Numbers : out Bingo_Draw; Cards : out Bingo_Cards) is
+     Input_File : File_Type;
+  begin
+     Open (Input_File, In_File, Filename);
+     declare
+        Line : Unbounded_String;
+        Start : Natural := 1;
+        Stop : Natural;
+     begin
+        Get_Line (Input_File, Line);
+        Stop := Index(Line, ",", Start);
+        while Stop /= 0 loop
+           Numbers.Append(Integer'Value(Slice(Line,Start,Stop-1)));
+           Start := Stop + 1;
+           Stop := Index(Line, ",", Start);
+        end loop;
+        Numbers.Append(Integer'Value(Slice(Line,Start, Length(Line))));
+     end;
+     while not End_Of_File(Input_File) loop
+        declare
+           Card : Bingo_Card := (others => (others => 0));
+        begin
+           for I in Card'Range(1) loop
+              for J in Card'Range(2) loop
+                 Get(Input_File, Card(I, J));
+              end loop;
+           end loop;
+           Cards.Append(Card);
+        end;
+     end loop;
+            
+     Close (Input_File);
+  end Read_File;
+#+END_SRC
+*** Part 1
+For this part, I need some utility functions. First is a check to see
+if a card is a winner:
+#+NAME: ada-winner
+#+BEGIN_SRC ada
+  function Is_Winner (Card : Bingo_Card) return Boolean is
+     Result : Boolean := True;
+  begin
+     for I in Card'Range (1) loop
+        Result := True;
+        for J in Card'Range (2) loop
+           if Card (I, J) > 0 then
+              Result := False;
+           end if;
+        end loop;
+        if Result then
+           return True;
+        end if;
+     end loop;
+     for J in Card'Range (2) loop
+        Result := True;
+        for I in Card'Range (1) loop
+           if Card (I, J) > 0 then
+              Result := False;
+           end if;
+        end loop;
+        if Result then
+           return True;
+        end if;
+     end loop;
+     return False;
+  end Is_Winner;
+#+END_SRC
+After that I need a scoring function:
+#+NAME: ada-score
+#+BEGIN_SRC ada
+  function Score_Card (Card : Bingo_Card; Number : Integer) return Integer is
+     Sum : Integer := 0;
+  begin
+     for I in Card'Range(1) loop
+        for J in Card'Range(2) loop
+           Sum := Sum + Card(I, J);
+        end loop;
+     end loop;
+     return Sum * Number;
+  end Score_Card;
+#+END_SRC
+And marking the cards:
+#+NAME: ada-mark
+#+BEGIN_SRC ada
+  procedure Mark_Card (Card : in out Bingo_Card; Number : Integer) is
+  begin
+     for I in Card'Range(1) loop
+        for J in Card'Range(2) loop
+           if Card(I,J) = Number then
+              Card(I,J) := 0;
+           end if;
+        end loop;
+     end loop;
+  end Mark_Card;
+#+END_SRC
+Now we're ready to play the game.
+#+NAME: ada-play
+#+BEGIN_SRC ada
+  function Play_Game (Cards_In : Bingo_Cards; Numbers : Bingo_Draw) return Integer is
+     Cards : Bingo_Cards := Cards_In;
+  begin
+     for N of Numbers loop
+        for C in Cards.Iterate loop
+           declare
+              Card : Bingo_Card renames Cards(C);
+           begin
+              Mark_Card(Card, N);
+              if Is_Winner (Card) then
+                 return Score_Card (Card, N);
+              end if;
+           end;
+        end loop;
+     end loop;
+     return 0;
+  end Play_Game;
+#+END_SRC
+*** Part 2
+Same as before, but don't end early.
+#+NAME: ada-play-badly
+#+BEGIN_SRC ada
+  function Play_Game_Badly (Cards_In : Bingo_Cards; Numbers : Bingo_Draw) return Integer is
+     Cards : Bingo_Cards := Cards_In;
+     Card : Bingo_Card;
+     Score : Integer := 0;
+     Index : Natural := 0;
+  begin
+     for N of Numbers loop
+        Index := Cards.First_Index;
+        while Index < Cards.Last_Index loop
+           Card := Cards(Index);
+           Mark_Card(Card, N);
+           if Is_Winner (Card) then
+              Score := Score_card(Card, N);
+              Delete(Cards,Index);
+           else
+              Replace_Element(Cards, Index, Card);
+              Index := Index + 1;
+           end if;
+        end loop;
+     end loop;
+     return Score;
+  end Play_Game_Badly;
 #+END_SRC
 *** Implementation
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2021-day04.adb
+#+BEGIN_SRC ada :tangle ada/aoc2021-day04.adb :noweb yes
   <<ada-packages>>
   package body AOC2021.Day04 is
      <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+     <<ada-input>>
+     <<ada-winner>>
+     <<ada-score>>
+     <<ada-mark>>
+     <<ada-play>>
+     <<ada-play-badly>>
      procedure Run is
+        Numbers : Bingo_Draw;
+        Cards : Bingo_Cards;
      begin
+        Read_File ("../input/04.txt", Numbers, Cards);
         Put_Line("Advent of Code 2021 - Day 04");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Put_Line("The result for Part 1 is " & Integer'Image(Play_Game(Cards, Numbers)));
+        Put_Line("The result for Part 2 is " & Integer'Image(Play_Game_Badly(Cards, Numbers)));
      end Run;
   end AOC2021.Day04;
 #+END_SRC
@@ -255,3 +408,6 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2021 - Day 04
+: The result for Part 1 is  6592
+: The result for Part 2 is  31755
