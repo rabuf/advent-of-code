@@ -401,3 +401,8 @@ multidimensional array with =for x on array=. That simplified one of
 the loops above, haven't applied it to others yet. Second, =for all
 ...= is an expression that returns a =Boolean=. Very handy and concise
 way of expressing a universal constraint.
+
+Apparently my Ada solution is technically wrong, but I'm not changing
+it. 0 is present on a bunch of the cards but I assumed I could use it
+to mark a space as matched. My answer is correct, though, so it's
+irrelevant to me now.
