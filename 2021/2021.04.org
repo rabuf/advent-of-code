@@ -182,7 +182,6 @@ Now we want to lose, a slight modification to the situation above.
 :     Pass: 2 (100%)
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
-** Thoughts
 ** Ada
 *** Runner
 Simple runner.
@@ -271,27 +270,13 @@ if a card is a winner:
 #+NAME: ada-winner
 #+BEGIN_SRC ada
   function Is_Winner (Card : Bingo_Card) return Boolean is
-     Result : Boolean := True;
   begin
-     for I in Card'Range (1) loop
-        Result := True;
-        for J in Card'Range (2) loop
-           if Card (I, J) > 0 then
-              Result := False;
-           end if;
-        end loop;
-        if Result then
+     for I in 1..5 loop
+        -- courtesy of u/max_rez
+        if (for all J in 1..5 => Card(I,J) = 0) then
            return True;
         end if;
-     end loop;
-     for J in Card'Range (2) loop
-        Result := True;
-        for I in Card'Range (1) loop
-           if Card (I, J) > 0 then
-              Result := False;
-           end if;
-        end loop;
-        if Result then
+        if (for all J in 1..5 => Card(J,I) = 0) then
            return True;
         end if;
      end loop;
@@ -304,10 +289,9 @@ After that I need a scoring function:
   function Score_Card (Card : Bingo_Card; Number : Integer) return Integer is
      Sum : Integer := 0;
   begin
-     for I in Card'Range(1) loop
-        for J in Card'Range(2) loop
-           Sum := Sum + Card(I, J);
-        end loop;
+     -- also courtesy of u/max_rez
+     for N of Card loop
+        Sum := Sum + N;
      end loop;
      return Sum * Number;
   end Score_Card;
@@ -411,3 +395,9 @@ C-v C-t=.
 : Advent of Code 2021 - Day 04
 : The result for Part 1 is  6592
 : The result for Part 2 is  31755
+** Thoughts
+I learned two Ada things today. First, that you can loop over a
+multidimensional array with =for x on array=. That simplified one of
+the loops above, haven't applied it to others yet. Second, =for all
+...= is an expression that returns a =Boolean=. Very handy and concise
+way of expressing a universal constraint.
