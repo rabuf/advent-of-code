@@ -1,0 +1,273 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 04
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-04)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+  (unless (find-package :alexandria)
+    (ql:quickload "alexandria"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-04
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-04)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "(\\d+)" line)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-boards (board-list)
+    (let ((step (lambda (l) (nthcdr 6 l))))
+      (loop
+         for nil in board-list by step
+         for r0 in (cdr board-list) by step
+         for r1 in (cddr board-list) by step
+         for r2 in (cdddr board-list) by step
+         for r3 in (cddddr board-list) by step
+         for r4 in (nthcdr 5 board-list) by step
+         while r0
+         collect (make-array '(5 5) :initial-contents (list r0 r1 r2 r3 r4)))))
+  (defparameter *input*
+    (let ((lines (read-input "input/04.txt")))
+      (list (car lines) (parse-boards (cdr lines)))))
+#+END_SRC
+** Part 1
+Playing bingo. Forget about the leaderboard, I still have to parse
+things.
+
+Alright, I have all the boards. When a number is called that number
+will be negated. A winning board will have 5 (across, diagonal, or
+down) negative numbers.
+#+NAME: play-bingo
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun winning-board (board)
+    (loop
+       for i from 0 to 4
+       do (loop
+             for j from 0 to 4
+             thereis (plusp (aref board i j))
+             finally (return-from winning-board t))
+       do (loop
+             for j from 0 to 4
+             thereis (plusp (aref board j i))
+             finally (return-from winning-board t)))
+    (loop for i from 0 to 4
+       thereis (plusp (aref board i i))
+       finally (return-from winning-board t))
+    (loop
+       for i from 0 to 4
+       do (loop
+             for j from 4 downto 0
+             thereis (plusp (aref board i j))
+             finally (return-from winning-board t))))
+
+  (defun score-board (board last-number)
+    (* last-number
+       (loop
+          for i from 0 to 4
+          sum (loop
+                 for j from 0 to 4
+                 when (plusp (aref board i j))
+                 sum (aref board i j)))))
+  (defun mark-board (board number)
+    (loop
+       for i from 0 to 4
+       do (loop
+             for j from 0 to 4
+             when (= (aref board i j) number)
+             do (setf (aref board i j) (- number)))))
+  (defun play-bingo (numbers boards)
+    (let ((boards (mapcar #'alexandria:copy-array boards)))
+      (loop
+         for n in numbers
+         do (dolist (b boards) (mark-board b n))
+         do (loop
+               for b in boards
+               if (winning-board b)
+               do (return-from play-bingo (score-board b n))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (play-bingo (car *input*) (cadr *input*))))
+#+END_SRC
+** Part 2
+Now we want to lose, a slight modification to the situation above.
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun play-bingo-badly (numbers boards)
+    (let ((boards (mapcar #'alexandria:copy-array boards))
+          (score 0))
+      (loop
+         for n in numbers
+         while boards
+         do (dolist (b boards) (mark-board b n))
+         do (loop
+               for b in boards
+               if (winning-board b)
+               do (setf score (score-board b n)))
+         do (setf boards (remove-if #'winning-board boards)))
+      score))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (play-bingo-badly (car *input*) (cadr *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 04 A: 6592
+: Problem 04 B: 31755
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.04)
+  (in-suite aoc.2021.04)
+  (defparameter *test-input*
+    (let ((lines (read-input "test/04.txt")))
+      (list (car lines) (parse-boards (cdr lines)))))
+  (test play-bingo
+    (is (= 4512 (apply #'play-bingo *test-input*))))
+  (test play-bingo-badly
+    (is (= 1924 (apply #'play-bingo-badly *test-input*))))
+  (run! 'aoc.2021.04)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2021.04
+:  Running test PLAY-BINGO .
+:  Running test PLAY-BINGO-BADLY .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day04.adb
+  with AOC2021.Day04;
+  procedure Day04 is
+  begin
+    AOC2021.Day04.Run;
+  end Day04;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day04.ads
+  package AOC2021.Day04 is
+     procedure Run;
+  end AOC2021.Day04;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day04.adb
+  <<ada-packages>>
+  package body AOC2021.Day04 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 04");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day04;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day04
+  ./day04
+#+END_SRC
+
+#+RESULTS:
