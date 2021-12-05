@@ -28,6 +28,8 @@ support for lisp installed you can run this by:
     (ql:quickload "cl-permutation"))
   (unless (find-package :bordeaux-threads)
     (ql:quickload "bordeaux-threads"))
+  (unless (find-package :zpng)
+    (ql:quickload "zpng"))
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
@@ -36,6 +38,7 @@ support for lisp installed you can run this by:
   (defpackage :aoc-2021-05
     (:use :common-lisp
           :parseq
+          :zpng
           :fiveam)
     (:export :problem-a
              :problem-b))
@@ -157,15 +160,58 @@ Now we have to include the diagonal lines, same problem in the end.
   (in-suite aoc.2021.05)
   (defparameter *test-input*
     (read-input "test/05.txt"))
-
+  (test both-parts
+    (is (= 5 (count-overlapping (pairs-to-grid *test-input*))))
+    (is (= 12 (count-overlapping (pairs-to-grid-all *test-input*)))))
   (run! 'aoc.2021.05)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
 : 
 : Running test suite AOC.2021.05
-:  Didn't run anything...huh?
+:  Running test BOTH-PARTS ..
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Visualization
+I haven't done one of these before so this is a for-fun thing.
+#+BEGIN_SRC lisp :results silent :noweb yes
+  (defun overlap-to-color (overlap max-overlap)
+    (floor (* 255 (/ overlap max-overlap))))
+  (defun grid-to-png (grid filename)
+    (let (min-x min-y max-x max-y max-overlap)
+      ;; get bounds for image
+      (maphash #'(lambda (k v)
+                   (unless min-x (setf min-x (realpart k)))
+                   (unless min-y (setf min-y (imagpart k)))
+                   (unless max-x (setf max-x (realpart k)))
+                   (unless max-y (setf max-y (imagpart k)))
+                   (unless max-overlap (setf max-overlap v))
+                   (setf max-overlap (max max-overlap v))
+                   (setf min-x (min min-x (realpart k)))
+                   (setf max-x (max max-x (realpart k)))
+                   (setf min-y (min min-y (imagpart k)))
+                   (setf max-y (max max-y (imagpart k))))
+               grid)
+      (let* ((png (make-instance 'png
+                                 :color-type :grayscale
+                                 :width (+ 20 (- max-x min-x))
+                                 :height (+ 20 (- max-y min-y))))
+             (image (data-array png)))
+        (loop
+           for y from min-y to max-y
+           finally (write-png png filename)
+           do (loop
+                 for x from min-x to max-x
+                 for color = (gethash (complex x y) grid 0)
+                 do (setf (aref image (+ (- y min-y) 10) (+ (- x min-x) 10) 0) (overlap-to-color color max-overlap)))))))
+#+END_SRC
+[[./diagonal.png]]
+
+I could play around more with the coloring but I think that's enough for one night.
 ** Thoughts
+
 ** Ada
 *** Runner
 Simple runner.
