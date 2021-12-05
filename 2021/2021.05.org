@@ -213,6 +213,11 @@ I could play around more with the coloring but I think that's enough for one nig
 ** Thoughts
 
 ** Ada
+Today I'll be using the =GNAT.Regpat= package that, conveniently, was
+already loaded in my template (for precisely this reason). I spent
+some time after completing the CL version reading through its
+documentation and learned a couple new things, which will make using
+it easier.
 *** Runner
 Simple runner.
 #+BEGIN_SRC ada :tangle ada/day05.adb
@@ -234,42 +239,157 @@ Specification for solution.
 #+BEGIN_SRC ada
   with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Containers.Vectors;
 #+END_SRC
 *** Types and generics
+Because it will simplify some elements, I'll go ahead and create a
+couple record types for the points and the segments. Unlike the CL
+version, I'll use an array to store the values. The other option is to
+use one of the map containers but that's overkill for this situation.
 #+NAME: types-and-generics
 #+BEGIN_SRC ada
+  type Point is record
+     X, Y : Integer := 0;
+  end record;
 
+  type Segment is record
+     A, B : Point;
+  end record;
+
+  package Segment_Vectors is new Ada.Containers.Vectors
+    (Element_Type => Segment, Index_Type => Natural);
+  use Segment_Vectors;
+
+  type Map is array (Integer range <>, Integer range <>) of Natural
+    with Default_Component_Value => 0;
+
+  function Make_Map (Lower : Point; Upper : Point) return Map is
+     M : Map (Lower.X..Upper.X, Lower.Y..Upper.Y);
+  begin
+     return M;
+  end Make_Map;
 #+END_SRC
+Using the =Default_Component_Value= bit above saves me from having to
+initialize the array values later or trust that they'll have a correct
+initial value, I know exactly what it will be.
 *** Implementation
-Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2021-day05.adb
+**** Parsing
+Using the =GNAT.Regpat= library simplifies parsing each line quite a bit.
+#+NAME: ada-parse
+#+BEGIN_SRC ada
+  procedure Parse_Line (Line : String; S : out Segment) is
+     Pattern : constant String := "(\d+),(\d+) -> (\d+),(\d+)";
+     Re : constant Pattern_Matcher := Compile(Pattern);
+     Matches : Match_Array (0.. Paren_Count (Re));
+  begin
+     Match(Re, Line, Matches);
+     S.A.X := Integer'Value(Line(Matches(1).First..Matches(1).Last));
+     S.A.Y := Integer'Value(Line(Matches(2).First..Matches(2).Last));
+     S.B.X := Integer'Value(Line(Matches(3).First..Matches(3).Last));
+     S.B.Y := Integer'Value(Line(Matches(4).First..Matches(4).Last));
+  end Parse_Line;
+
+  procedure Read_File (Filename : String; Segments : out Vector; Lower : in out Point; Upper : in out Point) is
+     Input_File : File_Type;
+     S : Segment;
+  begin
+     Upper.X := Integer'First;
+     Upper.Y := Integer'First;
+     Lower.X := Integer'Last;
+     Lower.Y := Integer'Last;
+     Open (Input_File, In_File, Filename);
+     while not End_Of_File (Input_File) loop
+        declare
+           Line : String := Get_Line (Input_File);
+        begin
+           Parse_Line (Line, S);
+        end;
+        Segments.Append (S);
+        Upper.Y := Integer'Max (Upper.Y, Integer'Max(S.A.Y, S.B.Y));
+        Upper.X := Integer'Max (Upper.X, Integer'Max(S.A.X, S.B.X));
+        Lower.Y := Integer'Min (Lower.Y, Integer'Min(S.A.Y, S.B.Y));
+        Lower.X := Integer'Min (Lower.X, Integer'Min(S.A.X, S.B.X));
+     end loop;
+     Close (Input_File);
+  end Read_File;
+#+END_SRC
+**** Common
+#+NAME: ada-common
+#+BEGIN_SRC ada
+  function Signum(N : Integer) return Integer is (if N < 0 then -1 else (if N = 0 then 0 else 1));
+  procedure Fill_Map(M : in out Map; S : Segment) is
+     DX : Integer := Signum (S.B.X - S.A.X);
+     DY : Integer := Signum (S.B.Y - S.A.Y);
+     Distance : Integer := Integer'Max (abs (S.B.X - S.A.X), abs (S.B.Y - S.A.Y));
+  begin
+     for I in 0..Distance loop
+        M (S.A.X + DX * I, S.A.Y + DY * I) := M (S.A.X + DX * I, S.A.Y + DY * I) + 1;
+     end loop;
+  end Fill_Map;
+
+  function Count_Overlapping (M : Map) return Integer is
+     Count : Integer := 0;
+  begin
+     for N of M loop
+        if N > 1 then
+           Count := Count + 1;
+        end if;
+     end loop;
+     return Count;
+  end Count_Overlapping;
+#+END_SRC
+**** Part 1
+#+NAME: ada-part-1
+#+BEGIN_SRC ada
+  procedure Part_1 (Segments : Vector; M : in out Map) is
+  begin
+     for S of Segments loop
+        if S.A.X = S.B.X or S.A.Y = S.B.Y then
+           Fill_Map (M, S);
+        end if;
+     end loop;
+  end Part_1;
+#+END_SRC
+**** Part 2
+#+NAME: ada-part-2
+#+BEGIN_SRC ada
+  procedure Part_2 (Segments : Vector; M : in out Map) is
+  begin
+     for S of Segments loop
+        if S.A.X /= S.B.X and S.A.Y /= S.B.Y then
+           Fill_Map (M, S);
+        end if;
+     end loop;
+  end Part_2;
+#+END_SRC
+**** Putting it all together
+#+BEGIN_SRC ada :noweb yes :tangle ada/aoc2021-day05.adb
   <<ada-packages>>
   package body AOC2021.Day05 is
      <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+     <<ada-parse>>
+     <<ada-common>>
+     <<ada-part-1>>
+     <<ada-part-2>>
      procedure Run is
+        Segments : Vector;
+        Lower : Point;
+        Upper : Point;
+        P1 : Integer;
+        P2 : Integer;
      begin
+        Read_File ("../input/05.txt", Segments, Lower, Upper);
+        declare
+           M : Map := Make_Map (Lower, Upper);
+        begin
+           Part_1 (Segments, M);
+           P1 := Count_Overlapping (M);
+           Part_2 (Segments, M);
+           P2 := Count_Overlapping (M);
+        end;
         Put_Line("Advent of Code 2021 - Day 05");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Put_Line("The result for Part 1 is " & Integer'Image(P1));
+        Put_Line("The result for Part 2 is " & Integer'Image(P2));
      end Run;
   end AOC2021.Day05;
 #+END_SRC
@@ -284,3 +404,6 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2021 - Day 05
+: The result for Part 1 is  4728
+: The result for Part 2 is  17717
