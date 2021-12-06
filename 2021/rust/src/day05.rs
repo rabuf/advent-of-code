@@ -46,19 +46,11 @@ fn make_grid(segments: &[Segment], x: usize, y: usize) -> Vec<Vec<usize>> {
     grid
 }
 
-fn count_overlapping(grid: &Vec<Vec<usize>>) -> isize {
-    let mut count = 0;
-    for row in grid.iter() {
-        for cell in row.iter() {
-            if *cell > 1 {
-                count = count + 1;
-            }
-        }
-    }
-    count
+fn count_overlapping(grid: &Vec<Vec<usize>>) -> usize {
+    grid.iter().map(|r| r.iter().filter(|v|**v > 1).count()).sum()
 }
 
-pub fn part1() -> isize {
+pub fn part1() -> usize {
     let (segments, (x, y)) = get_input("../input/05.txt");
     let filtered = segments
         .into_iter()
@@ -68,7 +60,7 @@ pub fn part1() -> isize {
     count_overlapping(&grid)
 }
 
-pub fn part2() -> isize {
+pub fn part2() -> usize {
     let (segments, (x, y)) = get_input("../input/05.txt");
     let grid = make_grid(&segments, x, y);
     count_overlapping(&grid)
