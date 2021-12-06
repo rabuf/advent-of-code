@@ -204,9 +204,7 @@ that:
   (defun fish-expt (power)
     (let ((y (copy-array +fish-eye+)))
       (loop
-         with temp = (aops:similar-array y) ;; to prevent unneeded
-                                            ;; allocations, still need
-                                            ;; copies to and from
+         with temp = (aops:similar-array y)
          with x = (copy-array +next-generation+)
          with n = power
          while (plusp n)
