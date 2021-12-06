@@ -177,7 +177,7 @@ that:
         (0 0 0 0 0 1 0 0 0)
         (0 0 0 0 0 0 1 0 0)
         (0 0 0 0 0 0 0 1 0)))
-  (defconstant +fish-identity+
+  (defconstant +fish-eye+
     #2A((1 0 0 0 0 0 0 0 0)
         (0 1 0 0 0 0 0 0 0)
         (0 0 1 0 0 0 0 0 0)
@@ -202,7 +202,7 @@ that:
     (aops:each-index! temp (i j)
       (aref a i j)))
   (defun fish-expt (power)
-    (let ((y (copy-array +fish-identity+)))
+    (let ((y (copy-array +fish-eye+)))
       (loop
          with temp = (aops:similar-array y) ;; to prevent unneeded
                                             ;; allocations, still need
