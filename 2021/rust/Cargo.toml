@@ -18,6 +18,11 @@ name = "day2021_03"
 [[bin]]
 name = "day2021_04"
 
+[[bin]]
+name = "day2021_05"
+
+[[bin]]
+name = "day2021_06"
 
 [lib]
 name = "aoc"
