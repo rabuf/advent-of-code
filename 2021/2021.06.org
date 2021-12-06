@@ -28,6 +28,8 @@ support for lisp installed you can run this by:
     (ql:quickload "cl-permutation"))
   (unless (find-package :bordeaux-threads)
     (ql:quickload "bordeaux-threads"))
+  (unless (find-package :array-operations)
+    (ql:quickload "array-operations"))
 #+END_SRC
 *** Create package for this day
 #+NAME: initialize
@@ -160,6 +162,81 @@ support for lisp installed you can run this by:
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
+It's possible to model the problem with a transformation matrix. If
+you do that, calculating the result for a particular generation can be
+reduced from a $O(n)$ algorithm to $O(log n)$. This is my attempt at
+that:
+#+BEGIN_SRC lisp :results silent
+  (defconstant +next-generation+
+    #2A((0 0 0 0 0 0 1 0 1)
+        (1 0 0 0 0 0 0 0 0)
+        (0 1 0 0 0 0 0 0 0)
+        (0 0 1 0 0 0 0 0 0)
+        (0 0 0 1 0 0 0 0 0)
+        (0 0 0 0 1 0 0 0 0)
+        (0 0 0 0 0 1 0 0 0)
+        (0 0 0 0 0 0 1 0 0)
+        (0 0 0 0 0 0 0 1 0)))
+  (defconstant +fish-identity+
+    #2A((1 0 0 0 0 0 0 0 0)
+        (0 1 0 0 0 0 0 0 0)
+        (0 0 1 0 0 0 0 0 0)
+        (0 0 0 1 0 0 0 0 0)
+        (0 0 0 0 1 0 0 0 0)
+        (0 0 0 0 0 1 0 0 0)
+        (0 0 0 0 0 0 1 0 0)
+        (0 0 0 0 0 0 0 1 0)
+        (0 0 0 0 0 0 0 0 1)))
+#+END_SRC
+
+#+BEGIN_SRC lisp :results silent
+  (defun mat-mul! (temp a b)
+    (aops:each-index! temp (i j)
+      (aops:sum-index k (* (aref a i k) (aref b k j)))))
+  (defun copy-array (a)
+    (let ((m (aops:similar-array a)))
+      (aops:each-index! m (i j)
+        (aref a i j))
+      m))
+  (defun copy-array! (temp a)
+    (aops:each-index! temp (i j)
+      (aref a i j)))
+  (defun fish-expt (power)
+    (let ((y (copy-array +fish-identity+)))
+      (loop
+         with temp = (aops:similar-array y) ;; to prevent unneeded
+                                            ;; allocations, still need
+                                            ;; copies to and from
+         with x = (copy-array +next-generation+)
+         with n = power
+         while (plusp n)
+         if (evenp n)
+         do
+           (mat-mul! temp x x)
+           (rotatef temp x)
+           (setf n (/ n 2))
+         else
+         do
+           (mat-mul! temp y x)
+           (rotatef temp y)
+           (mat-mul! temp x x)
+           (rotatef temp x)
+           (setf n (/ (1- n) 2))
+         end)
+      y))
+  (defun nth-generation (start generations)
+    (let ((m (fish-expt generations)))
+      (aops:each-index (i)
+        (aops:sum-index k
+          (* (aref start k) (aref m k i))))))
+#+END_SRC
+I've made the above as fast as I can, someone else maiy be able to do
+better. The benchmarking is interesting. 1 million takes about 2.5
+seconds with both it and the circular list version. 10 million,
+though, was slower (by nearly 50%) than the circular list. Though with
+far fewer allocations and much less time in GC (circular list spent
+over a minute in garbage collection). But I am done trying to optimize
+now.
 ** Ada
 *** Runner
 Simple runner.
