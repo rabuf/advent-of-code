@@ -12,9 +12,8 @@ fn get_input(filename: &str) -> Vec<usize> {
 }
 
 fn simulator (fish: &mut [usize], generations: usize) {
-    for _i in 0..generations {
-        fish.rotate_left(1);
-        fish[6] = fish[6] + fish[8];
+    for i in 0..generations {
+        fish[(i + 7) % 9] = fish[(i + 7) % 9] + fish[i % 9];
     }
 }
 
