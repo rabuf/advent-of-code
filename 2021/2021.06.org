@@ -63,13 +63,36 @@ support for lisp installed you can run this by:
          do (incf (aref fish f)))
       (loop
          repeat generations
-         do (rotatef (aref fish 0) (aref fish 1)
-                     (aref fish 2) (aref fish 3)
-                     (aref fish 4) (aref fish 5)
-                     (aref fish 6) (aref fish 7)
-                     (aref fish 8))
+         do (psetf (subseq fish 0 8) (subseq fish 1 9)
+                   (aref fish 8) (aref fish 0))
            (incf (aref fish 6) (aref fish 8)))
       (reduce #'+ fish)))
+  ;; circular-simulator is the fastest version I've made.
+  (defun circular-simulator (current-generation generations)
+    (let ((fish (make-list 9 :initial-element 0)))
+      (loop
+         for f in current-generation
+           do (incf (nth f fish)))
+      (setf (cdr (last fish)) fish)
+      (loop
+         repeat generations
+         ;for head = (cdr fish) then (cdr head)
+         for mid  = (nthcdr 7 fish) then (cdr mid)
+         for tail = fish then (cdr tail)
+         do (incf (car mid) (car tail)))
+      (reduce #'+ (subseq fish 0 9))))
+  (defun modular-simulator (current-generation generations)
+    (let ((fish (make-array 9 :initial-element 0)))
+      (loop
+         for f in current-generation
+         do (incf (aref fish f)))
+        (loop
+           repeat generations
+           ;;for head = 0 then (mod (1+ head) 9)
+           for mid  = 7 then (mod (1+ mid) 9)
+           for tail = 0 then (mod (1+ tail) 9)
+           do (incf (aref fish mid) (aref fish tail)))
+        (reduce #'+ fish)))
 #+END_SRC
 
 #+NAME: problem-a
@@ -117,6 +140,14 @@ support for lisp installed you can run this by:
     (is (= 26 (simulator *test-input* 18)))
     (is (= 5934 (simulator *test-input* 80)))
     (is (= 26984457539 (simulator *test-input* 256))))
+  (test circular-simulator
+    (is (= 26 (circular-simulator *test-input* 18)))
+    (is (= 5934 (circular-simulator *test-input* 80)))
+    (is (= 26984457539 (circular-simulator *test-input* 256))))
+  (test modular-simulator
+    (is (= 26 (modular-simulator *test-input* 18)))
+    (is (= 5934 (modular-simulator *test-input* 80)))
+    (is (= 26984457539 (modular-simulator *test-input* 256))))
   (run! 'aoc.2021.06)
 #+END_SRC
 ** Test Results
@@ -124,8 +155,10 @@ support for lisp installed you can run this by:
 : 
 : Running test suite AOC.2021.06
 :  Running test SIMULATOR ...
-:  Did 3 checks.
-:     Pass: 3 (100%)
+:  Running test CIRCULAR-SIMULATOR ...
+:  Running test MODULAR-SIMULATOR ...
+:  Did 9 checks.
+:     Pass: 9 (100%)
 :     Skip: 0 ( 0%)
 :     Fail: 0 ( 0%)
 ** Thoughts
