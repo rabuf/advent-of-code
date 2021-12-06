@@ -213,15 +213,10 @@ Actual implementation body.
         end;
         Close (Input_File);
      end Read_File;
-     procedure Simulator (Fish: in out Fishes; Generations: Natural) is
-        T : Fishes;
+     procedure Simulator (Fish: in out Fishes; Generations: Natural; Resume: Natural := 1) is
      begin
-        for I in 1..Generations loop
-           for G in 0..8 loop
-              T(G) := Fish ((G + 1) mod 9);
-           end loop;
-           T(6) := T(6) + Fish(0);
-           Fish := T;
+        for I in Resume..Generations loop
+           Fish ((I + 6) mod 9) := Fish ((I + 6) mod 9) + Fish ((I - 1) mod 9);
         end loop;
      end Simulator;
      procedure Run is
@@ -234,7 +229,7 @@ Actual implementation body.
         for F of Fish loop
            N1 := N1 + F;
         end loop;
-        Simulator(Fish, 256-80);
+        Simulator(Fish, 256, 81);
         for F of Fish loop
            N2 := N2 + F;
         end loop;
