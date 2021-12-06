@@ -21,6 +21,6 @@ name = "day2021_04"
 
 [lib]
 name = "aoc"
-src = "src/lib.rs"
 
 [dependencies]
+regex = "1"

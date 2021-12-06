@@ -35,12 +35,12 @@ fn power_consumption(codes: &[u64], width: u32) -> u64 {
     g * e
 }
 
-pub fn day03_01() -> u64 {
+pub fn part1() -> u64 {
     let (width, codes) = get_input("../input/03.txt");
     power_consumption(&codes, width)
 }
 
-pub fn day03_02() -> u64 {
+pub fn part2() -> u64 {
     let (width, mut codes) = get_input("../input/03.txt");
 
     codes.sort();

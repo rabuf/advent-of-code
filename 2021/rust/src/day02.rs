@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-pub fn day02_01() -> i64 {
+pub fn part1() -> i64 {
     let filename = "../input/02.txt";
     let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
@@ -19,7 +19,7 @@ pub fn day02_01() -> i64 {
     }
     return h * d;
 }
-pub fn day02_02() -> i64 {
+pub fn part2() -> i64 {
     let filename = "../input/02.txt";
     let file = File::open(filename).unwrap();
     let reader = BufReader::new(file);
