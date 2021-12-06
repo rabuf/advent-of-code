@@ -63,15 +63,12 @@ support for lisp installed you can run this by:
          do (incf (aref fish f)))
       (loop
          repeat generations
-         do (psetf (aref fish 8) (aref fish 0)
-                   (aref fish 7) (aref fish 8)
-                   (aref fish 6) (+ (aref fish 7) (aref fish 0))
-                   (aref fish 5) (aref fish 6)
-                   (aref fish 4) (aref fish 5)
-                   (aref fish 3) (aref fish 4)
-                   (aref fish 2) (aref fish 3)
-                   (aref fish 1) (aref fish 2)
-                   (aref fish 0) (aref fish 1)))
+         do (rotatef (aref fish 0) (aref fish 1)
+                     (aref fish 2) (aref fish 3)
+                     (aref fish 4) (aref fish 5)
+                     (aref fish 6) (aref fish 7)
+                     (aref fish 8))
+           (incf (aref fish 6) (aref fish 8)))
       (reduce #'+ fish)))
 #+END_SRC
 
@@ -152,44 +149,67 @@ Specification for solution.
 *** Packages
 #+NAME: ada-packages
 #+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
-#+END_SRC
-*** Types and generics
-#+NAME: types-and-generics
-#+BEGIN_SRC ada
-
+  with Ada.Strings.Fixed; use Ada.Strings.Fixed;
 #+END_SRC
 *** Implementation
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2021-day06.adb
+#+BEGIN_SRC ada :tangle ada/aoc2021-day06.adb :noweb yes
   <<ada-packages>>
   package body AOC2021.Day06 is
-     <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
+     type Fishes is array (0..8) of Long_Long_Integer
+       with Default_Component_Value => 0;
+
+     procedure Read_File (Filename: String; Fish: out Fishes) is
+        Input_File : File_Type;
      begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+        Open (Input_File, In_File, Filename);
+        declare
+           Line : String := Get_Line (Input_File);
+           Start : Natural := 1;
+           Stop : Natural;
+           F : Natural;
+        begin
+           Stop := Index (Line, ",", Start);
+           while Stop /= 0 loop
+              F := Integer'Value (Line (Start..Stop-1));
+              Fish (F) := Fish (F) + 1;
+              Start := Stop + 1;
+              Stop := Index (Line, ",", Start);
+           end loop;
+           F :=  Integer'Value(Line (Start..Line'Length));
+           Fish (F) := Fish (F) + 1;
+        end;
+        Close (Input_File);
+     end Read_File;
+     procedure Simulator (Fish: in out Fishes; Generations: Natural) is
+        T : Fishes;
+     begin
+        for I in 1..Generations loop
+           for G in 0..8 loop
+              T(G) := Fish ((G + 1) mod 9);
+           end loop;
+           T(6) := T(6) + Fish(0);
+           Fish := T;
+        end loop;
+     end Simulator;
      procedure Run is
+        Fish : Fishes;
+        N1 : Long_Long_Integer := 0;
+        N2 : Long_Long_Integer := 0;
      begin
+        Read_File("../input/06.txt", Fish);
+        Simulator(Fish, 80);
+        for F of Fish loop
+           N1 := N1 + F;
+        end loop;
+        Simulator(Fish, 256-80);
+        for F of Fish loop
+           N2 := N2 + F;
+        end loop;
         Put_Line("Advent of Code 2021 - Day 06");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Put_Line("The result for Part 1 is " & Long_Long_Integer'Image(N1));
+        Put_Line("The result for Part 2 is " & Long_Long_Integer'Image(N2));
      end Run;
   end AOC2021.Day06;
 #+END_SRC
