@@ -1,6 +1,6 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2021 [6/25]
+* Advent of Code 2021 [7/25]
 This will be my attempt to solve the various Advent of Code 2021
 problems with Common Lisp.
 ** DONE [[file:2021.01.org][Day 1]]
@@ -9,7 +9,7 @@ problems with Common Lisp.
 ** DONE [[file:2021.04.org][Day 4]]
 ** DONE [[file:2021.05.org][Day 5]]
 ** DONE [[file:2021.06.org][Day 6]]
-** TODO [[file:2021.07.org][Day 7]]
+** DONE [[file:2021.07.org][Day 7]]
 ** TODO [[file:2021.08.org][Day 8]]
 ** TODO [[file:2021.09.org][Day 9]]
 ** TODO [[file:2021.10.org][Day 10]]
@@ -37,6 +37,7 @@ This is the runner for the Ada code. It will run every days' tasks.
   with AOC2021.Day04;
   with AOC2021.Day05;
   with AOC2021.Day06;
+  with AOC2021.Day07;
   use AOC2021;
   procedure Main is
   begin
@@ -46,5 +47,6 @@ This is the runner for the Ada code. It will run every days' tasks.
      Day04.Run;
      Day05.Run;
      Day06.Run;
+     Day07.Run;
   end Main;
 #+END_SRC
