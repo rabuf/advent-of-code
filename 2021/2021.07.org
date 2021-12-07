@@ -140,44 +140,94 @@ Specification for solution.
 *** Packages
 #+NAME: ada-packages
 #+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Strings.Fixed; use Ada.Strings.Fixed;
+  with Ada.Containers.Vectors;
 #+END_SRC
 *** Types and generics
 #+NAME: types-and-generics
 #+BEGIN_SRC ada
-
+  package Integer_Vectors is new Ada.Containers.Vectors
+  (Element_Type => Integer, Index_Type => Natural);
+  use Integer_Vectors;
 #+END_SRC
 *** Implementation
-Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2021-day07.adb
+I'm borrowing the line parser from the previous day. The algorithm
+will be the same as above. I haven't thought of a way to make it
+simpler or more efficient yet.
+
+Per some comments on Reddit I can at least optimize the first search
+by, first, sorting the input and finding the median. I may do that
+later, but right now it is what it is.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day07.adb :noweb yes
   <<ada-packages>>
   package body AOC2021.Day07 is
      <<types-and-generics>>
      -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
+     function Linear_Fuel (Crabs : Vector; Min : Integer; Max : Integer) return Integer is
+        Min_Fuel : Integer := Integer'Last;
+        Fuel : Integer;
      begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+        for Pos in Min..Max loop
+           Fuel := 0;
+           for C of Crabs loop
+              Fuel := Fuel + abs (C - Pos);
+           end loop;
+           Min_Fuel := Integer'Min (Min_Fuel, Fuel);
+        end loop;
+        return Min_Fuel;
+     end Linear_Fuel;
+     function Quadratic_Fuel (Crabs : Vector; Min : Integer; Max : Integer) return Integer is
+        Min_Fuel : Integer := Integer'Last;
+        Fuel : Integer;
+        N : Integer;
+     begin
+        for Pos in Min..Max loop
+           Fuel := 0;
+           for C of Crabs loop
+              N := abs (C - pos);
+              Fuel := Fuel + N * (N + 1) / 2;
+           end loop;
+           Min_Fuel := Integer'Min (Min_Fuel, Fuel);
+        end loop;
+        return Min_Fuel;
+     end Quadratic_Fuel;
+     procedure Read_File (Filename: String; Crabs: out Vector; Min : out Integer; Max : out Integer) is
+        Input_File : File_Type;
+     begin
+        Min := Integer'Last;
+        Max := Integer'First;
+        Open (Input_File, In_File, Filename);
+        declare
+           Line : String := Get_Line (Input_File);
+           Start : Natural := 1;
+           Stop : Natural;
+           Crab : Integer;
+        begin
+           Stop := Index (Line, ",", Start);
+           while Stop /= 0 loop
+              Crab := Integer'Value (Line (Start..Stop-1));
+              Crabs.Append(Crab);
+              Min := Integer'Min(Crab, Min);
+              Max := Integer'Max(Crab, Max);
+              Start := Stop + 1;
+              Stop := Index (Line, ",", Start);
+           end loop;
+           Crab := Integer'Value(Line (Start..Line'Length));
+           Crabs.Append(Crab);
+           Min := Integer'Min(Crab, Min);
+           Max := Integer'Max(Crab, Max);
+        end;
+        Close (Input_File);
+     end Read_File;
      procedure Run is
+        Crabs : Vector;
+        Min, Max : Integer;
      begin
+        Read_File ("../input/07.txt", Crabs, Min, Max);
         Put_Line("Advent of Code 2021 - Day 07");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Put_Line("The result for Part 1 is " & Integer'Image(Linear_Fuel(Crabs, Min, Max)));
+        Put_Line("The result for Part 2 is " & Integer'Image(Quadratic_Fuel(Crabs, Min, Max)));
      end Run;
   end AOC2021.Day07;
 #+END_SRC
@@ -192,3 +242,6 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2021 - Day 07
+: The result for Part 1 is  336131
+: The result for Part 2 is  92676646
