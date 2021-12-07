@@ -4,16 +4,16 @@ use std::io::{BufRead, BufReader};
 fn get_input(filename: &str) -> Vec<usize> {
     let file = File::open(filename).unwrap();
     let line = BufReader::new(file).lines().next().unwrap().unwrap();
-    let mut fishes = vec![0;9];
-    line.split(",")
-        .map(|f| usize::from_str_radix(f,10).unwrap())
-        .for_each(|n| fishes[n] = fishes[n] + 1);
+    let mut fishes = vec![0; 9];
+    line.split(',')
+        .map(|f| f.parse::<usize>().unwrap())
+        .for_each(|n| fishes[n] += 1);
     fishes
 }
 
-fn simulator (fish: &mut [usize], generations: usize) {
+fn simulator(fish: &mut [usize], generations: usize) {
     for i in 0..generations {
-        fish[(i + 7) % 9] = fish[(i + 7) % 9] + fish[i % 9];
+        fish[(i + 7) % 9] += fish[i % 9];
     }
 }
 

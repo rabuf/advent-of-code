@@ -9,7 +9,7 @@ pub fn part1() -> i64 {
     reader
         .lines()
         .map(|l| l.unwrap().parse::<i64>().unwrap())
-        .fold((0 as i64, i64::MAX), |(sum, prev), curr| {
+        .fold((0_i64, i64::MAX), |(sum, prev), curr| {
             (sum + if prev < curr { 1 } else { 0 }, curr)
         })
         .0
@@ -23,7 +23,7 @@ pub fn part2() -> i64 {
         .lines()
         .map(|l| l.unwrap().parse::<i64>().unwrap())
         .fold(
-            (0 as i64, (i64::MAX, i64::MAX, i64::MAX)),
+            (0_i64, (i64::MAX, i64::MAX, i64::MAX)),
             |(sum, (prev, b, c)), curr| (sum + if prev < curr { 1 } else { 0 }, (b, c, curr)),
         )
         .0

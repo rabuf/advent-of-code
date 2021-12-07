@@ -24,13 +24,13 @@ fn gamma(codes: &[u64], width: u32) -> u64 {
         if codes.iter().filter(|c| **c & mask != 0).count() >= codes.len() / 2 {
             result += mask;
         }
-        mask = mask * 2;
+        mask *= 2;
     }
     result
 }
 
 fn power_consumption(codes: &[u64], width: u32) -> u64 {
-    let g = gamma(&codes, width);
+    let g = gamma(codes, width);
     let e = !g & ((1 << width) - 1);
     g * e
 }
@@ -43,7 +43,7 @@ pub fn part1() -> u64 {
 pub fn part2() -> u64 {
     let (width, mut codes) = get_input("../input/03.txt");
 
-    codes.sort();
+    codes.sort_unstable();
     let mut o_lower = 0;
     let mut o_upper = codes.len();
     let mut c_lower = 0;

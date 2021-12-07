@@ -11,13 +11,13 @@ pub fn part1() -> i64 {
         let parts: Vec<_> = line.split_whitespace().collect();
         let distance = parts[1].parse::<i64>().unwrap();
         match parts[0] {
-            "forward" => h = h + distance,
-            "up" => d = d - distance,
-            "down" => d = d + distance,
+            "forward" => h += distance,
+            "up" => d -= distance,
+            "down" => d += distance,
             _ => (),
         }
     }
-    return h * d;
+    h * d
 }
 pub fn part2() -> i64 {
     let filename = "../input/02.txt";
@@ -30,13 +30,13 @@ pub fn part2() -> i64 {
         let distance = parts[1].parse::<i64>().unwrap();
         match parts[0] {
             "forward" => {
-                h = h + distance;
-                d = d + distance * aim;
+                h += distance;
+                d += distance * aim;
             }
-            "up" => aim = aim - distance,
-            "down" => aim = aim + distance,
+            "up" => aim -= distance,
+            "down" => aim += distance,
             _ => (),
         }
     }
-    return h * d;
+    h * d
 }

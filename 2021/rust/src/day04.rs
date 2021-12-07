@@ -10,8 +10,8 @@ fn get_input(filename: &str) -> (Vec<u64>, Vec<Card>) {
 
     let line = lines.next().unwrap().unwrap();
     let numbers = line
-        .split(",")
-        .map(|s| u64::from_str_radix(s, 10).unwrap())
+        .split(',')
+        .map(|s| s.parse::<u64>().unwrap())
         .collect();
 
     let mut cards: Vec<Vec<Vec<u64>>> = vec![];
@@ -26,7 +26,7 @@ fn get_input(filename: &str) -> (Vec<u64>, Vec<Card>) {
             let line = lines.next().unwrap().unwrap();
             let row = line
                 .split_whitespace()
-                .map(|s| u64::from_str_radix(s, 10).unwrap())
+                .map(|s| s.parse::<u64>().unwrap())
                 .collect();
             card.push(row);
         }
@@ -35,14 +35,8 @@ fn get_input(filename: &str) -> (Vec<u64>, Vec<Card>) {
     (numbers, cards)
 }
 
-fn score_card(c: &Card, n: u64) -> u64 {
-    let mut sum = 0;
-    for row in c.into_iter() {
-        for i in row.into_iter() {
-            sum = sum + i;
-        }
-    }
-    return sum * n;
+fn score_card(c: &[Vec<u64>], n: u64) -> u64 {
+    c.iter().map(|row| row.iter().sum::<u64>()).sum::<u64>() * n
 }
 fn is_winner(c: Card) -> bool {
     for i in 0..5 {
@@ -54,24 +48,19 @@ fn is_winner(c: Card) -> bool {
             return true;
         }
         won = true;
-        for j in 0..5 {
-            won = won && c[j][i] == 0;
+        for entry in c.iter() {
+            won = won && entry[i] == 0;
         }
         if won {
             return true;
         }
     }
-    return false;
+    false
 }
 
 fn mark_card(c: &mut Card, n: u64) {
-    for i in 0..5 {
-        for j in 0..5 {
-            if c[i][j] == n {
-                c[i][j] = 0;
-            }
-        }
-    }
+    c.iter_mut()
+        .for_each(|r| r.iter_mut().filter(|i| **i == n).for_each(|i| *i = 0));
 }
 
 pub fn part1() -> u64 {
@@ -100,7 +89,7 @@ pub fn part2() -> u64 {
                 score = score_card(&cards[i], *n);
                 cards.remove(i);
             } else {
-                i = i + 1;
+                i += 1;
             }
         }
     }

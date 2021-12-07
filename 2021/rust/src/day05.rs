@@ -17,11 +17,11 @@ fn get_input(filename: &str) -> (Vec<Segment>, (usize, usize)) {
         match re.captures(&line) {
             None => (),
             Some(cap) => {
-                let x0 = isize::from_str_radix(&cap[1], 10).unwrap();
-                let y0 = isize::from_str_radix(&cap[2], 10).unwrap();
-                let x1 = isize::from_str_radix(&cap[3], 10).unwrap();
-                let y1 = isize::from_str_radix(&cap[4], 10).unwrap();
-                segments.push(((x0,y0),(x1,y1)));
+                let x0 = cap[1].parse::<isize>().unwrap();
+                let y0 = cap[2].parse::<isize>().unwrap();
+                let x1 = cap[3].parse::<isize>().unwrap();
+                let y1 = cap[4].parse::<isize>().unwrap();
+                segments.push(((x0, y0), (x1, y1)));
                 max_x = max_x.max(x0.max(x1));
                 max_y = max_y.max(y0.max(y1));
             }
@@ -31,7 +31,7 @@ fn get_input(filename: &str) -> (Vec<Segment>, (usize, usize)) {
 }
 
 fn make_grid(segments: &[Segment], x: usize, y: usize) -> Vec<Vec<usize>> {
-    let mut grid= vec![vec![0;y];x];
+    let mut grid = vec![vec![0; y]; x];
 
     for ((x0, y0), (x1, y1)) in segments {
         let dx = (x1 - x0).signum();
@@ -39,15 +39,17 @@ fn make_grid(segments: &[Segment], x: usize, y: usize) -> Vec<Vec<usize>> {
         let distance = (x1 - x0).abs().max((y1 - y0).abs());
 
         for i in 0..=distance {
-            let (x,y) = ((x0 + dx * i) as usize, (y0 + dy * i) as usize);
-            grid[x][y] = grid[x][y] + 1;
+            let (x, y) = ((x0 + dx * i) as usize, (y0 + dy * i) as usize);
+            grid[x][y] += 1;
         }
     }
     grid
 }
 
-fn count_overlapping(grid: &Vec<Vec<usize>>) -> usize {
-    grid.iter().map(|r| r.iter().filter(|v|**v > 1).count()).sum()
+fn count_overlapping(grid: &[Vec<usize>]) -> usize {
+    grid.iter()
+        .map(|r| r.iter().filter(|v| **v > 1).count())
+        .sum()
 }
 
 pub fn part1() -> usize {
