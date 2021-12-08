@@ -1,0 +1,297 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 08
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-08)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-08
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-08)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect (cl-ppcre:split " \\| " line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/08.txt"))
+#+END_SRC
+** Part 1
+#+NAME: part-1
+#+BEGIN_SRC lisp :results silent
+  (defun count-1-4-7-8 (lines)
+    (loop
+       for (nil output) in lines
+       sum (loop
+              for display in (cl-ppcre:split " " output)
+              for n = (length display)
+              count (or (= n 2) (= n 3) (= n 4) (= n 7)))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 08 A: ~a~%" (count-1-4-7-8 *input*)))
+#+END_SRC
+** Part 2
+Ok, after reading it over a couple times I finally grok it. But that
+doesn't help me code it any quicker.
+
+The official designations for each segment are from this table:
+
+#+BEGIN_EXPORT ascii
+  0:      1:      2:      3:      4:
+ aaaa    ....    aaaa    aaaa    ....
+b    c  .    c  .    c  .    c  b    c
+b    c  .    c  .    c  .    c  b    c
+ ....    ....    dddd    dddd    dddd
+e    f  .    f  e    .  .    f  .    f
+e    f  .    f  e    .  .    f  .    f
+ gggg    ....    gggg    gggg    ....
+
+  5:      6:      7:      8:      9:
+ aaaa    aaaa    aaaa    aaaa    aaaa
+b    .  b    .  .    c  b    c  b    c
+b    .  b    .  .    c  b    c  b    c
+ dddd    dddd    ....    dddd    dddd
+.    f  e    f  .    f  e    f  .    f
+.    f  e    f  .    f  e    f  .    f
+ gggg    gggg    ....    gggg    gggg
+#+END_EXPORT
+
+Ok, taking a moment to think, there has *got* to be a better way. So
+here's my thought, each pattern can be turned into a 7-bit number. The
+order doesn't actually matter. Using this, 1, 4, 7, and 8 can be
+readily identified using part 1, =logcount= can be used to count the
+number of bits and give me the same result as I had before.
+
+#+BEGIN_SRC lisp :results silent
+  (defun pattern-to-number (pattern)
+    (loop for ch across pattern
+         sum (expt 2 (- (char-code ch) (char-code #\a)))))
+
+  (defun translate (numbers output)
+    (loop
+       for d in output
+       with result = 0
+       finally (return result)
+       do
+         (setf result (* 10 result))
+         (incf result (position d numbers))))
+
+  (defun decode-line (codes output)
+    (let ((codes (mapcar #'pattern-to-number codes))
+          (output (mapcar #'pattern-to-number output))
+          (numbers (make-array 10)))
+      ;; set 1
+      (setf (aref numbers 1)
+            (find-if (lambda (n) (= (logcount n) 2)) codes))
+      (setf codes (remove (aref numbers 1) codes))
+      ;; set 4
+      (setf (aref numbers 4)
+            (find-if (lambda  (n) (= (logcount n) 4)) codes))
+      (setf codes (remove (aref numbers 4) codes))
+      ;; set 7
+      (setf (aref numbers 7)
+            (find-if (lambda (n) (= (logcount n) 3)) codes))
+      (setf codes (remove (aref numbers 7) codes))
+      ;; set 8
+      (setf (aref numbers 8)
+            (find-if (lambda (n) (= (logcount n) 7)) codes))
+      (setf codes (remove (aref numbers 8) codes))
+      ;; 9 ^ (7 | 4) will have one bit
+      (setf (aref numbers 9)
+            (find-if (lambda (n)
+                       (= (logcount (logxor n (logior (aref numbers 7) (aref numbers 4)))) 1))
+                     codes))
+      (setf codes (remove (aref numbers 9) codes))
+      ;; 3 & 1 = 1
+      (setf (aref numbers 3)
+            (find-if (lambda (n)
+                       (and (= (logcount n) 5)
+                            (= (aref numbers 1) (logand (aref numbers 1) n))))
+                     codes))
+      (setf codes (remove (aref numbers 3) codes))
+      ;; 6 | 1 = 8
+      (setf (aref numbers 6)
+            (find-if (lambda (n)
+                       (= (aref numbers 8) (logior (aref numbers 1) n)))
+                     codes))
+      (setf codes (remove (aref numbers 6) codes))
+      ;; 0 is the last 6-bit value
+      (setf (aref numbers 0)
+            (find-if (lambda (n)
+                       (= 6 (logcount n)))
+                     codes))
+      (setf codes (remove (aref numbers 0) codes))
+      ;; 6 or 5 = 6
+      (setf (aref numbers 5)
+            (find-if (lambda (n)
+                       (= (aref numbers 6) (logior (aref numbers 6) n)))
+                     codes))
+      (setf codes (remove (aref numbers 5) codes))
+      ;; 2 is last
+      (setf (aref numbers 2) (first codes))
+      (translate numbers output)))
+
+  (defun decode-all-lines (lines)
+    (loop
+       for (codes output) in lines
+       sum (decode-line (cl-ppcre:split " " codes) (cl-ppcre:split " " output))))
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 08 B: ~a~%" (decode-all-lines *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<part-1>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 08 A: 421
+: Problem 08 B: 986163
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.08)
+  (in-suite aoc.2021.08)
+  (defparameter *small-test*
+    '("acedgfb cdfbe gcdfa fbcad dab cefabd cdfgeb eafb cagedb ab"
+      "cdfeb fcadb cdfeb cdbaf"))
+  (defparameter *big-test*
+    (read-input "test/08.txt"))
+  (run! 'aoc.2021.08)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day08.adb
+  with AOC2021.Day08;
+  procedure Day08 is
+  begin
+    AOC2021.Day08.Run;
+  end Day08;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day08.ads
+  package AOC2021.Day08 is
+     procedure Run;
+  end AOC2021.Day08;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day08.adb
+  <<ada-packages>>
+  package body AOC2021.Day08 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 08");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day08;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day08
+  ./day08
+#+END_SRC
+
+#+RESULTS:
