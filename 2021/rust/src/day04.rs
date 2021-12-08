@@ -9,10 +9,7 @@ fn get_input(filename: &str) -> (Vec<u64>, Vec<Card>) {
     let mut lines = reader.lines();
 
     let line = lines.next().unwrap().unwrap();
-    let numbers = line
-        .split(',')
-        .map(|s| s.parse::<u64>().unwrap())
-        .collect();
+    let numbers = line.split(',').map(|s| s.parse::<u64>().unwrap()).collect();
 
     let mut cards: Vec<Vec<Vec<u64>>> = vec![];
     'read_cards: loop {
