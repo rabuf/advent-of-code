@@ -38,6 +38,7 @@ This is the runner for the Ada code. It will run every days' tasks.
   with AOC2021.Day05;
   with AOC2021.Day06;
   with AOC2021.Day07;
+  with AOC2021.Day08;
   use AOC2021;
   procedure Main is
   begin
@@ -48,5 +49,6 @@ This is the runner for the Ada code. It will run every days' tasks.
      Day05.Run;
      Day06.Run;
      Day07.Run;
+     Day08.Run;
   end Main;
 #+END_SRC
