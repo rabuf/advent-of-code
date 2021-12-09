@@ -132,7 +132,7 @@ Specification for solution.
 #+END_SRC
 *** Implementation
 Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.adb
+#+BEGIN_SRC ada :tangle ada/aocYEAR-dayDAY.adb :noweb yes
   <<ada-packages>>
   package body AOCYEAR.DayDAY is
      <<types-and-generics>>
