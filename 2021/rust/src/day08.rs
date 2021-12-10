@@ -47,44 +47,64 @@ pub fn part1() -> usize {
         .sum()
 }
 
-fn translate(perm: &[char], codes: &[String]) -> Vec<String> {
-    let mut translated: Vec<String> = vec![];
-    // for each code, use the index of the code in the permutation
-    // as the basis for mapping. That is, if 'g' is in the first index
-    // it becomes 'a' when translated
-    for code in codes.iter() {
-        let t = code
-            .chars()
-            .map(|c| {
-                let i = perm.iter().position(|p| *p == c).unwrap();
-                char::from_u32((i as u32) + ('a' as u32)).unwrap()
-            })
-            .sorted()
-            .collect::<String>();
-        translated.push(t);
-    }
-
-    translated
-}
-
-fn decode_line(codes: &[String], display: &[String]) -> usize {
-    let canonical_strings: [&str; 10] = [
-        "abcefg", "cf", "acdeg", "acdfg", "bcdf", "abdfg", "abdefg", "acf", "abcdefg", "abcdfg",
-    ];
-
-    for perm in "abcdefg".chars().permutations(7) {
-        let codes = translate(&perm, codes);
-
-        if codes.iter().all(|s| canonical_strings.contains(&s.as_str())) {
-            let displays = translate(&perm, display);
-            let result = displays
-                .iter()
-                .map(|d| canonical_strings.iter().position(|&s| s == d).unwrap())
-                .fold(0, |acc, val| acc * 10 + val);
-            return result;
+fn clever_decode (codes: &[String], display: &[String]) -> usize {
+    let mut codes: Vec<_> = codes.iter().collect();
+    let default = "".to_string();
+    let mut decoder: Vec<&String> = vec![&default; 10];
+    // 1, 4, 7, 8 are straight forward
+    codes.iter().for_each(|&code| {
+       match code.len() {
+           2 => decoder[1] = code,
+           3 => decoder[7] = code,
+           4 => decoder[4] = code,
+           7 => decoder[8] = code,
+           _ => ()
+       }
+    });
+    // remove the discovered values
+    codes.retain(|c| !decoder.contains(c));
+    codes.iter().for_each(|&code| {
+        if code.len() == 6 {
+            if decoder[4].chars().all(|c| code.contains(c)) {
+                decoder[9] = code;
+            }
         }
+    });
+    codes.retain(|c| !decoder.contains(c));
+    codes.iter().for_each(|&code| {
+        if code.len() == 6 {
+            if decoder[7].chars().all(|c| code.contains(c)) {
+                decoder[0] = code;
+            }
+        }
+    });
+    codes.retain(|c| !decoder.contains(c));
+    codes.iter().for_each(|&code| {
+        if code.len() == 6 {
+            decoder[6] = code;
+        }
+    });
+    codes.retain(|c| !decoder.contains(c));
+    codes.iter().for_each(|&code| {
+       if decoder[7].chars().all(|c| code.contains(c)) {
+           decoder[3] = code;
+       }
+    });
+    codes.retain(|c| !decoder.contains(c));
+    codes.iter().for_each(|&code| {
+       if code.chars().all(|c| decoder[6].contains(c)) {
+           decoder[5] = code;
+       }
+    });
+    codes.retain(|c| !decoder.contains(c));
+    decoder[2] = codes[0];
+    let mut result = 0;
+    for d in display.iter() {
+        result *= 10;
+        let i = decoder.iter().position(|&s| s == d).or_else(||Some(0)).unwrap();
+        result += i;
     }
-    0 // should never happen, but if it can't be decoded just returns 0
+    result
 }
 
 pub fn part2() -> usize {
@@ -92,7 +112,7 @@ pub fn part2() -> usize {
     codes
         .iter()
         .zip(displays)
-        .map(|(c, d)| decode_line(c, &d))
+        .map(|(c, d)| clever_decode(c, &d))
         .sum()
 }
 
