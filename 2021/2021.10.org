@@ -1,0 +1,254 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 10
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-10)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-10
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-10)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/10.txt"))
+#+END_SRC
+** Part 1
+#+NAME: corrupt
+#+BEGIN_SRC lisp :results silent
+  (defparameter *corruption-value* '((#\) 3) (#\] 57) (#\} 1197) (#\> 25137)))
+
+  (defun opener? (c)
+    (member c '(#\( #\[ #\{ #\<)))
+
+  (defun closer-for (c)
+    (ecase c
+      (#\( #\))
+      (#\{ #\})
+      (#\[ #\])
+      (#\< #\>)))
+
+
+  (defun corruption-score (line)
+    (loop
+       with stack = nil
+       for c across line
+       finally (return 0)
+       if (opener? c)
+       do (push (closer-for c) stack)
+       if (not (opener? c))
+       do (unless (char= (pop stack) c)
+            (return (cadr (assoc c *corruption-value*))))))
+
+  (defun corruption-total (lines)
+    (loop
+       for line in lines
+       sum (corruption-score line)))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 10 A: ~a~%" (corruption-total *input*)))
+#+END_SRC
+** Part 2
+#+NAME: incomplete
+#+BEGIN_SRC lisp :results silent
+  (defparameter *incomplete-value* '((#\) 1) (#\] 2) (#\} 3) (#\> 4)))
+  (defun corrupt? (line)
+    (loop
+       with stack = nil
+       for c across line
+       if (opener? c)
+       do (push (closer-for c) stack)
+       if (not (opener? c))
+       do (unless (char= (pop stack) c)
+            (return t))))
+
+  (defun incomplete-score (stack)
+    (loop
+       with score = 0
+       for c in stack
+       finally (return score)
+       do (setf score (* score 5))
+         (incf score (cadr (assoc c *incomplete-value*)))))
+
+
+
+  (defun process-incomplete (line)
+    (loop
+       with stack = nil
+       for c across line
+       if (opener? c)
+       do (push (closer-for c) stack)
+       if (not (opener? c))
+       do (pop stack)
+       finally (return (incomplete-score stack))))
+
+
+  (defun incomplete-total (lines)
+    (loop
+       for line in lines
+       unless (corrupt? line)
+       collect (process-incomplete line)))
+
+  (defun incomplete-winner (lines)
+    (let* ((scores (sort (incomplete-total lines) #'<))
+           (mid (floor (length scores) 2)))
+      (nth mid scores)))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 10 B: ~a~%" (incomplete-winner *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<corrupt>>
+  <<incomplete>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 10 A: 364389
+: Problem 10 B: 2870201088
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.10)
+  (in-suite aoc.2021.10)
+  (defparameter *test-input* (read-input "test/10.txt"))
+  (run! 'aoc.2021.10)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day10.adb
+  with AOC2021.Day10;
+  procedure Day10 is
+  begin
+    AOC2021.Day10.Run;
+  end Day10;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day10.ads
+  package AOC2021.Day10 is
+     procedure Run;
+  end AOC2021.Day10;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day10.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day10 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 10");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day10;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day10
+  ./day10
+#+END_SRC
+
+#+RESULTS:
