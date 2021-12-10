@@ -237,13 +237,10 @@ Specification for solution.
            return 0;
         end if;
         Height_Map(I, J) := 9;
-        for X in -1..1 loop
-           if X /= 0
-           then
-              Total := Total + Basin_Crawl(I + X, J, Height_Map);
-              Total := Total + Basin_Crawl(I, J + X, Height_Map);
-           end if;
-        end loop;
+        Total := Total + Basin_Crawl(I + 1, J, Height_Map);
+        Total := Total + Basin_Crawl(I - 1, J, Height_Map);
+        Total := Total + Basin_Crawl(I, J + 1, Height_Map);
+        Total := Total + Basin_Crawl(I, J - 1, Height_Map);
         return Total + 1;
      end Basin_Crawl;
 
