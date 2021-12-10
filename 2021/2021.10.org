@@ -81,7 +81,7 @@ support for lisp installed you can run this by:
        do (push (closer-for c) stack)
        if (not (opener? c))
        do (unless (char= (pop stack) c)
-            (return (cadr (assoc c *corruption-value*))))))
+            (return (second (assoc c *corruption-value*))))))
 
   (defun corruption-total (lines)
     (loop
@@ -113,7 +113,7 @@ support for lisp installed you can run this by:
        finally (return score)
        do
          (setf score (* score 5))
-         (incf score (cadr (assoc c *incomplete-value*)))))
+         (incf score (second (assoc c *incomplete-value*)))))
 
   (defun process-incomplete (line)
     (loop
