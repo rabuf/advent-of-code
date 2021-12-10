@@ -111,10 +111,9 @@ support for lisp installed you can run this by:
        with score = 0
        for c in stack
        finally (return score)
-       do (setf score (* score 5))
+       do
+         (setf score (* score 5))
          (incf score (cadr (assoc c *incomplete-value*)))))
-
-
 
   (defun process-incomplete (line)
     (loop
@@ -122,10 +121,9 @@ support for lisp installed you can run this by:
        for c across line
        if (opener? c)
        do (push (closer-for c) stack)
-       if (not (opener? c))
+       unless (opener? c)
        do (pop stack)
        finally (return (incomplete-score stack))))
-
 
   (defun incomplete-total (lines)
     (loop
