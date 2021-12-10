@@ -37,12 +37,15 @@ fn corruption_score(c: char) -> u64 {
 }
 
 fn incomplete_score(stack: &[char]) -> u64 {
-    stack.iter().rev().fold(0, |acc, c| acc * 5 + match c {
-        ')' => 1,
-        ']' => 2,
-        '}' => 3,
-        '>' => 4,
-        _ => 0,
+    stack.iter().rev().fold(0, |acc, c| {
+        acc * 5
+            + match c {
+                ')' => 1,
+                ']' => 2,
+                '}' => 3,
+                '>' => 4,
+                _ => 0,
+            }
     })
 }
 
