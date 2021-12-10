@@ -328,6 +328,117 @@ Specification for solution.
      end Run;
   end AOC2021.Day10;
 #+END_SRC
+*** Streamlined version:
+#+BEGIN_SRC ada
+  with Text_IO; use Text_IO;
+  with Ada.Containers.Vectors;
+  with Ada.Containers; use Ada.Containers;
+  package body AOC2021.Day10 is
+     package Stack is new Ada.Containers.Vectors
+       (Element_Type => Character, Index_Type => Natural);
+     use Stack;
+   
+     package LLI_Vectors is new Ada.Containers.Vectors
+       (Element_Type => Long_Long_Integer, Index_Type => Natural);
+     package LLI_Sort is new LLI_Vectors.Generic_Sorting;
+   
+     type Line_Status is (Corrupt, Incomplete);
+   
+     type Score_Status is record
+        Status : Line_Status := Incomplete;
+        Score : Long_Long_Integer := 0;
+     end record;
+   
+     function Is_Opener (C : Character) return Boolean is
+       (case C is
+           when '(' | '[' | '{' | '<' => True,
+           when others => False);
+   
+     function To_Closer (C : Character) return Character is
+       (case C is
+           when '(' => ')',
+           when '[' => ']',
+           when '{' => '}',
+           when '<' => '>',
+           when others => '?');
+   
+     function Corruption_Value (C : Character) return Long_Long_Integer is
+       (case C is
+           when ')' => 3,
+           when ']' => 57,
+           when '}' => 1197,
+           when '>' => 25137,
+           when others => 0);
+   
+     function Incomplete_Value (C : Character) return Long_Long_Integer is
+       (case C is
+           when ')' => 1,
+           when ']' => 2,
+           when '}' => 3,
+           when '>' => 4,
+           when others => 0);
+   
+     function Score (Line: String) return Score_Status is
+        Closers : Vector;
+        Result : Score_Status;
+     begin
+        for C of Line loop
+           if Is_Opener (C)
+           then
+              Closers.Append(To_Closer(C));
+           else
+              if Closers.Last_Element = C
+              then
+                 Closers.Delete_Last;
+              else
+                 Result.Score := Corruption_Value(C);
+                 Result.Status := Corrupt;
+                 return Result;
+              end if;
+           end if;
+        end loop;
+        for C of reverse Closers loop
+           Result.Score := Result.Score * 5 + Incomplete_Value (C);
+        end loop;
+        return Result;
+     end Score;
+   
+     procedure Solve_Both (Filename: String; Corruption_Score: out Long_Long_Integer; Incomplete_Score: out Long_Long_Integer) is
+        File : File_Type;
+        Incompletes : LLI_Vectors.Vector;
+     begin
+        Corruption_Score := 0;
+        Incomplete_Score := 0;
+        Open (File, In_File, Filename);
+        while not End_Of_File(File) loop
+           declare
+              Line : String := Get_Line(File);
+              Result : Score_Status := Score (Line);
+           begin
+              case Result.Status is
+                 when Corrupt =>
+                    Corruption_Score := Corruption_Score + Result.Score;
+                 when Incomplete =>
+                    Incompletes.Append(Result.Score);
+              end case;
+           end;
+        end loop;
+        LLI_Sort.Sort(Incompletes);
+        Incomplete_Score := Incompletes (Natural(Incompletes.Length / 2));
+        Close (File);
+     end Solve_Both;
+   
+     procedure Run is
+        Corruption : Long_Long_Integer;
+        Incomplete : Long_Long_Integer;
+     begin
+        Solve_Both ("../input/10.txt", Corruption, Incomplete);
+        Put_Line("Advent of Code 2021 - Day 10");
+        Put_Line("The result for Part 1 is " & Long_Long_Integer'Image(Corruption));
+        Put_Line("The result for Part 2 is " & Long_Long_Integer'Image(Incomplete));
+     end Run;
+  end AOC2021.Day10;
+#+END_SRC
 *** Run the program
 In order to run this you have to "tangle" the code first using =C-c
 C-v C-t=.
