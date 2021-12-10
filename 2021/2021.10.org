@@ -198,44 +198,133 @@ Specification for solution.
 *** Packages
 #+NAME: ada-packages
 #+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
   with Text_IO; use Text_IO;
+  with Ada.Containers.Vectors;
+  with Ada.Containers; use Ada.Containers;
 #+END_SRC
 *** Types and generics
 #+NAME: types-and-generics
 #+BEGIN_SRC ada
-
+  package Stack is new Ada.Containers.Vectors
+    (Element_Type => Character, Index_Type => Natural);
+  use Stack;
+  package LLI_Vectors is new Ada.Containers.Vectors
+    (Element_Type => Long_Long_Integer, Index_Type => Natural);
+  package LLI_Sort is new LLI_Vectors.Generic_Sorting;
+#+END_SRC
+*** Part 1
+#+NAME: ada-corruption
+#+BEGIN_SRC ada
+  function Is_Opener (C : Character) return Boolean is
+    (case C is
+        when '(' | '[' | '{' | '<' => True,
+        when others => False);
+  function To_Closer (C : Character) return Character is
+    (case C is
+        when '(' => ')',
+        when '[' => ']',
+        when '{' => '}',
+        when '<' => '>',
+        when others => '?');
+  function Corruption_Value (C : Character) return Integer is
+    (case C is
+        when ')' => 3,
+        when ']' => 57,
+        when '}' => 1197,
+        when '>' => 25137,
+        when others => 0);
+  function Corruption_Score (Line: String) return Integer is
+     Closers : Vector;
+  begin
+     for C of Line loop
+        if Is_Opener (C)
+        then
+           Closers.Append(To_Closer(C));
+        else
+           if Closers.Last_Element = C
+           then
+              Closers.Delete_Last;
+           else
+              return Corruption_Value (C);
+           end if;
+        end if;
+     end loop;
+     return 0;
+  end Corruption_Score;
+#+END_SRC
+*** Part 2
+#+NAME: ada-incomplete
+#+BEGIN_SRC ada
+  function Incomplete_Value (C : Character) return Long_Long_Integer is
+    (case C is
+        when ')' => 1,
+        when ']' => 2,
+        when '}' => 3,
+        when '>' => 4,
+        when others => 0);
+  function Incomplete_Score (Line : String) return Long_Long_Integer is
+     Closers : Vector;
+     Score : Long_Long_Integer := 0;
+  begin
+     for C of Line loop
+        if Is_Opener (C)
+        then
+           Closers.Append(To_Closer(C));
+        else
+           if Closers.Last_Element = C
+           then
+              Closers.Delete_Last;
+           else
+              return 0;
+           end if;
+        end if;
+     end loop;
+     for C of reverse Closers loop
+        Score := Score * 5 + Incomplete_Value (C);
+     end loop;
+     return Score;
+  end Incomplete_Score;
 #+END_SRC
 *** Implementation
-Actual implementation body.
 #+BEGIN_SRC ada :tangle ada/aoc2021-day10.adb :noweb yes
   <<ada-packages>>
   package body AOC2021.Day10 is
      <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
+     <<ada-corruption>>
+     <<ada-incomplete>>
+     procedure Solve_Both (Filename: String; Corruption: out Integer; Incomplete: out Long_Long_Integer) is
+        File : File_Type;
+        Incompletes : LLI_Vectors.Vector;
      begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
+        Corruption := 0;
+        Incomplete := 0;
+        Open (File, In_File, Filename);
+        while not End_Of_File(File) loop
+           declare
+              Line : String := Get_Line(File);
+              CScore : Integer := Corruption_Score (Line);
+              IScore : Long_Long_Integer;
+           begin
+              Corruption := Corruption + CScore;
+              if CScore = 0
+              then
+                 IScore := Incomplete_Score (Line);
+                 Incompletes.Append(IScore);
+              end if;
+           end;
+        end loop;
+        LLI_Sort.Sort(Incompletes);
+        Incomplete := Incompletes (Natural(Incompletes.Length / 2));
+        Close (File);
+     end Solve_Both;
      procedure Run is
+        Corruption : Integer;
+        Incomplete : Long_Long_Integer;
      begin
+        Solve_Both ("../input/10.txt", Corruption, Incomplete);
         Put_Line("Advent of Code 2021 - Day 10");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
+        Put_Line("The result for Part 1 is " & Integer'Image(Corruption));
+        Put_Line("The result for Part 2 is " & Long_Long_Integer'Image(Incomplete));
      end Run;
   end AOC2021.Day10;
 #+END_SRC
@@ -250,3 +339,6 @@ C-v C-t=.
 #+END_SRC
 
 #+RESULTS:
+: Advent of Code 2021 - Day 10
+: The result for Part 1 is  364389
+: The result for Part 2 is  2870201088
