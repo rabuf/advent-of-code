@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -73,12 +72,10 @@ fn decode_line(codes: &[String], display: &[String]) -> usize {
         "abcefg", "cf", "acdeg", "acdfg", "bcdf", "abdfg", "abdefg", "acf", "abcdefg", "abcdfg",
     ];
 
-    let canonical_set: HashSet<_> = canonical_strings.iter().map(|s| s.to_string()).collect();
-
     for perm in "abcdefg".chars().permutations(7) {
         let codes = translate(&perm, codes);
 
-        if 10 == codes.iter().filter(|&s| canonical_set.contains(s)).count() {
+        if codes.iter().all(|s| canonical_strings.contains(&s.as_str())) {
             let displays = translate(&perm, display);
             let result = displays
                 .iter()
