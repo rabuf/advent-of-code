@@ -47,35 +47,29 @@ pub fn part1() -> usize {
         .sum()
 }
 
-fn clever_decode (codes: &[String], display: &[String]) -> usize {
+fn clever_decode(codes: &[String], display: &[String]) -> usize {
     let mut codes: Vec<_> = codes.iter().collect();
     let default = "".to_string();
     let mut decoder: Vec<&String> = vec![&default; 10];
     // 1, 4, 7, 8 are straight forward
-    codes.iter().for_each(|&code| {
-       match code.len() {
-           2 => decoder[1] = code,
-           3 => decoder[7] = code,
-           4 => decoder[4] = code,
-           7 => decoder[8] = code,
-           _ => ()
-       }
+    codes.iter().for_each(|&code| match code.len() {
+        2 => decoder[1] = code,
+        3 => decoder[7] = code,
+        4 => decoder[4] = code,
+        7 => decoder[8] = code,
+        _ => (),
     });
     // remove the discovered values
     codes.retain(|c| !decoder.contains(c));
     codes.iter().for_each(|&code| {
-        if code.len() == 6 {
-            if decoder[4].chars().all(|c| code.contains(c)) {
-                decoder[9] = code;
-            }
+        if code.len() == 6 && decoder[4].chars().all(|c| code.contains(c)) {
+            decoder[9] = code;
         }
     });
     codes.retain(|c| !decoder.contains(c));
     codes.iter().for_each(|&code| {
-        if code.len() == 6 {
-            if decoder[7].chars().all(|c| code.contains(c)) {
-                decoder[0] = code;
-            }
+        if code.len() == 6 && decoder[7].chars().all(|c| code.contains(c)) {
+            decoder[0] = code;
         }
     });
     codes.retain(|c| !decoder.contains(c));
@@ -86,22 +80,22 @@ fn clever_decode (codes: &[String], display: &[String]) -> usize {
     });
     codes.retain(|c| !decoder.contains(c));
     codes.iter().for_each(|&code| {
-       if decoder[7].chars().all(|c| code.contains(c)) {
-           decoder[3] = code;
-       }
+        if decoder[7].chars().all(|c| code.contains(c)) {
+            decoder[3] = code;
+        }
     });
     codes.retain(|c| !decoder.contains(c));
     codes.iter().for_each(|&code| {
-       if code.chars().all(|c| decoder[6].contains(c)) {
-           decoder[5] = code;
-       }
+        if code.chars().all(|c| decoder[6].contains(c)) {
+            decoder[5] = code;
+        }
     });
     codes.retain(|c| !decoder.contains(c));
     decoder[2] = codes[0];
     let mut result = 0;
     for d in display.iter() {
         result *= 10;
-        let i = decoder.iter().position(|&s| s == d).or_else(||Some(0)).unwrap();
+        let i = decoder.iter().position(|&s| s == d).or(Some(0)).unwrap();
         result += i;
     }
     result

@@ -1,4 +1,4 @@
-use aoc::{day01, day02, day03, day04, day05, day06, day07, day08};
+use aoc::{day01, day02, day03, day04, day05, day06, day07, day08, day09, day10};
 
 fn main() {
     println!("Hello AoC 2021!");
@@ -18,4 +18,8 @@ fn main() {
     println!("Day 07 Part 02: {}", day07::part2());
     println!("Day 08 Part 01: {}", day08::part1());
     println!("Day 08 Part 02: {}", day08::part2());
+    println!("Day 09 Part 01: {}", day09::part1());
+    println!("Day 09 Part 02: {}", day09::part2());
+    println!("Day 10 Part 01: {}", day10::part1());
+    println!("Day 10 Part 02: {}", day10::part2());
 }
