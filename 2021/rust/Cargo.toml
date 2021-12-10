@@ -12,3 +12,4 @@ name = "aoc"
 [dependencies]
 regex = "1"
 itertools = "0.10.1"
+lazy_static = "1.4.0"

@@ -110,10 +110,9 @@ If I understand the example correctly, basins are always surrounded by
        finally (return (length basin))
        for current = (pop next)
        for height = (gethash current grid 9)
-       if (= 9 height)
        do (push current visited)
        if (< height 9)
-       do (push current visited)
+       do
          (push current basin)
          (let ((neighbors (neighbors current)))
            (loop for n in neighbors
