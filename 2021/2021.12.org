@@ -1,0 +1,283 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 12
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-12)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-12
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-12)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line graph)
+    (let* ((nodes (cl-ppcre:split "-" line))
+           (left (first nodes))
+           (right (second nodes)))
+      (push right  (gethash left graph nil))
+      (push left (gethash right graph nil))))
+  ;; easy peasy
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         with graph = (make-hash-table :test #'equal)
+         for line = (read-line in nil)
+         while line
+         finally (return graph)
+         do (parse-line line graph))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/12.txt"))
+#+END_SRC
+** Part 1
+Pathfinding with some special rules. Lowercase names are "small caves"
+which can only be visited once on a path. Uppercase names are "big
+caves" which can be visited any number of times.
+
+Determine all paths through the cave system starting at START and
+going to END. No rushing tonight. Just a walk through the problem.
+
+To begin with, parsing. Parsing is going to be straightforward. Split
+each line on the =-= character. Store the names of each connected cave
+in each other's connected-to value in a hash table (a very convenient
+data structure).
+
+I'll do a recursive walk through the graph. This is the part that's
+hard, for me. I guess I'll destructively modify the graph. If it's a
+small cave, it gets removed from the hash table. But I'll restore it
+once it's returned?
+#+NAME: cave-walk
+#+BEGIN_SRC lisp :results silent
+  (defun small-cave? (name)
+    (loop for c across name
+         always (lower-case-p c)))
+  (defun big-cave? (name)
+    (loop for c across name
+         always (upper-case-p c)))
+  (defun cave-walk (cave &optional (current "start"))
+    "CAVE-WALK will tally all paths through the CAVE from the CURRENT
+  position."
+    (cond ((string= "end" current) 1)
+          ((small-cave? current)
+           (let ((store (gethash current cave)))
+             (remhash current cave) ;; to be restored later
+             (loop
+                for c in store
+                sum (cave-walk cave c)
+                finally (setf (gethash current cave) store))))
+          ((big-cave? current)
+           (loop
+              for c in (gethash current cave)
+              sum (cave-walk cave c)))))  
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 12 A: ~a~%" (cave-walk *input*)))
+#+END_SRC
+** Part 2
+New rule: a *single* small cave can be visited twice.
+
+I'm going to add a flag. Basically, if a cave is small (and not
+=start= or =end=) *and* no small cave has been visited twice (what the
+extra parameter will convey) then small caves will *first* run through
+without removing themselves and *then* run through removing
+themselves.
+
+I'm double counting when a small cave is permitted to be revisised but
+is *not* revisited. I'm going to change the approach. Instead of a
+"revisitable" I'll store *which* node is to be revisited and *whether*
+it has been revisited. If it has not, the tally gets decremented by 1
+(I'll store -1 or 0)
+#+NAME: brain-not-working
+#+BEGIN_SRC lisp :results silent
+  (defun cave-walk-lazy (cave &optional (current "start") to-revisit (was-revisited 0))
+    "CAVE-WALK-LAZY will tally all paths through the CAVE from the
+  CURRENT position while permitting one cave to be REVISITABLE."
+    (cond ((null (gethash current cave)) 0)
+          ((string= "end" current) (1+ was-revisited))
+          ((string= "start" current)
+           (let ((store (gethash current cave)))
+             (remhash current cave)
+             (loop
+                for c in store
+                finally (setf (gethash current cave) store)
+                sum (cave-walk-lazy cave c))))
+          ((string= to-revisit current)
+           (let ((store (gethash current cave)))
+             (remhash current cave)
+             (loop
+                for c in store
+                sum (cave-walk-lazy cave c to-revisit 0)
+                finally (setf (gethash current cave) store))))
+          ((and (small-cave? current) (null to-revisit))
+           (+ (loop
+                 for c in (gethash current cave)
+                 sum (cave-walk-lazy cave c current -1))
+              (loop
+                 with store = (gethash current cave)
+                 initially (remhash current cave)
+                 for c in store
+                 sum (cave-walk-lazy cave c nil 0)
+                 finally (setf (gethash current cave) store))))
+          ((small-cave? current)
+           (let ((store (gethash current cave)))
+             (remhash current cave)
+             (loop
+                for c in store
+                sum (cave-walk-lazy cave c to-revisit was-revisited)
+                finally (setf (gethash current cave) store))))
+          ((big-cave? current)
+           (loop
+              for c in (gethash current cave)
+              sum (cave-walk-lazy cave c to-revisit was-revisited)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 12 B: ~a~%" (cave-walk-lazy *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<cave-walk>>
+  <<brain-not-working>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 12 A: 5252
+: Problem 12 B: 147784
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.12)
+  (in-suite aoc.2021.12)
+
+  (run! 'aoc.2021.12)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day12.adb
+  with AOC2021.Day12;
+  procedure Day12 is
+  begin
+    AOC2021.Day12.Run;
+  end Day12;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day12.ads
+  package AOC2021.Day12 is
+     procedure Run;
+  end AOC2021.Day12;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day12.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day12 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 12");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day12;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day12
+  ./day12
+#+END_SRC
+
+#+RESULTS:
