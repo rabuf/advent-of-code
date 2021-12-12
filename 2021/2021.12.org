@@ -104,8 +104,7 @@ once it's returned?
           ((big-cave? current)
            (loop
               for c in (gethash current cave)
-              sum (cave-walk cave c)))
-          (t 0)))
+              sum (cave-walk cave c)))))
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
