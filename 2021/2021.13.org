@@ -57,6 +57,7 @@ support for lisp installed you can run this by:
     (read-input "input/13.txt"))
 #+END_SRC
 ** Part 1
+#+NAME: part-1
 #+BEGIN_SRC lisp :results silent
   (defun parse-coordinates (coordinates)
     (let ((coordinates
@@ -139,6 +140,7 @@ support for lisp installed you can run this by:
   (defun problem-a () (format t "Problem 13 A: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
+#+NAME: part-2
 #+BEGIN_SRC lisp :results silent
   (defun print-grid (grid)
     (destructuring-bind (min-x max-x min-y max-y)
@@ -155,7 +157,7 @@ support for lisp installed you can run this by:
          do (loop
                for x from min-x to max-x
                for v = (gethash (complex x y) grid)
-               do (format t (if v "#" ".")))
+               do (format t "~A" (if v #\inverse_bullet #\space)))
            (format t "~%"))))
   (defun solve-b (input)
     (let* ((input (parse-input input))
@@ -179,6 +181,8 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
   <<input>>
+  <<part-1>>
+  <<part-2>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
@@ -194,12 +198,12 @@ support for lisp installed you can run this by:
 ** Answer
 #+RESULTS: answers
 : Problem 13 A: 747
-: .##..###..#..#.####.###...##..#..#.#..#
-: #..#.#..#.#..#....#.#..#.#..#.#..#.#..#
-: #..#.#..#.####...#..#..#.#....#..#.####
-: ####.###..#..#..#...###..#....#..#.#..#
-: #..#.#.#..#..#.#....#....#..#.#..#.#..#
-: #..#.#..#.#..#.####.#.....##...##..#..#
+:  ◘◘  ◘◘◘  ◘  ◘ ◘◘◘◘ ◘◘◘   ◘◘  ◘  ◘ ◘  ◘
+: ◘  ◘ ◘  ◘ ◘  ◘    ◘ ◘  ◘ ◘  ◘ ◘  ◘ ◘  ◘
+: ◘  ◘ ◘  ◘ ◘◘◘◘   ◘  ◘  ◘ ◘    ◘  ◘ ◘◘◘◘
+: ◘◘◘◘ ◘◘◘  ◘  ◘  ◘   ◘◘◘  ◘    ◘  ◘ ◘  ◘
+: ◘  ◘ ◘ ◘  ◘  ◘ ◘    ◘    ◘  ◘ ◘  ◘ ◘  ◘
+: ◘  ◘ ◘  ◘ ◘  ◘ ◘◘◘◘ ◘     ◘◘   ◘◘  ◘  ◘
 : Problem 13 B: NIL
 ** Test Cases
 #+NAME: test-cases
