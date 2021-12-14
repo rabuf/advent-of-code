@@ -1,0 +1,277 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 14
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-14)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-14
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-14)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (parse-input (read-input "input/14.txt")))
+  (defparameter *test-input*
+    (parse-input (read-input "test/14.txt")))
+#+END_SRC
+
+#+NAME: parsing
+#+BEGIN_SRC lisp :results silent
+  (defun parse-rules (rules)
+    (loop
+       with ruledb = (make-hash-table :test #'equal)
+       for rule in rules
+       for (pair middle) = (cl-ppcre:split " -> " rule)
+       for m = (char middle 0)
+       finally (return ruledb)
+       do (setf (gethash (coerce pair 'list) ruledb) m)))
+  (defun parse-input (lines)
+    (list (coerce (first lines) 'list)
+          (parse-rules (rest (rest lines)))))
+#+END_SRC
+** Part 1
+Substitution rules. Of course there was a problem with rules like this.
+
+#+NAME: apply-rules
+#+BEGIN_SRC lisp :results silent
+  (defun apply-rules (polymer rules)
+    (append (loop
+               for (a b) on polymer
+               for mid = (gethash (list a b) rules)
+               while b
+               ;;do (format t "~A ~A -> ~A~%" a b mid)
+               append (list a mid))
+            (last polymer)))
+
+  (defun minmax-counts (sequence)
+    (loop
+       for item in sequence
+       with count-table = (make-hash-table :test #'equal)
+       do (incf (gethash item count-table 0))
+       maximizing (gethash item count-table) into max
+       minimizing (gethash item count-table) into min
+       finally (return (loop for v being the hash-value of count-table
+                          maximizing v into max
+                          minimizing v into min
+                          finally (return (- max min))))))
+
+  (defun solve-a (input &optional (steps 11))
+    (loop
+       repeat steps
+       with rules = (second input)
+       for polymer = (first input) then (apply-rules polymer rules)
+       finally (return (values (minmax-counts polymer) (length polymer)))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 14 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+The above, naturally, doesn't work for 40 rounds when the growth rate
+is exponential. Instead of tracking each element, I track each pair
+and its current count. Then I create a new hash table tracking the new
+pairs after the rules are applied and swap them out. Repeat 41 times.
+#+NAME: fast-apply
+#+BEGIN_SRC lisp :results silent
+  (defun compress-polymer (polymer)
+    (loop
+       with pairs = (make-hash-table :test #'equal)
+       for (a b) on polymer
+       while b
+       do (incf (gethash (list a b) pairs 0))
+       finally (return pairs)))
+
+  (defun fast-apply (polymer rules)
+    (loop
+       with new-polymer = (make-hash-table :test #'equal)
+       for pair being the hash-keys of polymer using (hash-value count)
+       for (a b) = pair
+       for m = (gethash pair rules)
+       unless m
+       do (setf (gethash pair new-polymer) count)
+       when m
+       do
+         (incf (gethash (list a m) new-polymer 0) count)
+         (incf (gethash (list m b) new-polymer 0) count)
+       finally (return new-polymer)))
+
+  (defun minmax-hash (pairs last-value)
+    (loop
+       with histogram = (make-hash-table)
+       initially (incf (gethash last-value histogram 0))
+       for k being the hash-keys of pairs using (hash-value count)
+       for (a nil) = k
+       do (incf (gethash a histogram 0) count)
+       finally (return
+                 (loop for v being the hash-value of histogram
+                    maximizing v into max
+                    minimizing v into min
+                    finally (return (- max min))))))
+
+  (defun solve-b (input &optional (steps 11))
+    (loop
+       repeat steps
+       with rules = (second input)
+       for polymer = (compress-polymer (first input)) then (fast-apply polymer rules)
+       finally (return (minmax-hash polymer (first (last (first input)))))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 14 B: ~a~%" (solve-b *input* 41)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<parsing>>
+  <<apply-rules>>
+  <<fast-apply>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 14 A: 2851
+: Problem 14 B: 10002813279337
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.14)
+  (in-suite aoc.2021.14)
+
+  (run! 'aoc.2021.14)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day14.adb
+  with AOC2021.Day14;
+  procedure Day14 is
+  begin
+    AOC2021.Day14.Run;
+  end Day14;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day14.ads
+  package AOC2021.Day14 is
+     procedure Run;
+  end AOC2021.Day14;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day14.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day14 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 14");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day14;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day14
+  ./day14
+#+END_SRC
+
+#+RESULTS:
