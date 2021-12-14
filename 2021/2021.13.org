@@ -166,7 +166,8 @@ support for lisp installed you can run this by:
       (loop
          for i in instructions
          do (fold grid i))
-      (print-grid grid)))
+      (print-grid grid)
+      (hash-table-count grid)))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -204,7 +205,7 @@ support for lisp installed you can run this by:
 : ◘◘◘◘ ◘◘◘  ◘  ◘  ◘   ◘◘◘  ◘    ◘  ◘ ◘  ◘
 : ◘  ◘ ◘ ◘  ◘  ◘ ◘    ◘    ◘  ◘ ◘  ◘ ◘  ◘
 : ◘  ◘ ◘  ◘ ◘  ◘ ◘◘◘◘ ◘     ◘◘   ◘◘  ◘  ◘
-: Problem 13 B: NIL
+: Problem 13 B: 102
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
