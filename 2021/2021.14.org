@@ -133,7 +133,7 @@ pairs after the rules are applied and swap them out. Repeat 41 times.
        for (a b) = pair
        for m = (gethash pair rules)
        unless m
-       do (setf (gethash pair new-polymer) count)
+       do (incf (gethash pair new-polymer 0) count)
        when m
        do
          (incf (gethash (list a m) new-polymer 0) count)
