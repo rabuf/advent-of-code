@@ -87,6 +87,22 @@ Substitution rules. Of course there was a problem with rules like this.
                append (list a mid))
             (last polymer)))
 
+  (defun slow-apply (polymer rules)
+    (loop
+       for (a b) on polymer
+       for head on polymer by #'cddr
+       for mid = (gethash (list a b) rules)
+       while b
+       do (setf (cdr head) (cons mid (cdr head)))))
+
+  (defun slow-solve-a (input &optional (steps 11))
+    (loop
+       repeat steps
+       with rules = (second input)
+       with polymer = (copy-seq (first input))
+       do (slow-apply polymer rules)
+       finally (return (values (minmax-counts polymer) (length polymer)))))
+
   (defun minmax-counts (sequence)
     (loop
        for item in sequence
@@ -170,9 +186,9 @@ pairs after the rules are applied and swap them out. Repeat 41 times.
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC lisp :noweb yes :results silent
+  <<parsing>>
   <<read-input>>
   <<input>>
-  <<parsing>>
   <<apply-rules>>
   <<fast-apply>>
 #+END_SRC
