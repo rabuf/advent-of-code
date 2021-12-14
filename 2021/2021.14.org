@@ -122,7 +122,7 @@ pairs after the rules are applied and swap them out. Repeat 41 times.
     (loop
        with pairs = (make-hash-table :test #'equal)
        for (a b) on polymer
-       while b
+       ;;while b
        do (incf (gethash (list a b) pairs 0))
        finally (return pairs)))
 
@@ -140,10 +140,9 @@ pairs after the rules are applied and swap them out. Repeat 41 times.
          (incf (gethash (list m b) new-polymer 0) count)
        finally (return new-polymer)))
 
-  (defun minmax-hash (pairs last-value)
+  (defun minmax-hash (pairs)
     (loop
        with histogram = (make-hash-table)
-       initially (incf (gethash last-value histogram 0))
        for k being the hash-keys of pairs using (hash-value count)
        for (a nil) = k
        do (incf (gethash a histogram 0) count)
@@ -158,7 +157,7 @@ pairs after the rules are applied and swap them out. Repeat 41 times.
        repeat steps
        with rules = (second input)
        for polymer = (compress-polymer (first input)) then (fast-apply polymer rules)
-       finally (return (minmax-hash polymer (first (last (first input)))))))
+       finally (return (minmax-hash polymer))))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -197,11 +196,24 @@ pairs after the rules are applied and swap them out. Repeat 41 times.
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2021.14)
   (in-suite aoc.2021.14)
-
+  (test polymer
+    (is (= 1588 (solve-a *test-input* 11)))
+    (is (= 1588 (solve-b *test-input* 11)))
+    (is (= 2188189693529 (solve-b *test-input* 41)))
+    (is (= 2851 (solve-a *input* 11)))
+    (is (= 2851 (solve-b *input* 11)))
+    (is (= 10002813279337 (solve-b *input* 41))))
   (run! 'aoc.2021.14)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2021.14
+:  Running test POLYMER ......
+:  Did 6 checks.
+:     Pass: 6 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
 ** Ada
 *** Runner
