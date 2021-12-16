@@ -1,0 +1,334 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 16
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-16)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-16
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-16)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (let ((line (read-line in nil)))
+        (list (parse-integer line :radix 16)
+              (* 4 (length line))))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/16.txt"))
+  (defparameter *test-literal*
+    (read-input "test/16-literal.txt"))
+  (defparameter *test-operator-bits*
+    (read-input "test/16-operator-bits.txt"))
+  (defparameter *test-operator-packets*
+    (read-input "test/16-operator-packets.txt"))
+  (defparameter *test-16-sum*
+    (read-input "test/16-16.txt"))
+  (defparameter *test-12-sum*
+    (read-input "test/16-12.txt"))
+  (defparameter *test-23-sum*
+    (read-input "test/16-23.txt"))
+  (defparameter *test-sum*
+    (read-input "test/16-tc1.txt"))
+  (defparameter *test-product*
+    (read-input "test/16-product.txt"))
+  (defparameter *test-min*
+    (read-input "test/16-min.txt"))
+  (defparameter *test-max*
+    (read-input "test/16-max.txt"))
+  (defparameter *test-gt*
+    (read-input "test/16-gt.txt"))
+#+END_SRC
+** Part 1
+I wish I were using Erlang today...
+
+The whole thing is a series of packets. The first 3 bits are the
+version (what we need for part 1, sum up all version numbers). The
+next 3 bits are the type. There are several examples, first are
+literals.
+
+| Type ID | Meaning       |
+| 4       | Literal Value |
+| ??      | Operator      |
+
+- Literal Value :: After the first 6-bits a series of 5-bits, the
+                   first bit indicates whether or not to continue.
+
+#+NAME: decode-packet
+#+BEGIN_SRC lisp :results silent
+  (defclass packet ()
+    ((version :initarg :version
+              :accessor pversion)
+     (type :initarg :type
+           :accessor ptype)))
+  (defclass literal (packet)
+    ((value :initarg :value
+            :accessor literal-value)))
+
+  (defun packet-version (packet position)
+    (ldb (byte 3 (- position 3)) packet))
+
+  (defun packet-type (packet position)
+    (ldb (byte 3 (- position 6)) packet))
+
+  (defun literal-group (packet position)
+    (list (ldb (byte 1 (- position 1)) packet)
+          (ldb (byte 4 (- position 5)) packet)))
+
+  (defun decode-literal (packet position)
+    (let ((version (packet-version packet position))
+          (type (packet-type packet position))
+          (value 0))
+      (loop
+         for pos = (- position 6) then (- pos 5)
+         for (continue? val) = (literal-group packet pos)
+         do
+           (setf value (* 16 value))
+           (incf value val)
+         until (zerop continue?)
+         finally
+           (return (values (make-instance 'literal :value value :type type :version version)
+                           (- pos 5))))))
+
+  (defclass operator (packet)
+    ((packets :initarg :packets
+              :accessor operator-packets)))
+
+  (defun operator-length-type (packet position)
+    (ldb (byte 1 (- position 7)) packet))
+
+  (defun operator-length-bits (packet position)
+    (ldb (byte 15 (- position 22)) packet))
+  (defun operator-length-packets (packet position)
+    (ldb (byte 11 (- position 18)) packet))
+
+  (defun decode-operator (packet position)
+    (let* ((version (packet-version packet position))
+           (type (packet-type packet position))
+           (ltype (operator-length-type packet position))
+           (length (case ltype
+                     (0 (operator-length-bits packet position))
+                     (1 (operator-length-packets packet position)))))
+      (multiple-value-bind (packets new-position)
+          (case ltype
+            (0 (decode-packet (ldb (byte length (- position length 22)) packet) length))
+            (1 (decode-packet packet (- position 18) :max-packets length)))
+          (values (make-instance 'operator
+                                 :version version :type type :packets packets)
+                  (case ltype
+                    (0 (- position length 22))
+                    (1 new-position))))))
+
+  (defun decode-packet (packet position &key (max-packets 0))
+    (loop
+       with position = position
+       with packets = nil
+       do (multiple-value-bind (packet next-position)
+              (case (packet-type packet position)
+                (4 (decode-literal packet position))
+                (otherwise (decode-operator packet position)))
+            (setf position next-position)
+            (push packet packets))
+       until (or (zerop (ldb (byte position 0) packet))
+                 (and (plusp max-packets) (= max-packets (length packets))))
+       finally (return (values (reverse packets) position))))
+
+  (defun sum-versions (packets)
+    (loop
+       for packet in packets
+       sum (case (ptype packet)
+             (4 (pversion packet))
+             (otherwise (+ (pversion packet) (sum-versions (operator-packets packet)))))))
+
+  (defun print-packet (packet &optional (depth 0))
+    (loop repeat depth
+       do (format t "  "))
+    (format t "Version: ~A~%Type: ~A~%Value? ~A~%" (pversion packet) (ptype packet) (case (ptype packet) (4 (literal-value packet)) (otherwise -1)))
+    (case (ptype packet)
+      (4 (return-from print-packet))
+      (otherwise (loop for packet in (operator-packets packet)
+                      do (print-packet packet (1+ depth))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 16 A: ~a~%" (sum-versions (decode-packet (first *input*) (second *input*)))))
+#+END_SRC
+** Part 2
+Stupid typos screwed me up for a long time above. Anyways, I already
+have all the info I need to do the next part which is just evaluation.
+
+And then I realized that I was collecting the subpackets in the
+*reverse* order of their actual value. Which made my gt/lt below screw
+up. Fixed that after adding a bunch of files for each test case. That
+was fun.
+#+NAME: evaluate-packet
+#+BEGIN_SRC lisp :results silent
+  (defun evaluate-packet (packet)
+    (case (ptype packet)
+      (0 (reduce #'+ (mapcar #'evaluate-packet (operator-packets packet))))
+      (1 (reduce #'* (mapcar #'evaluate-packet (operator-packets packet))))
+      (2 (reduce #'min (mapcar #'evaluate-packet (operator-packets packet))))
+      (3 (reduce #'max (mapcar #'evaluate-packet (operator-packets packet))))
+      (4 (literal-value packet))
+      (5 (let ((left (evaluate-packet (first (operator-packets packet))))
+               (right (evaluate-packet (second (operator-packets packet)))))
+           (if (< right left) 1 0)))
+      (6 (let ((left (evaluate-packet (first (operator-packets packet))))
+               (right (evaluate-packet (second (operator-packets packet)))))
+           (if (< left right) 1 0)))
+      (7 (let ((left (evaluate-packet (first (operator-packets packet))))
+               (right (evaluate-packet (second (operator-packets packet)))))
+           (if (= left right) 1 0)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 16 B: ~a~%" (evaluate-packet (first (decode-packet (first *input*) (second *input*))))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<decode-packet>>
+  <<evaluate-packet>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 16 A: 923
+: Problem 16 B: 258888628940
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.16)
+  (in-suite aoc.2021.16)
+
+  (run! 'aoc.2021.16)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day16.adb
+  with AOC2021.Day16;
+  procedure Day16 is
+  begin
+    AOC2021.Day16.Run;
+  end Day16;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day16.ads
+  package AOC2021.Day16 is
+     procedure Run;
+  end AOC2021.Day16;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day16.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day16 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 16");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day16;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day16
+  ./day16
+#+END_SRC
+
+#+RESULTS:
