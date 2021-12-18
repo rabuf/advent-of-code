@@ -190,8 +190,7 @@ quadratic.
 #+BEGIN_SRC lisp :results silent
   (defun largest-magnitude (numbers)
     (loop
-       for a in numbers
-       for rest = (rest numbers) then (rest rest)
+       for (a . rest) on numbers
        maximize (loop
                    for b in rest
                    maximize (magnitude (add a b))
