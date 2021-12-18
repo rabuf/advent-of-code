@@ -128,13 +128,13 @@ sort out.
 #+BEGIN_SRC lisp :results silent :noweb yes
   <<utilities>>
   <<split>>
-  (defun add-to-left (number addend)
+  (defun add-right (number addend)
     (cond ((null addend) number)
           ((regularp number)
            (+ number addend))
           ((pairp number)
            (list (first number) (add-right (second number) addend)))))
-  (defun add-to-right (number addend)
+  (defun add-left (number addend)
     (cond ((null addend) number)
           ((regularp number)
            (+ number addend))
@@ -148,11 +148,11 @@ sort out.
     (multiple-value-bind (l el? left right) (try-explode (first n) (1+ depth))
       (when el?
         (return-from try-explode
-          (values (list l (add-to-right (second n) right)) t left nil))))
+          (values (list l (add-left (second n) right)) t left nil))))
     (multiple-value-bind (r er? left right) (try-explode (second n) (1+ depth))
       (when er?
         (return-from try-explode
-          (values (list (add-to-left (first n) left) r) t nil right))))
+          (values (list (add-right (first n) left) r) t nil right))))
     n)
   (defun try-reduce (number)
     (multiple-value-bind (n explode?) (try-explode number)
