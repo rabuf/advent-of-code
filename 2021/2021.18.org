@@ -1,0 +1,292 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 18
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-18)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-18
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-18)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun |[-reader| (stream char)
+    (declare (ignore char))
+    (read-delimited-list #\] stream))
+  (defun parse-line (line)
+    (with-input-from-string (stream line)
+      (let ((*readtable* (copy-readtable)))
+        (set-syntax-from-char #\, #\ )
+        (set-macro-character #\[ #'|[-reader|)
+        (set-syntax-from-char #\] #\))
+        (read stream nil nil))))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/18.txt"))
+#+END_SRC
+** Part 1
+I had some fun with reader macros to make parsing easier, though I'd
+not used them before so that took a while.
+
+Now for the real problem, I have to first reduce each line. There are
+two reduction actions:
+- explode :: Applies to any pair that is inside 4 levels of nesting already.
+- split :: Applies to any number that has a value of 10 or more.
+
+- explode :: left value is added to the first regular number to the
+             left, right to the right, then the pair becomes a 0. How
+             to propagate the numbers through the tree? Multiple
+             values.
+- split :: If a number is more than 10, it becomes a pair with the
+           left half as floor(n/2) and right as ceil(n/2).
+
+Since only one rule can apply at a time, I'll run two passes down the
+tree, =try-split= and =try-explode=. If the first doesn't apply, I'll
+run the second. May combine them later.
+
+Ok, so how to explode? I'll add two new values to the return list,
+along with whether or not it exploded. The value to add to the left
+regular number, and to the right regular number. If these are nil,
+then they've been processed already.
+#+NAME: reduce
+#+BEGIN_SRC lisp :results silent
+  ;; just to use the problem's terms
+  (defun pairp (number)
+    (listp number))
+  (defun regularp (number)
+    (numberp number))
+  (defun split (n)
+    (list (floor n 2) (ceiling n 2)))
+  (defun try-split (n)
+    (cond ((and (regularp n) (<= 10 n))
+           (values (split n) t))
+          ((regularp n) n)
+          ((null n) nil)
+          ((pairp n)
+           (multiple-value-bind (l sl?) (try-split (first n))
+             (when sl?
+               (return-from try-split
+                 (values (list l (second n)) sl?))))
+           (multiple-value-bind (r sr?) (try-split (second n))
+             (when sr?
+               (values (list (first n) r) sr?))))))
+  (defun add-right (number addend)
+    (cond ((null addend) number)
+          ((regularp number)
+           (+ number addend))
+          ((pairp number)
+           (list (first number) (add-right (second number) addend)))))
+  (defun add-left (number addend)
+    (cond ((null addend) number)
+          ((regularp number)
+           (+ number addend))
+          ((pairp number)
+           (list (add-left (first number) addend) (second number)))))
+  (defun try-explode (n &optional (depth 0) )
+    (cond ((regularp n) (values n nil))
+          ((and (= 4 depth) (pairp n))
+           (values 0 t (first n) (second n)))
+          (t
+           (multiple-value-bind (l el? left right) (try-explode (first n) (1+ depth))
+             (when el?
+               (return-from try-explode
+                 (values (list l (add-left (second n) right)) t left nil))))
+           (multiple-value-bind (r er? left right) (try-explode (second n) (1+ depth))
+             (when er?
+               (return-from try-explode
+                 (values (list (add-right (first n) left) r) t nil right))))
+           n)))
+  (defun try-reduce (number)
+    (multiple-value-bind (n explode?) (try-explode number)
+      (when explode?
+        (return-from try-reduce (list n t))))
+    (multiple-value-bind (n split?) (try-split number)
+      (when split?
+        (return-from try-reduce (list n t))))
+    (list number nil))
+  (defun reduce-number (number)
+    (loop
+       for (n continue?) = (try-reduce number) then (try-reduce n)
+       while continue?
+       finally (return n)))
+  (defun add (a b)
+    (reduce-number (list (reduce-number a) (reduce-number b))))
+  (defun magnitude (number)
+    (cond ((regularp number) number)
+          (t
+           (+ (* 3 (magnitude (first number)))
+              (* 2 (magnitude (second number)))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 18 A: ~a~%" (magnitude (reduce #'add *input*))))
+#+END_SRC
+** Part 2
+Now we need the largest magnitude from adding any pair. This will be
+quadratic.
+#+NAME: largest-magnitude
+#+BEGIN_SRC lisp :results silent
+  (defun largest-magnitude (numbers)
+    (loop
+       for a in numbers
+       maximize (loop
+              for b in numbers
+              maximize (magnitude (add a b))
+              maximize (magnitude (add b a)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 18 B: ~a~%" (largest-magnitude *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<reduce>>
+  <<largest-magnitude>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 18 A: 3654
+: Problem 18 B: 4578
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.18)
+  (in-suite aoc.2021.18)
+
+  (run! 'aoc.2021.18)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day18.adb
+  with AOC2021.Day18;
+  procedure Day18 is
+  begin
+    AOC2021.Day18.Run;
+  end Day18;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day18.ads
+  package AOC2021.Day18 is
+     procedure Run;
+  end AOC2021.Day18;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day18.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day18 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 18");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day18;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day18
+  ./day18
+#+END_SRC
+
+#+RESULTS:
