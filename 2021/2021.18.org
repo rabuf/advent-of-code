@@ -90,54 +90,70 @@ Ok, so how to explode? I'll add two new values to the return list,
 along with whether or not it exploded. The value to add to the left
 regular number, and to the right regular number. If these are nil,
 then they've been processed already.
-#+NAME: reduce
+
+These are some functions I wrote that were meant to simplify some of
+the work.
+#+NAME: utilities
 #+BEGIN_SRC lisp :results silent
-  ;; just to use the problem's terms
   (defun pairp (number)
     (listp number))
   (defun regularp (number)
     (numberp number))
   (defun split (n)
     (list (floor n 2) (ceiling n 2)))
+#+END_SRC
+Splitting a number is straightforward, recurse until a regular number
+greater than 10 is found, turn it into a list with =split= (above). I
+had a stupid bug where I'd do *every* split in one pass. This put it
+in a broken state because then there would be pairs below the 4th
+depth. Well, you can't add a list to a number, took way too long to
+sort out.
+#+NAME: split
+#+BEGIN_SRC lisp :results silent
   (defun try-split (n)
     (cond ((and (regularp n) (<= 10 n))
            (values (split n) t))
           ((regularp n) n)
-          ((null n) nil)
           ((pairp n)
-           (multiple-value-bind (l sl?) (try-split (first n))
+           (destructuring-bind (left right) n
+           (multiple-value-bind (left sl?) (try-split left)
              (when sl?
                (return-from try-split
-                 (values (list l (second n)) sl?))))
-           (multiple-value-bind (r sr?) (try-split (second n))
+                 (values (list left right) sl?))))
+           (multiple-value-bind (right sr?) (try-split right)
              (when sr?
-               (values (list (first n) r) sr?))))))
-  (defun add-right (number addend)
+               (values (list left right) sr?)))))))
+#+END_SRC
+#+NAME: reduce
+#+BEGIN_SRC lisp :results silent :noweb yes
+  <<utilities>>
+  <<split>>
+  (defun add-to-left (number addend)
     (cond ((null addend) number)
           ((regularp number)
            (+ number addend))
           ((pairp number)
            (list (first number) (add-right (second number) addend)))))
-  (defun add-left (number addend)
+  (defun add-to-right (number addend)
     (cond ((null addend) number)
           ((regularp number)
            (+ number addend))
           ((pairp number)
            (list (add-left (first number) addend) (second number)))))
-  (defun try-explode (n &optional (depth 0) )
-    (cond ((regularp n) (values n nil))
-          ((and (= 4 depth) (pairp n))
-           (values 0 t (first n) (second n)))
-          (t
-           (multiple-value-bind (l el? left right) (try-explode (first n) (1+ depth))
-             (when el?
-               (return-from try-explode
-                 (values (list l (add-left (second n) right)) t left nil))))
-           (multiple-value-bind (r er? left right) (try-explode (second n) (1+ depth))
-             (when er?
-               (return-from try-explode
-                 (values (list (add-right (first n) left) r) t nil right))))
-           n)))
+  (defun try-explode (n &optional (depth 0))
+    (when (regularp n)
+      (return-from try-explode (values n nil)))
+    (when (= 4 depth)
+      (return-from try-explode (values 0 t (first n) (second n))))
+    (multiple-value-bind (l el? left right) (try-explode (first n) (1+ depth))
+      (when el?
+        (return-from try-explode
+          (values (list l (add-to-right (second n) right)) t left nil))))
+    (multiple-value-bind (r er? left right) (try-explode (second n) (1+ depth))
+      (when er?
+        (return-from try-explode
+          (values (list (add-to-left (first n) left) r) t nil right))))
+    n)
   (defun try-reduce (number)
     (multiple-value-bind (n explode?) (try-explode number)
       (when explode?
@@ -152,12 +168,16 @@ then they've been processed already.
        while continue?
        finally (return n)))
   (defun add (a b)
-    (reduce-number (list (reduce-number a) (reduce-number b))))
+    (reduce-number (list a b)))
+#+END_SRC
+Magnitude is a straightforward recursive tree walker.
+#+NAME: magnitude
+#+BEGIN_SRC lisp :results silent
   (defun magnitude (number)
-    (cond ((regularp number) number)
-          (t
-           (+ (* 3 (magnitude (first number)))
-              (* 2 (magnitude (second number)))))))
+    (if (regularp number)
+        number
+        (+ (* 3 (magnitude (first number)))
+           (* 2 (magnitude (second number))))))
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -190,6 +210,7 @@ quadratic.
   <<read-input>>
   <<input>>
   <<reduce>>
+  <<magnitude>>
   <<largest-magnitude>>
 #+END_SRC
 #+NAME: answers
