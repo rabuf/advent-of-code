@@ -193,9 +193,9 @@ quadratic.
        for a in numbers
        for rest = (rest numbers) then (rest rest)
        maximize (loop
-              for b in rest
-              maximize (magnitude (add a b))
-              maximize (magnitude (add b a)))))
+                   for b in rest
+                   maximize (magnitude (add a b))
+                   maximize (magnitude (add b a)))))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
