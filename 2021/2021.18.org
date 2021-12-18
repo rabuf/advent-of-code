@@ -191,8 +191,9 @@ quadratic.
   (defun largest-magnitude (numbers)
     (loop
        for a in numbers
+       for rest = (rest numbers) then (rest rest)
        maximize (loop
-              for b in numbers
+              for b in rest
               maximize (magnitude (add a b))
               maximize (magnitude (add b a)))))
 #+END_SRC
