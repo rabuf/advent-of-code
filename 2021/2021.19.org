@@ -1,0 +1,340 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 19
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-19)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-19
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-19)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-coordinates (coordinates)
+    (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "-?\\d+" coordinates)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         with scanners = nil
+         for scanner = nil
+         for scanner-id = (read-line in nil)
+         while scanner-id
+         finally (return (reverse scanners))
+         do (loop
+               for line = (read-line in nil)
+               for coordinates = (parse-coordinates line)
+               until (or (null line)
+                         (string= "" line))
+               do (push coordinates scanner))
+           (push (reverse scanner) scanners))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/19.txt"))
+  (defparameter *test-input*
+    (read-input "test/19.txt"))
+#+END_SRC
+** Part 1
+The question is how many total beacons are present. I'll treat the
+first scanner data processed as correctly oriented.
+
+Everything else will be made to match against it. How to do that?
+There are up to 24 orientations for each set of scanner data, and then
+the offsets.
+
+Orientation. The scanner may be *actually* facing any axis, and then
+rotated in any of 4 directions after that.
+#+BEGIN_EXPORT ascii
+    |+Y
+    |
+    |
+    |    +X
+    +------
+    \
+     \
+      \
+       \+Z
+#+END_EXPORT
+
+Treating +X as canonical, everythnig else can be rotated to match that
+and then get 4 rotations around +X.
+#+NAME: reorient-scanner
+#+BEGIN_SRC lisp :results silent
+  (defun reorient (scanner)
+    "REORIENT will generate 24 sets from SCANNER corresponding to the 24
+    possible reorientations of the data. One of these is just the
+    identity."
+    (labels ((rotate-x (coord)
+               (destructuring-bind (x y z) coord
+                 (list x (- z) y)))
+             (+x (coord) coord)
+             (-x (coord)
+               (destructuring-bind (x y z) coord
+                 (list (- x) (- y) z)))
+             (+y (coord)
+               (destructuring-bind (x y z) coord
+                 (list y z x)))
+             (-y (coord)
+               (-x (+y coord)))
+             (+z (coord)
+               (destructuring-bind (x y z) coord
+                 (list z x y)))
+             (-z (coord)
+               (-x (+z coord))))
+      (loop
+         for f in (list #'+x #'-x #'+y #'-y #'+z #'-z)
+         with reoriented = nil
+         finally (return reoriented)
+         do (loop
+               for s = (mapcar f scanner) then (mapcar #'rotate-x s)
+               repeat 4
+               do (push s reoriented)))))
+#+END_SRC
+
+Alright, now that that's finally done...
+
+Second adjustment function. This one takes a scanner's report and
+applies an offset to each beacon in the set.
+
+#+NAME: offset
+#+BEGIN_SRC lisp :results silent
+  (defun apply-offset (scanner offset)
+    (mapcar (lambda (b)
+              (mapcar #'+ offset b))
+            scanner))
+#+END_SRC
+
+Nearing the end...
+
+Finding an offset is just math. I calculate all differences between
+two sets of scanner data and tally how many times a difference
+appears. Because I'm calculating way more differences than just a 1-1
+correspondence I have a (maybe unnecessary) safety check at the end to
+identify the actual offset.
+
+As I find new matches, I put them into the set of all beacons using
+=pushnew=. Because I've been using lists this whole thing is slow,
+there are a lot of linear operations that don't need to be. Another
+thing is that I calculate the rotations over and over (potentially)
+which is also a large set of linear operations. So right now the whole
+thing takes just over a second on my input but could probably be
+significantly reduced by switching to hash tables.
+#+NAME: identify-beacons
+#+BEGIN_SRC lisp :results silent
+  (defun find-offset (s1 s2)
+    "Returns NIL if there is no valid offset, or the OFFSET if there
+  is."
+    (flet ((v- (a b)
+             (mapcar #'- a b)))
+      (let ((differences (make-hash-table :test 'equal)))
+        ;; calculate all the differences
+        (loop
+           for a in s1
+           do (loop
+                 for b in s2
+                 for d = (v- a b)
+                 do (incf (gethash d differences 0))))
+        ;; once all diffs are calculated, see if any are actual matches
+        ;; or coincidences in the data (that is, we want 12 matches with
+        ;; 12 different pairs for one offset)
+        (loop
+           for offset being the hash-key of differences using (hash-value d)
+           if (<= 12 d)
+           do (when (<= 12 (length (intersection s1 (apply-offset s2 offset) :test #'equal)))
+                (return-from find-offset offset))))))
+
+  (defun find-beacons (scanners)
+    "Returns a list of all BEACONS after doing all the searching."
+    (loop
+       with beacons = (copy-tree (first scanners))
+       with offsets = (list (list 0 0 0))
+       with remaining = (copy-tree (rest scanners))
+       do
+       (loop
+          for scanner in remaining
+          do (loop 
+                for reoriented in (reorient scanner)
+                for offset = (find-offset beacons reoriented)
+                when offset
+                do
+                  (push offset offsets)
+                  (setf remaining (remove scanner remaining :test #'equal))
+                  (loop with final = (offset reoriented offset)
+                     for b in final
+                     do (pushnew b beacons :test #'equal))))
+       while remaining
+       finally (return (values beacons offsets))))
+#+END_SRC
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 19 A: ~a~%" (length (find-beacons *input*))))
+#+END_SRC
+** Part 2
+Ok so now we need the maximum Manhattan distance between any pair of
+scanners.
+#+NAME: most-distant
+#+BEGIN_SRC lisp :results silent
+  (defun manhattan (a b)
+    (reduce #'+ (mapcar (lambda (x y)
+                          (abs (- x y)))
+                        a b)))
+  (defun greatest-distance (scanners)
+    (loop
+       for (a . rest) on scanners
+       maximize (loop for b in rest
+                     maximize (manhattan a b))))
+       
+#+END_SRC
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 19 B: ~a~%" (greatest-distance (nth-value 1 (find-beacons *input*)))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<reorient-scanner>>
+  <<common-beacons>>
+  <<offset>>
+  <<identify-beacons>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 19 A: 320
+: Problem 19 B: 9655
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.19)
+  (in-suite aoc.2021.19)
+
+  (run! 'aoc.2021.19)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day19.adb
+  with AOC2021.Day19;
+  procedure Day19 is
+  begin
+    AOC2021.Day19.Run;
+  end Day19;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day19.ads
+  package AOC2021.Day19 is
+     procedure Run;
+  end AOC2021.Day19;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day19.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day19 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 19");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day19;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day19
+  ./day19
+#+END_SRC
+
+#+RESULTS:
