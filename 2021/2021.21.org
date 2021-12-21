@@ -124,7 +124,7 @@ the possible result:
                     for roll in die
                     for times in odds
                     for move = (move p1 roll)
-                    for (w1 w2) = (player-2 (move p1 roll) p2 (+ move s1) s2)
+                    for (w1 w2) = (player-2 move p2 (+ move s1) s2)
                     summing (* w1 times) into wins-1
                     summing (* w2 times) into wins-2
                     finally (return (list wins-1 wins-2))))
@@ -137,7 +137,7 @@ the possible result:
                     for roll in die
                     for times in odds
                     for move = (move p2 roll)
-                    for (w1 w2) = (player-1 p1 (move p2 roll) s1 (+ move s2))
+                    for (w1 w2) = (player-1 p1 move s1 (+ move s2))
                     summing (* w1 times) into wins-1
                     summing (* w2 times) into wins-2
                     finally (return (list wins-1 wins-2)))))
