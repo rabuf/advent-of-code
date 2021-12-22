@@ -1,0 +1,560 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 22
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-22)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-22
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-22)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (destructuring-bind (command ranges)
+        (cl-ppcre:split " " line)
+      (list (if (string= command "on") :on :off)
+            (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "-?\\d+" ranges)))))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect (parse-line line))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/22.txt"))
+  (defparameter *test-input*
+    (read-input "test/22.txt"))
+  (defparameter *test-big-input*
+    (read-input "test/22-big.txt"))
+#+END_SRC
+** Part 1
+How many cubes are "on" in the range -50 to 50 (on x, y, and z) after
+applying all the rules?
+#+NAME: reactor-reboot
+#+BEGIN_SRC lisp :results silent
+  (defun reboot (commands)
+    (loop
+       with reactor = (make-hash-table :test #'equal)
+       for (command (x- x+ y- y+ z- z+)) in commands
+       do (loop
+             for x from x- to x+
+             if (or (< x- x+ -50)
+                    (< 50 x- x+))
+             do (return)
+             if (<= -50 x 50)
+             do (loop
+                   for y from y- to y+
+                   if (or (< y- y+ -50)
+                          (< 50 y- y+))
+                   do (return)
+                   if (<= -50 y 50)
+                   do (loop
+                         for z from z- to z+
+                         for pos = (list x y z)
+                         if (or (< z- z+ -50)
+                                (< 50 z- z+))
+                         do (return)
+                         if (<= -50 z 50)
+                         do (case command
+                              (:on (setf (gethash pos reactor) t))
+                              (:off (remhash pos reactor))))))
+       finally (return (loop for x from -50 to 50
+                          sum (loop for y from -50 to 50
+                                 sum (loop for z from -50 to 50
+                                          for pos = (list x y z)
+                                          count (gethash pos reactor)))))))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 22 A: ~a~%" (reboot *input*)))
+#+END_SRC
+** Part 2
+So I already tried the above with the full input (remove the range
+guards), but it won't work. The data set is too large. Instead we need
+a better representation. Just not 100% sure what it will be yet.
+
+Some questions about the data: What is the actual range?
+#+BEGIN_SRC lisp :results output
+  (defun data-range (commands)
+    (loop
+       for (nil (x- x+ y- y+ z- z+)) in commands
+       minimizing x- into min-x
+       maximizing x+ into max-x
+       minimizing y- into min-y
+       maximizing y+ into max-y
+       minimizing z- into min-z
+       maximizing z+ into max-z
+       finally (return (list min-x max-x min-y max-y min-z max-z))))
+
+  (defun data-volumes (commands)
+    (loop
+       for (command (x- x+ y- y+ z- z+)) in commands
+       if (eql command :on)
+       sum (* (- x+ x-) (- y+ y-) (- z+ z-)) into on-sum
+       if (eql command :off)
+       sum (* (- x+ x-) (- y+ y-) (- z+ z-)) into off-sum
+       finally (return (list on-sum off-sum))))
+
+  (destructuring-bind (x- x+ y- y+ z- z+) (data-range *input*)
+    (format t "~A->~A, ~A->~A, ~A->~A: ~A cubes~%" x- x+ y- y+ z- z+ (* (- x+ x-) (- y+ y-) (- z+ z-))))
+  (format t "~A~%" (data-volumes *input*))
+#+END_SRC
+
+#+RESULTS:
+: -95373->97221, -94637->99240, -97875->93589: 7149179014937232 cubes
+: (2377897901247662 863557830005674)
+
+7149179014937232 cubes, that's a lot.
+
+Two ideas so far:
+
+- Operate on regions, splitting them (and maybe merging) when an on
+  region is partly turned off.
+- Work on parts of it, I know the full range. The main problem is
+  storing the total data set. It's a huge number, though, that many
+  potential iterations is a killer, too. Checked the ranges, it's a
+  huge number.
+
+How to split a region? First, I need to know if the regions overlap or
+are merely contained in it? Should I combine regions? For now I won't,
+an on region is simply kept as is. This will probably mean an
+incorrect count if on regions overlap, but it's a start.
+
+#+NAME: contains
+#+BEGIN_SRC lisp :results silent
+  (defun contains? (a b)
+    "Returns T if B is entirely contained in A."
+    (destructuring-bind (a-x- a-x+ a-y- a-y+ a-z- a-z+) a
+      (destructuring-bind (b-x- b-x+ b-y- b-y+ b-z- b-z+) b
+        (and (<= a-x- b-x- b-x+ a-x+)
+             (<= a-y- b-y- b-y+ a-y+)
+             (<= a-z- b-z- b-z+ a-z+)))))
+
+  (defun count-of-containing-regions (commands)
+    (loop
+       for ((ac a) . rest) on commands
+       sum (loop
+              for (bc b) in rest
+              if (contains? a b)
+              do (format t "~A contains ~A (~A -> ~A)~%" a b ac bc)
+              count (contains? a b))))
+#+END_SRC
+
+Ok, so there are 10 regions entirely contained within each other. Half
+are on->off, the other are on->on. Useful, so if a region is already
+on and we get a new on command, we can discard it.
+
+#+NAME: overlaps
+#+BEGIN_SRC lisp :results silent
+  (defun overlaps? (a b)
+    "Returns T if B is entirely contained in A."
+    (destructuring-bind (a-x- a-x+ a-y- a-y+ a-z- a-z+) a
+      (destructuring-bind (b-x- b-x+ b-y- b-y+ b-z- b-z+) b
+        (or (<= a-x- b-x- a-x+)
+            (<= a-x- b-x+ a-x+)
+            (<= a-y- b-y- a-y+)
+            (<= a-y- b-y- a-y+)
+            (<= a-z- b-z- a-z+)
+            (<= a-z- b-z+ a-z+)))))
+
+  (defun count-of-overlapping-regions (commands)
+    (loop
+       for ((ac a) . rest) on commands
+       sum (loop
+              for (bc b) in rest
+              if (overlaps? a b)
+              do (format t "~A overlaps ~A (~A -> ~A)~%" a b ac bc)
+              count (overlaps? a b))))
+  (defun count-of-partial-regions (commands)
+    (loop
+       for ((ac a) . rest) on commands
+       sum (loop
+              for (bc b) in rest
+              if (and (overlaps? a b) (not (contains? a b)))
+              do (format t "~A contains ~A (~A -> ~A)~%" a b ac bc)
+              count (and (overlaps? a b) (not (contains? a b))))))
+#+END_SRC
+
+*Lots* of overlapping happening. Including a lot of off->off
+overlapping. 7046 overlapping regions by my count.
+
+I've been overthinking this a lot.
+
+#+NAME: full-reboot
+#+BEGIN_SRC lisp :results silent
+  (defun region-volume (region)
+    (apply #'*
+           (loop for (d- d+ nil) on region by #'cddr
+                collect (- (1+ d+) d-))))
+
+  (defun top-region (a b)
+    (destructuring-bind (ax- ax+ ay- ay+ az- az+) a
+      (destructuring-bind (bx- bx+ by- by+ bz- bz+) b
+        (declare (ignore bx- bx+ by- by+ bz-))
+        (when (< az- bz+ az+)
+            (list ax- ax+ ay- ay+ (1+ bz+) az+)))))
+  (defun bottom-region (a b)
+    (destructuring-bind (ax- ax+ ay- ay+ az- az+) a
+      (destructuring-bind (bx- bx+ by- by+ bz- bz+) b
+        (declare (ignore bx- bx+ by- by+ bz+))
+        (when (< az- bz- az+)
+          (list ax- ax+ ay- ay+ az- (1- bz-))))))
+  (defun left-region (a b)
+    (destructuring-bind (ax- ax+ ay- ay+ az- az+) a
+      (destructuring-bind (bx- bx+ by- by+ bz- bz+) b
+        (declare (ignore by- by+ bx+))
+        (when (< ax- bx- ax+)
+          (list ax- (1- bx-) ay- ay+ (max az- bz-) (min az+ bz+))))))
+  (defun right-region (a b)
+    (destructuring-bind (ax- ax+ ay- ay+ az- az+) a
+      (destructuring-bind (bx- bx+ by- by+ bz- bz+) b
+        (declare (ignore by- by+ bx-))
+        (when (< ax- bx+ ax+)
+          (list (1+ bx+) ax+ ay- ay+ (max az- bz-) (min az+ bz+))))))
+
+  ;; front and back are more complicated, slightly.
+
+  (defun front-region (a b)
+    (destructuring-bind (ax- ax+ ay- ay+ az- az+) a
+      (destructuring-bind (bx- bx+ by- by+ bz- bz+) b
+        (declare (ignore by-))
+        (when (< ay- by+ ay+)
+          (list (max bx- ax-) (min bx+ ax+)
+                (1+ by+) ay+
+                (max az- bz-) (min az+ bz+))))))
+  (defun back-region (a b)
+    (destructuring-bind (ax- ax+ ay- ay+ az- az+) a
+      (destructuring-bind (bx- bx+ by- by+ bz- bz+) b
+        (declare (ignore by+))
+        (when (< ay- by- ay+)
+          (list (max bx- ax-) (min bx+ ax+)
+                ay- (1- by-)
+                (max az- bz-) (min az+ bz+))))))
+
+  (defun region-remove (a b)
+    (cond ((overlaps? a b) (print 'overlaps)
+           (let ((top (top-region a b))
+                 (bottom (bottom-region a b))
+                 (left (left-region a b))
+                 (right (right-region a b))
+                 (front (front-region a b))
+                 (back (back-region a b)))
+             (remove nil (list top bottom left right front back))))
+          (t (list a)))) ;; no overlap, nothing to remove
+
+  ;; This handles turning off parts of regions
+  (defun difference-from-all (regions off)
+    (loop
+       for region in regions
+       append (print (region-remove region off))))
+
+  (defun difference-from-all-on (regions off)
+    (loop
+       for region in regions
+       append (print (region-remove off region))))
+
+  (defun full-reboot (commands)
+    (loop
+       with regions = nil
+       for (command region) in commands
+       do (case command
+            (:on (push region regions))
+            (:off (setf regions (difference-from-all regions region))))
+       finally (return (values (apply #'+ (mapcar #'region-volume regions)) regions))))
+#+END_SRC
+Revisiting this, my "solution" above has a number of issues so I'll
+just rewrite it. Starting off, I'm making a new =cuboid= class that
+will contain all the data. I'll write a few convenience functions to
+support the necessary operations.
+#+NAME: classes
+#+BEGIN_SRC lisp :results silent
+  (defclass minmax ()
+    ((min :initarg :min :accessor minimum)
+     (max :initarg :max :accessor maximum)))
+
+  (defmethod print-object ((bounds minmax) stream)
+    (format stream "~A..~A" (minimum bounds) (maximum bounds)))
+
+  (defclass cuboid ()
+    ((x :initarg :x :accessor x)
+     (y :initarg :y :accessor y)
+     (z :initarg :z :accessor z)))
+
+  (defmethod print-object ((c cuboid) stream)
+    (format stream "~:_~@{~A~%~}" (x c) (y c) (z c)))
+#+END_SRC
+
+#+NAME: cuboids
+#+BEGIN_SRC lisp :results silent
+  (defun make-cuboid (bounds)
+    (destructuring-bind (x- x+ y- y+ z- z+) bounds
+      (make-instance 'cuboid
+                     :x (make-instance 'minmax :min x- :max x+)
+                     :y (make-instance 'minmax :min y- :max y+)
+                     :z (make-instance 'minmax :min z- :max z+))))
+
+  (defun minmax-overlap? (a b)
+    (with-slots ((a-min min) (a-max max)) a
+      (with-slots ((b-min min) (b-max max)) b
+        (or (<= a-min b-min a-max)
+            (<= a-min b-max a-max)
+            (<= b-min a-min b-max)
+            (<= b-min a-max b-max)))))
+
+  (defun cube-intersection (a b)
+    (when (and (minmax-overlap? (x a) (x b))
+               (minmax-overlap? (y a) (y b))
+               (minmax-overlap? (z a) (z b)))
+      (make-cuboid
+       (list (max (minimum (x a)) (minimum (x b)))
+             (min (maximum (x a)) (maximum (x b)))
+             (max (minimum (y a)) (minimum (y b)))
+             (min (maximum (y a)) (maximum (y b)))
+             (max (minimum (z a)) (minimum (z b)))
+             (min (maximum (z a)) (maximum (z b)))))))
+
+  (defun minmax-span (minmax)
+    (- (1+ (maximum minmax)) (minimum minmax)))
+
+  (defun valid-range? (minmax)
+    (<= (minimum minmax) (maximum minmax)))
+
+  (defun cube-volume (cube)
+    (* (minmax-span (x cube))
+       (minmax-span (y cube))
+       (minmax-span (z cube))))
+
+  ;; top/bottom defined using z axis; top is +z
+  (defun top-cube (a b)
+    (when (<= (1+ (maximum (z b))) (maximum (z a)))
+      (let ((bounds (list (minimum (x a)) (maximum (x a))
+                          (minimum (y a)) (maximum (y a))
+                          (1+ (maximum (z b))) (maximum (z a)))))
+        (make-cuboid bounds))))
+  (defun bottom-cube (a b)
+    (when (<= (minimum (z a)) (1- (minimum (z b))))
+      (let ((bounds (list (minimum (x a)) (maximum (x a))
+                          (minimum (y a)) (maximum (y a))
+                          (minimum (z a)) (1- (minimum (z b))))))
+        (make-cuboid bounds))))
+
+  ;; left/right defined using x axis; right is +x
+  (defun left-cube (a b)
+    (when (<= (minimum (x a)) (1- (minimum (x b))))
+      (let ((bounds (list (minimum (x a)) (1- (minimum (x b)))
+                          (minimum (y a)) (maximum (y a))
+                          (minimum (z b)) (maximum (z b)))))
+        (make-cuboid bounds))))
+  (defun right-cube (a b)
+    (when (<= (1+ (maximum (x b))) (maximum (x a)))
+      (let ((bounds (list (1+ (maximum (x b))) (maximum (x a))
+                          (minimum (y a)) (maximum (y a))
+                          (minimum (z b)) (maximum (z b)))))
+        (make-cuboid bounds))))
+
+  ;; front/back defined using y axis; front is +y
+  (defun back-cube (a b)
+    (when (<= (minimum (y a)) (1- (minimum (y b))))
+      (let ((bounds (list (minimum (x b)) (maximum (x b))
+                          (minimum (y a)) (1- (minimum (y b)))
+                          (minimum (z b)) (maximum (z b)))))
+        (make-cuboid bounds))))
+  (defun front-cube (a b)
+    (when (<= (1+ (maximum (y b))) (maximum (y a)))
+      (let ((bounds (list (minimum (x b)) (maximum (x b))
+                          (1+ (maximum (y b))) (maximum (y a))
+                          (minimum (z b)) (maximum (z b)))))
+        (make-cuboid bounds))))
+
+  (defun split-cube (a b)
+    "Makes up to 6 new cubes from A after removing B"
+    (loop
+       for f in (list #'top-cube #'bottom-cube #'left-cube #'right-cube #'front-cube #'back-cube)
+       for new = (funcall f a b)
+       if new
+       collect new))
+
+  (defun cube-less-cube (a b)
+    (let ((intersection (cube-intersection a b)))
+      (if intersection
+          (split-cube a intersection)
+          (list a)))) ;; must be a list, artifact of how I collect all the new cubes
+
+  (defun split-all-cuboids (cuboids cube)
+    (loop
+       for c in cuboids
+       append (cube-less-cube c cube))) ;; very readable...  
+
+  (defun solve-part-2 (input)
+    (loop
+       for round from 0
+       with regions = nil
+       for (command bounds) in input
+       for cuboid = (make-cuboid bounds)
+       do (setf regions (split-all-cuboids regions cuboid))
+         (ecase command
+           (:on (push cuboid regions))
+           (:off nil))
+       finally (return (loop for c in regions
+                            sum (cube-volume c)))))
+
+  (defun count-intersections (commands)
+    (loop
+       for ((nil outer) . rest) on commands
+       sum (loop
+              for (nil inner) in rest
+              count (cube-intersection (make-cuboid outer) (make-cuboid inner)))))
+#+END_SRC
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 22 B: ~a~%" (solve-part-2 *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<reactor-reboot>>
+  <<classes>>
+  <<cuboids>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 22 A: 591365
+: Problem 22 B: 1211172281877240
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.22)
+  (in-suite aoc.2021.22)
+
+  (run! 'aoc.2021.22)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day22.adb
+  with AOC2021.Day22;
+  procedure Day22 is
+  begin
+    AOC2021.Day22.Run;
+  end Day22;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day22.ads
+  package AOC2021.Day22 is
+     procedure Run;
+  end AOC2021.Day22;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day22.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day22 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 22");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day22;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day22
+  ./day22
+#+END_SRC
+
+#+RESULTS:
