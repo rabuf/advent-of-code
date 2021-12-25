@@ -1,0 +1,276 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 25
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2021-25)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :iterate)
+    (ql:quickload "iterate"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2021-25
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2021-25)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect line)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/25.txt"))
+  (defparameter *test-input*
+    (read-input "test/25.txt"))
+#+END_SRC
+** Part 1
+The input is a set of sea cucumbers which move either always right or
+always down (> or v). The space is toroidal so it wraps around from
+bottom to top and right to left (and the reverse, but that doesn't
+matter today).
+
+The question is, how many steps before the sea cucumbers become
+stuck. Movement rules:
+- Right bound sea cucumbers move first, but only move if the space to
+  their right is open.
+- Downward bound sea cucumbers move second, but also only move if the
+  space below them is open.
+
+By the way the tie breaking works, I can scan the input twice, always
+going left to right and then top to bottom. On the first pass the
+right moving sea cucumbers will move, if they can. On the second pass
+the downward moving sea cucumbers will attempt to move. I'll parse the
+input in the solution itself.
+#+NAME: march-of-the-cucumbers
+#+BEGIN_SRC lisp :results silent
+  (defun text-to-grid (lines)
+    (loop
+       with grid = (make-hash-table)
+       with x-max = 0
+       with y-max = 0
+       for y from 0
+       for line in lines
+       do (setf y-max (max y-max y))
+       do (loop
+             for x from 0
+             for c across line
+             for pos = (complex x y)
+             do (setf x-max (max x-max x))
+             if (member c '(#\> #\v))
+             do (setf (gethash pos grid) c))
+       finally (return (list grid (1+ x-max) (1+ y-max)))))
+
+  (defun step-right (grid x y)
+    (loop
+       with moved = 0
+       with next-grid = (make-hash-table)
+       for j from 0 below y
+       finally (return (list next-grid moved))
+       do (loop
+             for i from 0 below x
+             for pos = (complex i j)
+             for next = (complex (mod (1+ i) x) j)
+             for c = (gethash pos grid)
+             if c
+             do
+               (cond ((and (char= #\> c)
+                           (not (gethash next grid)))
+                      (incf moved)
+                      (setf (gethash next next-grid) #\>))
+                     (t
+                      (setf (gethash pos next-grid) c))))))
+
+  (defun step-down (grid x y)
+    (loop
+       with moved = 0
+       with next-grid = (make-hash-table)
+       for j from 0 below y
+       finally (return (list next-grid moved))
+       do (loop
+             for i from 0 below x
+             for pos = (complex i j)
+             for next = (complex i (mod (1+ j) y))
+             for c = (gethash pos grid)
+             if c
+             do
+               (cond ((and (char= #\v c)
+                           (not (gethash next grid)))
+                      (incf moved)
+                      (setf (gethash next next-grid) #\v))
+                     (t
+                      (setf (gethash pos next-grid) c))))))
+
+  (defun find-end-point (lines)
+    (loop
+       with (grid x y) = (text-to-grid lines)
+       for count from 1
+       for (right-grid moved-right) = (step-right grid x y)
+       for (down-grid moved-down) = (step-down right-grid x y)
+       until (zerop (+ moved-right moved-down))
+       do
+         (setf grid down-grid)
+       finally (return count)))
+  (defun print-grid (grid x y step)
+    (format t "Step ~A:~%" step)
+    (loop
+       for j from 0 below y
+       do (loop
+             for i from 0 below x
+             for pos = (complex i j)
+             for c = (gethash pos grid #\.)
+             do (format t "~A" c))
+         (format t "~%")))
+#+END_SRC
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 25 A: ~a~%" (find-end-point *input*)))
+#+END_SRC
+
+It is done. I could speed up the scans if I have the downward scan
+work offset from the rigtward scan. Given the size of the grid that
+may be worthwhile but I'm not going to bother. It takes about 3.7
+seconds for me to solve the full input on my laptop.
+** Part 2
+There is no part 2, well not really. Once I finish days 23 and 24 I
+can finish this one.
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+  <<march-of-the-cucumbers>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  (problem-a)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 25 A: 528
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2021.25)
+  (in-suite aoc.2021.25)
+
+  (run! 'aoc.2021.25)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
+** Ada
+*** Runner
+Simple runner.
+#+BEGIN_SRC ada :tangle ada/day25.adb
+  with AOC2021.Day25;
+  procedure Day25 is
+  begin
+    AOC2021.Day25.Run;
+  end Day25;
+#+END_SRC
+*** Specification
+Specification for solution.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day25.ads
+  package AOC2021.Day25 is
+     procedure Run;
+  end AOC2021.Day25;
+#+END_SRC
+*** Packages
+#+NAME: ada-packages
+#+BEGIN_SRC ada
+  with GNAT.Regpat; use GNAT.Regpat;
+  with Text_IO; use Text_IO;
+#+END_SRC
+*** Types and generics
+#+NAME: types-and-generics
+#+BEGIN_SRC ada
+
+#+END_SRC
+*** Implementation
+Actual implementation body.
+#+BEGIN_SRC ada :tangle ada/aoc2021-day25.adb :noweb yes
+  <<ada-packages>>
+  package body AOC2021.Day25 is
+     <<types-and-generics>>
+     -- Used as an example of matching regular expressions
+     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
+        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
+        Re : constant Pattern_Matcher := Compile(Pattern);
+        Matches : Match_Array (0..4);
+        Pass : Unbounded_String;
+        P0, P1 : Positive;
+        C : Character;
+     begin
+        Match(Re, To_String(Line), Matches);
+        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
+        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
+        C := Element(Line, Matches(3).First);
+        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
+        P := (Min_Or_Pos => P0,
+              Max_Or_Pos => P1,
+              C => C,
+              P => Pass);
+     end Parse_Line;
+     procedure Run is
+     begin
+        Put_Line("Advent of Code 2021 - Day 25");
+        Put_Line("The result for Part 1 is " & Integer'Image(0));
+        Put_Line("The result for Part 2 is " & Integer'Image(0));
+     end Run;
+  end AOC2021.Day25;
+#+END_SRC
+*** Run the program
+In order to run this you have to "tangle" the code first using =C-c
+C-v C-t=.
+
+#+BEGIN_SRC shell :tangle no :results output :exports both
+  cd ada
+  gnatmake day25
+  ./day25
+#+END_SRC
+
+#+RESULTS:
