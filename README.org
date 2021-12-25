@@ -20,7 +20,7 @@ year.
 |   |   | X | X | X | X | X |
 | X | X | X | X | X | X | X |
 | X | X | X | X | X | X | X |
-| X | X | X | 0 | 0 | 0 |   |
+| X | X | X | 0 | 0 | X |   |
 ** DONE [[file:2020/aoc2020.org][Advent of Code 2020]]
 | M | T | W | R | F | S | S |
 |---+---+---+---+---+---+---|
