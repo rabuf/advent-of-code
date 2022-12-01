@@ -19,7 +19,8 @@ void day01(std::string filename) {
     std::cout << "    Part 2: " << std::accumulate(elves.begin(), elves.begin()+3, 0) << std::endl;
 }
 
-int main() {
-    day01("../../input/01.txt");
+int main(int argc, char** argv) {
+    std::string input_dir{argv[1]};
+    day01(input_dir+ "/01.txt");
     return 0;
 }
