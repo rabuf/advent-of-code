@@ -3,11 +3,11 @@
 #include <fstream>
 #include <vector>
 
-void day01(std::string filename) {
+void day01(const std::string &filename) {
     std::ifstream in{filename};
     std::vector<int> elves{0};
     for (std::string line; std::getline(in, line); ) {
-        if (line != "") {
+        if (!line.empty()) {
             elves.back() += std::stoi(line);
         } else {
             elves.emplace_back(0);
