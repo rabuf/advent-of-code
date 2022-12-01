@@ -14,8 +14,6 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :results silent
   (unless (find-package :cl-ppcre)
     (ql:quickload "cl-ppcre"))
-  (unless (find-package :iterate)
-    (ql:quickload "iterate"))
   (unless (find-package :parseq)
     (ql:quickload "parseq"))
   (unless (find-package :lparallel)
@@ -44,12 +42,19 @@ support for lisp installed you can run this by:
 ** Input
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
+  (defun parse-stream (in)
+    (loop
+      while (peek-char t in nil nil)
+      collect
+          (loop
+            for line = (read-line in nil)
+            while (not (string= "" line))
+            while line
+            collect (parse-integer line))))
+
   (defun read-input (file)
     (with-open-file (in file)
-      (loop
-         for line = (read-line in nil)
-         while line
-         collect line)))
+      (parse-stream in)))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -57,14 +62,24 @@ support for lisp installed you can run this by:
     (read-input "input/01.txt"))
 #+END_SRC
 ** Part 1
+#+NAME: most-calories
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun most-calories (elves)
+    (apply #'max (mapcar (lambda (elf) (apply #'+ elf)) elves)))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 01 A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 01 A: ~a~%" (most-calories *input*)))
 #+END_SRC
 ** Part 2
+#+NAME: top-three-calories
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun top-three-calories (elves)
+    (apply #'+ (subseq (sort (mapcar (lambda (elf) (apply #'+ elf)) elves) #'>) 0 3)))
+#+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 01 B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 01 B: ~a~%" (top-three-calories *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -82,95 +97,54 @@ support for lisp installed you can run this by:
   <<structs>>
   <<functions>>
   <<input>>
+  <<most-calories>>
   <<problem-a>>
+  <<top-three-calories>>
   <<problem-b>>
   (problem-a)
   (problem-b)
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 01 A: 74711
+: Problem 01 B: 209481
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2022.01)
   (in-suite aoc.2022.01)
 
+  (defvar *test-input*
+    "1000
+  2000
+  3000
+
+  4000
+
+  5000
+  6000
+
+  7000
+  8000
+  9000
+
+  10000")
+
+  (test calories
+    (with-input-from-string (in *test-input*)
+      (let ((input (parse-stream in)))
+        (is (= 24000 (most-calories input)))
+        (is (= 45000 (top-three-calories input))))))
+
   (run! 'aoc.2022.01)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.01
+:  Running test CALORIES ..
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
-** Ada
-*** Runner
-Simple runner.
-#+BEGIN_SRC ada :tangle ada/day01.adb
-  with AOC2022.Day01;
-  procedure Day01 is
-  begin
-    AOC2022.Day01.Run;
-  end Day01;
-#+END_SRC
-*** Specification
-Specification for solution.
-#+BEGIN_SRC ada :tangle ada/aoc2022-day01.ads
-  package AOC2022.Day01 is
-     procedure Run;
-  end AOC2022.Day01;
-#+END_SRC
-*** Packages
-#+NAME: ada-packages
-#+BEGIN_SRC ada
-  with GNAT.Regpat; use GNAT.Regpat;
-  with Text_IO; use Text_IO;
-#+END_SRC
-*** Types and generics
-#+NAME: types-and-generics
-#+BEGIN_SRC ada
-
-#+END_SRC
-*** Implementation
-Actual implementation body.
-#+BEGIN_SRC ada :tangle ada/aoc2022-day01.adb :noweb yes
-  <<ada-packages>>
-  package body AOC2022.Day01 is
-     <<types-and-generics>>
-     -- Used as an example of matching regular expressions
-     procedure Parse_Line (Line : Unbounded_String; P : out Password) is
-        Pattern : constant String := "(\d+)-(\d+) ([a-z]): ([a-z]+)";
-        Re : constant Pattern_Matcher := Compile(Pattern);
-        Matches : Match_Array (0..4);
-        Pass : Unbounded_String;
-        P0, P1 : Positive;
-        C : Character;
-     begin
-        Match(Re, To_String(Line), Matches);
-        P0 := Integer'Value(Slice(Line, Matches(1).First, Matches(1).Last));
-        P1 := Integer'Value(Slice(Line, Matches(2).First, Matches(2).Last));
-        C := Element(Line, Matches(3).First);
-        Pass := To_Unbounded_String(Slice(Line, Matches(4).First, Matches(4).Last));
-        P := (Min_Or_Pos => P0,
-              Max_Or_Pos => P1,
-              C => C,
-              P => Pass);
-     end Parse_Line;
-     procedure Run is
-     begin
-        Put_Line("Advent of Code 2022 - Day 01");
-        Put_Line("The result for Part 1 is " & Integer'Image(0));
-        Put_Line("The result for Part 2 is " & Integer'Image(0));
-     end Run;
-  end AOC2022.Day01;
-#+END_SRC
-*** Run the program
-In order to run this you have to "tangle" the code first using =C-c
-C-v C-t=.
-
-#+BEGIN_SRC shell :tangle no :results output :exports both
-  cd ada
-  gnatmake day01
-  ./day01
-#+END_SRC
-
-#+RESULTS:
