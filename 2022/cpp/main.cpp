@@ -15,7 +15,7 @@ void day01(const std::string &filename) {
     }
     std::nth_element(elves.begin(), elves.begin()+2, elves.end(), std::greater{});
     std::cout << "Day 01:\n";
-    std::cout << "    Part 1: " << elves[0] << std::endl;
+    std::cout << "    Part 1: " << std::max(elves[0], elves[1]) << std::endl;
     std::cout << "    Part 2: " << std::accumulate(elves.begin(), elves.begin()+3, 0) << std::endl;
 }
 
