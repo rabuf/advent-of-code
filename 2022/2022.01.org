@@ -65,7 +65,7 @@ support for lisp installed you can run this by:
 #+NAME: most-calories
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun most-calories (elves)
-    (apply #'max (mapcar (lambda (elf) (apply #'+ elf)) elves)))
+    (reduce #'max (mapcar (lambda (elf) (reduce #'+ elf)) elves)))
 #+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -75,7 +75,7 @@ support for lisp installed you can run this by:
 #+NAME: top-three-calories
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun top-three-calories (elves)
-    (apply #'+ (subseq (sort (mapcar (lambda (elf) (apply #'+ elf)) elves) #'>) 0 3)))
+    (reduce #'+ (sort (mapcar (lambda (elf) (reduce #'+ elf)) elves) #'>) :end 3))
 #+END_SRC
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
