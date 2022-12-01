@@ -20,6 +20,10 @@ void day01(std::string filename) {
 }
 
 int main(int argc, char** argv) {
+    if (argc != 2) {
+        std::cerr << "aoc2022: Must supply input file directory." << std::endl;
+        std::exit(64);
+    }
     std::string input_dir{argv[1]};
     day01(input_dir+ "/01.txt");
     return 0;
