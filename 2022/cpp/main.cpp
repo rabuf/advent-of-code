@@ -14,8 +14,9 @@ void day01(std::string filename) {
         }
     }
     std::nth_element(elves.begin(), elves.begin()+2, elves.end(), std::greater{});
-    std::cout << elves[0] << std::endl;
-    std::cout << std::accumulate(elves.begin(), elves.begin()+3, 0) << std::endl;
+    std::cout << "Day 01:\n";
+    std::cout << "    Part 1: " << elves[0] << std::endl;
+    std::cout << "    Part 2: " << std::accumulate(elves.begin(), elves.begin()+3, 0) << std::endl;
 }
 
 int main() {
