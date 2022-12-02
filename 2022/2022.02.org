@@ -42,12 +42,14 @@ support for lisp installed you can run this by:
 ** Input
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
+  (defun process-input-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (list (elt line 0) (elt line 2))))
+
   (defun read-input (file)
     (with-open-file (in file)
-      (loop
-         for line = (read-line in nil)
-         while line
-         collect (list (elt line 0) (elt line 2)))))
+      (process-input-stream in)))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -55,51 +57,56 @@ support for lisp installed you can run this by:
     (read-input "input/02.txt"))
 #+END_SRC
 ** Part 1
+#+NAME: play-map
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defvar *play-map*
+    '((#\A . :rock)
+      (#\B . :paper)
+      (#\C . :scissors)
+      (#\X . :rock)
+      (#\Y . :paper)
+      (#\Z . :scissors)))
+
+  (defvar *choice-score*
+    '((:rock . 1)
+      (:paper . 2)
+      (:scissors . 3)))
+
+  (defvar *a-beats-b*
+    '((:rock . :scissors)
+      (:paper . :rock)
+      (:scissors . :paper)))
+#+END_SRC
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun play-map (c)
-    (case c
-      ((#\A #\X) :rock)
-      ((#\B #\Y) :paper)
-      ((#\C #\Z) :scissors)))
+    (cdr (assoc c *play-map*)))
+  (defun choice-score (choice)
+    (cdr (assoc choice *choice-score*)))
   (defun score-round (a b)
-    (+ (case b
-           (:rock 1)
-           (:paper 2)
-           (:scissors 3))
+    (+ (choice-score b)
        (cond
          ((equalp a b) 3)
-         ((and (equalp :rock a) (equalp :paper b)) 6)
-         ((and (equalp :paper a) (equalp :scissors b)) 6)
-         ((and (equalp :scissors a) (equalp :rock b)) 6)
-         (t 0))))
-
+         ((equalp a (car (rassoc b *a-beats-b*))) 0)
+         (t 6))))
   (defun total-score (rounds)
     (loop for (them me) in rounds
-          for opp = (play-map them)
-          for me2 = (play-map me)
-          sum (score-round opp me2)))
+          sum (score-round (play-map them) (play-map me))))
   (defun problem-a () (format t "Problem 02 A: ~a~%" (total-score *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun losing-play (them)
-    (case them
-      (:rock :scissors)
-      (:paper :rock)
-      (:scissors :paper)))
   (defun play-map-real (them choice)
     (case choice
-      (#\X (losing-play them))
+      (#\X (cdr (assoc them *a-beats-b*)))
       (#\Y them)
-      (#\Z (losing-play (losing-play them)))))
+      (#\Z (car (rassoc them *a-beats-b*)))))
 
   (defun total-score-real (rounds)
     (loop for (them me) in rounds
           for opp = (play-map them)
-          for me2 = (play-map-real opp me)
-          sum (score-round opp me2)))
+          sum (score-round opp (play-map-real opp me))))
   (defun problem-b () (format t "Problem 02 B: ~a~%" (total-score-real *input*)))
 #+END_SRC
 ** Putting it all together
@@ -118,6 +125,7 @@ support for lisp installed you can run this by:
   <<structs>>
   <<functions>>
   <<input>>
+  <<play-map>>
   <<problem-a>>
   <<problem-b>>
   (problem-a)
@@ -132,9 +140,25 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2022.02)
   (in-suite aoc.2022.02)
+  (defvar *sample-input*
+    "A Y
+  B X
+  C Z")
 
+  (test sample-test
+    (with-input-from-string (in *sample-input*)
+      (let ((rounds (process-input-stream in)))
+        (is (= 15 (total-score rounds)))
+        (is (= 12 (total-score-real rounds))))))
   (run! 'aoc.2022.02)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.02
+:  Running test SAMPLE-TEST ..
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
