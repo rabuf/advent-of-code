@@ -1,0 +1,140 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 02
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-02)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-02
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-02)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (loop
+         for line = (read-line in nil)
+         while line
+         collect (list (elt line 0) (elt line 2)))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/02.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun play-map (c)
+    (case c
+      ((#\A #\X) :rock)
+      ((#\B #\Y) :paper)
+      ((#\C #\Z) :scissors)))
+  (defun score-round (a b)
+    (+ (case b
+           (:rock 1)
+           (:paper 2)
+           (:scissors 3))
+       (cond
+         ((equalp a b) 3)
+         ((and (equalp :rock a) (equalp :paper b)) 6)
+         ((and (equalp :paper a) (equalp :scissors b)) 6)
+         ((and (equalp :scissors a) (equalp :rock b)) 6)
+         (t 0))))
+
+  (defun total-score (rounds)
+    (loop for (them me) in rounds
+          for opp = (play-map them)
+          for me2 = (play-map me)
+          sum (score-round opp me2)))
+  (defun problem-a () (format t "Problem 02 A: ~a~%" (total-score *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun losing-play (them)
+    (case them
+      (:rock :scissors)
+      (:paper :rock)
+      (:scissors :paper)))
+  (defun play-map-real (them choice)
+    (case choice
+      (#\X (losing-play them))
+      (#\Y them)
+      (#\Z (losing-play (losing-play them)))))
+
+  (defun total-score-real (rounds)
+    (loop for (them me) in rounds
+          for opp = (play-map them)
+          for me2 = (play-map-real opp me)
+          sum (score-round opp me2)))
+  (defun problem-b () (format t "Problem 02 B: ~a~%" (total-score-real *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 02 A: 11666
+: Problem 02 B: 12767
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.02)
+  (in-suite aoc.2022.02)
+
+  (run! 'aoc.2022.02)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
