@@ -6,7 +6,7 @@
 std::pair<int, int> day01_solve(std::vector<int> input) {
     std::nth_element(input.begin(), input.begin() + 2, input.end(), std::greater());
     auto a = std::max(input[0], input[1]);
-    auto b = std::accumulate(input.begin(), input.begin() + 3, 0);
+    auto b = std::accumulate(input.begin(), std::min(input.begin() + 3, input.end()), 0);
     return {a, b};
 }
 
@@ -19,7 +19,7 @@ void day01_parse(std::istream &in, std::vector<int> &result) {
                 break;
             }
         }
-        result.push_back(elf);
+        result.emplace_back(elf);
     }
 }
 
