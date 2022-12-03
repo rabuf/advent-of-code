@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 
 include_directories(include)
 
-add_executable(aoc2022 main.cpp src/day01.cpp)
+add_executable(aoc2022 main.cpp src/day01.cpp src/day02.cpp src/day02.cpp)
 
 # Google Test bits
 include(FetchContent)
@@ -21,6 +21,6 @@ FetchContent_MakeAvailable(googletest)
 
 project(aoc2022_tests)
 
-add_executable(aoc2022_tests_run tests/day01_tests.cpp src/day01.cpp)
+add_executable(aoc2022_tests_run tests/day01_tests.cpp src/day01.cpp src/day02.cpp src/day02.cpp tests/day02_tests.cpp)
 
 target_link_libraries(aoc2022_tests_run gtest gtest_main)
