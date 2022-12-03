@@ -1,6 +1,8 @@
 from unittest import TestCase
-from day02 import *
+
 from hypothesis import given, strategies as st
+
+from day02 import *
 
 
 class Test(TestCase):

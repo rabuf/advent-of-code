@@ -1,5 +1,7 @@
 from unittest import TestCase
+
 from hypothesis import given, strategies as st
+
 import day01
 
 
