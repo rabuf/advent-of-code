@@ -18,7 +18,10 @@ def main():
     input_path = Path(sys.argv[1])
     with open(input_path / "01.txt", "r") as f:
         elves = parse(f.read().strip())
-        print(solve(elves))
+        print("Day 01:")
+        a, b = solve(elves)
+        print(f"\tPart 1: {a}")
+        print(f"\tPart 2: {b}")
 
 
 if __name__ == "__main__":
