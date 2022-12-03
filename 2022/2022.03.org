@@ -74,24 +74,25 @@ support for lisp installed you can run this by:
             finally (return (priority-value c)))))
 
 
-  (defun solve (rucksacks)
+  (defun priority-sum (rucksacks)
     (reduce #'+ (mapcar #'priority rucksacks)))
 
-  (defun problem-a () (format t "Problem 03 A: ~a~%" (solve *input*)))
+  (defun problem-a () (format t "Problem 03 A: ~a~%" (priority-sum *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun badge (rucksacks)
-    (loop for i from 0 by 3
-          while (< i (length rucksacks))
-          sum (let ((group (subseq rucksacks i (+ i 3))))
-                (loop for c across (first group)
-                      while (not (and (position c (second group))
-                                      (position c (third group))))
-                      finally (return (priority-value c))))))
+  (defun badge-priority (r1 r2 r3)
+    (loop for c across r1
+          while (not (and (position c r2)
+                          (position c r3)))
+          finally (return (priority-value c))))
 
-  (defun problem-b () (format t "Problem 03 B: ~a~%" (badge *input*)))
+  (defun badge-sum (rucksacks)
+    (loop for (r1 r2 r3) on rucksacks by #'cdddr
+          sum (badge-priority r1 r2 r3)))
+
+  (defun problem-b () (format t "Problem 03 B: ~a~%" (badge-sum *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -123,6 +124,7 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2022.03)
   (in-suite aoc.2022.03)
+
   (defparameter *sample-input*
     "vJrwpWtwJgWrhcsFMMfFFhFp
   jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
@@ -140,19 +142,39 @@ support for lisp installed you can run this by:
               do (is (= (priority r) e))))))
 
   (test priority-sum
+    (is (= 7821 (priority-sum *input*)))
     (with-input-from-string (in *sample-input*)
       (let ((rucksacks (process-stream in)))
-        (is (= 157 (solve rucksacks))))))
+        (is (= 157 (priority-sum rucksacks))))))
+
+  (test badge-priority
+    (with-input-from-string (in *sample-input*)
+      (let ((rucksacks (process-stream in))
+            (expected '(18 52)))
+        (loop for (r1 r2 r3) on rucksacks by #'cdddr
+              for p = (badge-priority r1 r2 r3)
+              for e in expected
+              do (is (= p e))))))
+
+  (test badge-sum
+    (is (= 2752 (badge-sum *input*)))
+    (with-input-from-string (in *sample-input*)
+      (let ((rucksacks (process-stream in)))
+        (is (= 70 (badge-sum rucksacks))))))
   (run! 'aoc.2022.03)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
-: 
-: Running test suite AOC.2022.03
-:  Running test PRIORITY ......
-:  Running test PRIORITY-SUM .
-:  Did 7 checks.
-:     Pass: 7 (100%)
-:     Skip: 0 ( 0%)
-:     Fail: 0 ( 0%)
+#+begin_example
+
+Running test suite AOC.2022.03
+ Running test PRIORITY ......
+ Running test PRIORITY-SUM ..
+ Running test BADGE-PRIORITY ..
+ Running test BADGE-SUM ..
+ Did 12 checks.
+    Pass: 12 (100%)
+    Skip: 0 ( 0%)
+    Fail: 0 ( 0%)
+#+end_example
 ** Thoughts
