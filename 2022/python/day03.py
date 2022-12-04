@@ -35,7 +35,7 @@ def badge_sum(rucksacks):
 def main():
     input_path = Path(sys.argv[1])
     with open(input_path / "03.txt", "r") as f:
-        print("Day 02:")
+        print("Day 03:")
         rucksacks = f.read().strip().split("\n")
         a, b = priority_sum(rucksacks), badge_sum(rucksacks)
         print(f"\tPart 1: {a}")

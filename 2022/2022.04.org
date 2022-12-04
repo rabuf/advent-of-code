@@ -72,10 +72,7 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun overlapp (ranges)
     (destructuring-bind (a b c d) ranges
-      (or (<= a c b)
-          (<= a d b)
-          (<= c a d)
-          (<= c b d))))
+      (and (<= a d) (<= c b))))
 
   (defun problem-b () (format t "Problem 04 B: ~a~%" (count-if #'overlapp *input*)))
 #+END_SRC

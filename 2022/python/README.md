@@ -67,4 +67,9 @@ Going to attempt a TDD style again. Switching to pytest from unittest for the te
 solution but, why not?
 
 More fun with testing. In switching to pytest, I used one of its decorators to create table driven tests. Could be
-cleaned up more, but it works. 
+cleaned up more, but it works.
+
+#### Day 4
+
+I again did the TDD thing, with table driven tests. But this one was a very simple problem. The hardest part was parsing
+and that wasn't very hard.
