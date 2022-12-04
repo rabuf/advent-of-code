@@ -53,6 +53,6 @@ void day02(const std::string &filename) {
     day02_parse(in, plays);
     auto [a, b] = day02_solve(plays);
     std::cout << "Day 02:\n";
-    std::cout << "    Part 1: " << a << std::endl;
-    std::cout << "    Part 2: " << b << std::endl;
+    std::cout << "\tPart 1: " << a << std::endl;
+    std::cout << "\tPart 2: " << b << std::endl;
 }

@@ -29,6 +29,6 @@ void day01(const std::string &filename) {
     day01_parse(in, elves);
     auto [a,b] = day01_solve(elves);
     std::cout << "Day 01:\n";
-    std::cout << "    Part 1: " << a << std::endl;
-    std::cout << "    Part 2: " << b << std::endl;
+    std::cout << "\tPart 1: " << a << std::endl;
+    std::cout << "\tPart 2: " << b << std::endl;
 }
