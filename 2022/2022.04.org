@@ -45,7 +45,9 @@ support for lisp installed you can run this by:
   (defun process-stream (in)
     (loop for line = (read-line in nil)
           while line
-          collect line))
+          collect (cl-ppcre:register-groups-bind (a b c d)
+                      ("([0-9]+)-([0-9]+),([0-9]+)-([0-9]+)" line)
+                    (list (parse-integer a) (parse-integer b) (parse-integer c) (parse-integer d)))))
   (defun read-input (file)
     (with-open-file (in file)
       (process-stream in)))
@@ -58,12 +60,24 @@ support for lisp installed you can run this by:
 ** Part 1
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 04 A: ~a~%" (identity *input*)))
+  (defun containsp (ranges)
+    (destructuring-bind (a b c d) ranges
+      (or (<= a c d b)
+          (<= c a b d))))
+
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (count-if #'containsp *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 04 B: ~a~%" (identity *input*)))
+  (defun overlapp (ranges)
+    (destructuring-bind (a b c d) ranges
+      (or (<= a c b)
+          (<= a d b)
+          (<= c a d)
+          (<= c b d))))
+
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (count-if #'overlapp *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -88,8 +102,8 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 04 A: 441
+: Problem 04 B: 861
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
