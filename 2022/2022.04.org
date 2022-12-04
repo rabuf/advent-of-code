@@ -45,9 +45,9 @@ support for lisp installed you can run this by:
   (defun process-stream (in)
     (loop for line = (read-line in nil)
           while line
-          collect (cl-ppcre:register-groups-bind (a b c d)
-                      ("([0-9]+)-([0-9]+),([0-9]+)-([0-9]+)" line)
-                    (list (parse-integer a) (parse-integer b) (parse-integer c) (parse-integer d)))))
+          collect (cl-ppcre:register-groups-bind ((#'parse-integer a b c d))
+                      ("(\\d+)-(\\d+),(\\d+)-(\\d+)" line)
+                    (list a b c d))))
   (defun read-input (file)
     (with-open-file (in file)
       (process-stream in)))
@@ -110,8 +110,33 @@ support for lisp installed you can run this by:
   (def-suite aoc.2022.04)
   (in-suite aoc.2022.04)
 
+  (defparameter *sample-input*
+    "2-4,6-8
+  2-3,4-5
+  5-7,7-9
+  2-8,3-7
+  6-6,4-6
+  2-6,4-8")
+
+  (test count-contains
+    (with-input-from-string (in *sample-input*)
+      (let ((ranges (process-stream in)))
+        (is (= 2 (count-if #'containsp ranges))))))
+  (test count-overlaps
+    (with-input-from-string (in *sample-input*)
+      (let ((ranges (process-stream in)))
+        (is (= 4 (count-if #'overlapp ranges))))))
+
   (run! 'aoc.2022.04)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.04
+:  Running test COUNT-CONTAINS .
+:  Running test COUNT-OVERLAPS .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
