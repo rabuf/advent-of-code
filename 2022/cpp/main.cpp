@@ -3,6 +3,7 @@
 #include "day01.h"
 #include "day02.h"
 #include "day03.h"
+#include "day04.h"
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -13,6 +14,7 @@ int main(int argc, char *argv[]) {
     day01(input_dir + "/01.txt");
     day02(input_dir + "/02.txt");
     day03(input_dir + "/03.txt");
+    day04(input_dir + "/04.txt");
 
     return 0;
 }

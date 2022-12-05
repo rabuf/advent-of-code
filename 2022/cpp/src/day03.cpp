@@ -69,7 +69,7 @@ void day03(const std::string &filename) {
     day03_parse(in, rucksacks);
     auto a = rucksack_sum(rucksacks);
     auto b = badge_sum(rucksacks);
-    std::cout << "Day 02:\n";
+    std::cout << "Day 03:\n";
     std::cout << "\tPart 1: " << a << std::endl;
     std::cout << "\tPart 2: " << b << std::endl;
 }
