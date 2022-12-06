@@ -1,12 +1,12 @@
 #+STARTUP: indent contents
 #+OPTIONS: num:nil toc:nil
-* Day DAY
+* Day 06
 ** Executing this code
 If you have a lisp installation, emacs, org-mode, and org-babel
 support for lisp installed you can run this by:
 1. Starting slime (=M-x slime=)
 2. Typing =C-c C-c= in the block [[initialize][initialize]].
-3. In the repl type =(in-package :aoc-YEAR-DAY)=
+3. In the repl type =(in-package :aoc-2022-06)=
 4. Typing =C-c C-c= in the block [[answers][answers]]
 ** Initial stuffs
 *** Packages to load
@@ -31,13 +31,13 @@ support for lisp installed you can run this by:
 #+NAME: initialize
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<packages>>
-  (defpackage :aoc-YEAR-DAY
+  (defpackage :aoc-2022-06
     (:use :common-lisp
           :parseq
           :fiveam)
     (:export :problem-a
              :problem-b))
-  (in-package :aoc-YEAR-DAY)
+  (in-package :aoc-2022-06)
 #+END_SRC
 ** Input
 #+NAME: read-input
@@ -53,17 +53,17 @@ support for lisp installed you can run this by:
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defparameter *input*
-    (read-input "input/DAY.txt"))
+    (read-input "input/06.txt"))
 #+END_SRC
 ** Part 1
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem DAY A: ~a~%" (identity *input*)))
+  (defun problem-a () (format t "Problem 06 A: ~a~%" (identity *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem DAY B: ~a~%" (identity *input*)))
+  (defun problem-b () (format t "Problem 06 B: ~a~%" (identity *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -93,10 +93,10 @@ support for lisp installed you can run this by:
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
-  (def-suite aoc.YEAR.DAY)
-  (in-suite aoc.YEAR.DAY)
+  (def-suite aoc.2022.06)
+  (in-suite aoc.2022.06)
 
-  (run! 'aoc.YEAR.DAY)
+  (run! 'aoc.2022.06)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
