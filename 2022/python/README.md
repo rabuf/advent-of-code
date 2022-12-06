@@ -73,3 +73,9 @@ cleaned up more, but it works.
 
 I again did the TDD thing, with table driven tests. But this one was a very simple problem. The hardest part was parsing
 and that wasn't very hard.
+
+#### Day 5
+
+Had fun with parsing. The actual problem wasn't bad, pretty much the same solution as my Lisp version but with a handier
+slice syntax. Still did the TDD approach which took a while. I started it with handling parsing before I tackled the
+problem itself. I could have added more tests and randomized tests on applying moves, but I was ready to be done.
