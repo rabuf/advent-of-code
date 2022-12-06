@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from hypothesis import given, strategies as st
 
-from day02 import *
+from aoc2022.day02 import *
 
 
 class Test(TestCase):

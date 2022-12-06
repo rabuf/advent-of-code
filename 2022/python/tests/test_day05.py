@@ -1,6 +1,6 @@
 import pytest
 
-import day05
+from aoc2022 import day05
 
 sample_input = ("    [D]    \n"
                 "[N] [C]    \n"

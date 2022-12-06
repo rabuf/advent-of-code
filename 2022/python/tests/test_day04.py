@@ -1,6 +1,6 @@
 import pytest
 
-from day04 import *
+from aoc2022.day04 import *
 
 sample = ("2-4,6-8\n"
           "2-3,4-5\n"

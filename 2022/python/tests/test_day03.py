@@ -1,6 +1,6 @@
 import pytest
 
-from day03 import *
+from aoc2022.day03 import *
 
 sample = ('vJrwpWtwJgWrhcsFMMfFFhFp\n'
           'jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL\n'

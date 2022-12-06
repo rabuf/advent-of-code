@@ -1,11 +1,12 @@
 import pytest
-import day06
+
+from aoc2022 import day06
 
 examples = [("mjqjpqmgbljsphdztnvjfqwrcgsmlb", 7, 19),
             ("bvwbjplbgvbhsrlpgdmjqwftvncz", 5, 23),
             ("nppdvjthqldpwncqszvftbrmjlhg", 6, 23),
             ("nznrnfrfntjfmvfwmzdfjlvtqnbhcprsg", 10, 29),
-            ("zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw", 11, 26),]
+            ("zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw", 11, 26), ]
 
 
 @pytest.mark.parametrize('sample, packet, _', examples)
