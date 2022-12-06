@@ -1,5 +1,6 @@
 import sys
 from functools import reduce
+from operator import and_
 from pathlib import Path
 
 from aoc_util import *
@@ -12,8 +13,7 @@ def split(rucksack):
 
 def common_element(*rucksacks):
     sets = [set(rucksack) for rucksack in rucksacks]
-    result = reduce(lambda a, b: a.intersection(b), sets)
-    return result.pop()
+    return reduce(and_, sets).pop()
 
 
 def priority_value(letter):
@@ -35,11 +35,8 @@ def badge_sum(rucksacks):
 def main():
     input_path = Path(sys.argv[1])
     with open(input_path / "03.txt", "r") as f:
-        print("Day 03:")
         rucksacks = f.read().strip().split("\n")
-        a, b = priority_sum(rucksacks), badge_sum(rucksacks)
-        print(f"\tPart 1: {a}")
-        print(f"\tPart 2: {b}")
+        print_day(3, priority_sum(rucksacks), badge_sum(rucksacks))
 
 
 if __name__ == "__main__":

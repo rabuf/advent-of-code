@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+from aoc_util import print_day
+
 
 def solve(elves):
     return elves[-1], sum(elves[-3:])
@@ -18,10 +20,7 @@ def main():
     input_path = Path(sys.argv[1])
     with open(input_path / "01.txt", "r") as f:
         elves = parse(f.read().strip())
-        print("Day 01:")
-        a, b = solve(elves)
-        print(f"\tPart 1: {a}")
-        print(f"\tPart 2: {b}")
+        print_day(1, *solve(elves))
 
 
 if __name__ == "__main__":

@@ -2,6 +2,8 @@ import sys
 from enum import IntEnum
 from pathlib import Path
 
+from aoc_util import print_day
+
 
 class RPS(IntEnum):
     ROCK = 1
@@ -57,10 +59,7 @@ def main():
     input_path = Path(sys.argv[1])
     with open(input_path / "02.txt", "r") as f:
         plays = parse(f)
-        print("Day 02:")
-        a, b = solve(plays)
-        print(f"\tPart 1: {a}")
-        print(f"\tPart 2: {b}")
+        print_day(2, *solve(plays))
 
 
 if __name__ == "__main__":

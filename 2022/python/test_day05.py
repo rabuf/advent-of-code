@@ -1,5 +1,5 @@
 import pytest
-from hypothesis import given, strategies as st
+
 import day05
 
 sample_input = ("    [D]    \n"

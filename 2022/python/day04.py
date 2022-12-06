@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+from aoc_util import print_day
+
 
 def parse_line(line):
     elves = line.split(",")
@@ -21,13 +23,11 @@ def overlaps(ranges):
 def main():
     input_path = Path(sys.argv[1])
     with open(input_path / "04.txt", "r") as f:
-        print("Day 04:")
         lines = f.readlines()
         ranges = list(map(parse_line, lines))
         a = sum(map(contains, ranges))
         b = sum(map(overlaps, ranges))
-        print(f"\tPart 1: {a}")
-        print(f"\tPart 2: {b}")
+        print_day(4, a, b)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 import re
-from pathlib import Path
 import sys
+from pathlib import Path
+
+from aoc_util import print_day
 
 
 def parse_move(move: str) -> (int, int, int):
@@ -51,9 +53,7 @@ def main():
             part2[k] = v.copy()
         apply_moves(part1, moves)
         apply_moves_9001(part2, moves)
-        print("Day 05:")
-        print(f"    Part 1: {crate_hash(part1)}")
-        print(f"    Part 2: {crate_hash(part2)}")
+        print_day(5, crate_hash(part1), crate_hash(part2))
 
 
 if __name__ == "__main__":

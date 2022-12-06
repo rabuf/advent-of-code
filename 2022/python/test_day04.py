@@ -1,6 +1,5 @@
 import pytest
 
-from aoc_util import chunk
 from day04 import *
 
 sample = ("2-4,6-8\n"
@@ -40,4 +39,3 @@ def test_overlaps(ranges, is_overlapping):
 
 if __name__ == '__main__':
     pytest.main()
-

@@ -1,6 +1,5 @@
 import pytest
 
-from aoc_util import chunk
 from day03 import *
 
 sample = ('vJrwpWtwJgWrhcsFMMfFFhFp\n'
