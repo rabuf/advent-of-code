@@ -7,7 +7,7 @@ Read, sort, grab the first or first three elements.
 
 #### Day 2
 
-Playing around with TDD and PBT. It's a trivial problem so it's a bit difficult to come up with properties, but I found
+Playing around with TDD and PBT. It's a trivial problem, so it's a bit difficult to come up with properties, but I found
 a few. Nearly every line of code is the consequence of a test, including having it fail first because the function
 hasn't been defined. A more extreme form of TDD than I normally use, but a fun exercise (for me).
 
@@ -59,7 +59,7 @@ def test_strategy_scissors_wins(self, opp):
     self.assertTrue(beats(play, opp))
 ```
 
-Each test resulted in a small change to the `strategy` function so it eventually handled all three cases.
+Each test resulted in a small change to the `strategy` function so that it eventually handled all three cases.
 
 #### Day 3
 
@@ -79,3 +79,7 @@ and that wasn't very hard.
 Had fun with parsing. The actual problem wasn't bad, pretty much the same solution as my Lisp version but with a handier
 slice syntax. Still did the TDD approach which took a while. I started it with handling parsing before I tackled the
 problem itself. I could have added more tests and randomized tests on applying moves, but I was ready to be done.
+
+#### Day 6
+
+Another straightforward one.
