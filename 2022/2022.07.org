@@ -1,0 +1,199 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 07
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-07)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-07
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-07)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun interaction-to-directories (interactions)
+    (loop
+      with cdup = "\\$ cd (\\.\\.)"
+      with cdre = "\\$ cd ([\/a-zA-Z0-9]+)"
+      with lsre = "\\$ ls"  ;; ignorable?
+      with dirre = "dir (.+)"
+      with filere = "(\\d+) (.+)"
+      for action in interactions
+      with filesystem = (make-hash-table :test 'equal)
+      with pwd = "?"
+      with path = '()
+      finally (return filesystem)
+      do (cl-ppcre:register-groups-bind
+             (_) (cdup action) (declare (ignore _))
+           (setf pwd (pop path)))
+      do (cl-ppcre:register-groups-bind
+             (dir) (cdre action)
+           (setf pwd dir)
+           (push dir path))
+      do (cl-ppcre:register-groups-bind
+             (dir) (dirre action)
+           (pushnew dir (gethash path filesystem)))
+         (cl-ppcre:register-groups-bind
+             ((#'parse-integer size) name)
+             (filere action)
+           (pushnew (cons name size) (gethash path filesystem)))))
+
+
+
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (interaction-to-directories (process-stream in))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/07.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *max-size* 100000) ;; magic number for problem
+
+  (defun collect-sizes (filesystem &key (path '("\/")))
+    (let ((children nil)
+          (size 0))
+      (loop for item in (gethash path filesystem)
+                  if (stringp item)
+                    do (let ((child (collect-sizes filesystem :path (cons item path))))
+                         (incf size (car child))
+                         (setf children (append child children)))
+                  else
+                    do (incf size (cdr item)))
+      (cons size children)))
+
+  (defun part-1 (fs)
+    (reduce #'+ (remove-if (lambda (size) (< *max-size* size)) (collect-sizes fs))))
+
+  (defun problem-a () (format t "Problem 07 A: ~a~%" (part-1 *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *disk-capacity* 70000000)
+  (defparameter *target-capacity* (- *disk-capacity* 30000000))
+
+  (defun part-2 (fs)
+    (let* ((sizes (collect-sizes fs))
+           (target (- (car sizes) *target-capacity*)))
+      (reduce #'min (remove-if (lambda (size) (< size target)) sizes))))
+
+  (defun problem-b () (format t "Problem 07 B: ~a~%" (part-2 *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 07 A: 1449447
+: Problem 07 B: 8679207
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.07)
+  (in-suite aoc.2022.07)
+
+  (defparameter *sample-input*
+    "$ cd /
+  $ ls
+  dir a
+  14848514 b.txt
+  8504156 c.dat
+  dir d
+  $ cd a
+  $ ls
+  dir e
+  29116 f
+  2557 g
+  62596 h.lst
+  $ cd e
+  $ ls
+  584 i
+  $ cd ..
+  $ cd ..
+  $ cd d
+  $ ls
+  4060174 j
+  8033020 d.log
+  5626152 d.ext
+  7214296 k")
+
+  (defparameter *sample-fs*
+    (with-input-from-string (in *sample-input*)
+      (interaction-to-directories (process-stream in))))
+
+  (test part-1
+    (is (= (part-1 *sample-fs*) 95437)))
+  (test part-2
+    (is (= (part-2 *sample-fs*) 24933642)))
+
+  (run! 'aoc.2022.07)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.07
+:  Running test PART-1 .
+:  Running test PART-2 .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
