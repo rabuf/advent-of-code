@@ -51,15 +51,13 @@ support for lisp installed you can run this by:
       with filere = "(\\d+) (.+)"
       for action in interactions
       with filesystem = (make-hash-table :test 'equal)
-      with pwd = "?"
       with path = '()
       finally (return filesystem)
       do (cl-ppcre:register-groups-bind
              (_) (cdup action) (declare (ignore _))
-           (setf pwd (pop path)))
+           (pop path))
       do (cl-ppcre:register-groups-bind
              (dir) (cdre action)
-           (setf pwd dir)
            (push dir path))
       do (cl-ppcre:register-groups-bind
              (dir) (dirre action)
