@@ -44,9 +44,10 @@ support for lisp installed you can run this by:
 #+BEGIN_SRC lisp :results silent
   (defun interaction-to-directories (interactions)
     (loop
-      with cdup = "\\$ cd (\\.\\.)"
-      with cdre = "\\$ cd ([\/a-zA-Z0-9]+)"
-      with lsre = "\\$ ls"  ;; ignorable?
+      with root = "\\$ cd (\/)"
+      with cdup = "\\$ cd \\.\\."
+      with cdre = "\\$ cd ([a-zA-Z0-9]+)"
+      with lsre = "\\$ ls"  ;; useless, but to cover them all
       with dirre = "dir (.+)"
       with filere = "(\\d+) (.+)"
       for action in interactions
@@ -54,7 +55,10 @@ support for lisp installed you can run this by:
       with path = '()
       finally (return filesystem)
       do (cl-ppcre:register-groups-bind
-             (_) (cdup action) (declare (ignore _))
+             (dir) (root action)
+           (setf path (list "\/")))
+      do (cl-ppcre:register-groups-bind
+             () (cdup action)
            (pop path))
       do (cl-ppcre:register-groups-bind
              (dir) (cdre action)
@@ -65,9 +69,7 @@ support for lisp installed you can run this by:
          (cl-ppcre:register-groups-bind
              ((#'parse-integer size) name)
              (filere action)
-           (pushnew (cons name size) (gethash path filesystem)))))
-
-
+           (pushnew (cons name size) (gethash path filesystem) :test #'equalp))))
 
   (defun process-stream (in)
     (loop for line = (read-line in nil)
