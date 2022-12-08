@@ -42,13 +42,25 @@ support for lisp installed you can run this by:
 ** Input
 #+NAME: read-input
 #+BEGIN_SRC lisp :results silent
+  (defun tree-map (tree-lines)
+    (loop with trees = (make-hash-table)
+          for line in tree-lines
+          with columns = (length (first tree-lines))
+          with rows = (length tree-lines)
+          for i from 0
+          do (loop for c across line
+                   for j from 0
+                   for coord = (complex i j)
+                   do (setf (gethash coord trees) (- (char-code c) (char-code #\0))))
+          finally (return (list rows columns trees))))
+
   (defun process-stream (in)
     (loop for line = (read-line in nil)
           while line
           collect line))
   (defun read-input (file)
     (with-open-file (in file)
-      (process-stream in)))
+      (tree-map (process-stream in))))
 #+END_SRC
 #+NAME: input
 #+BEGIN_SRC lisp :noweb yes :results silent
@@ -58,12 +70,98 @@ support for lisp installed you can run this by:
 ** Part 1
 #+NAME: problem-a
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-a () (format t "Problem 08 A: ~a~%" (identity *input*)))
+  (defun visible-trees (tree-map)
+    (let ((visible (make-hash-table)))
+      (destructuring-bind
+          (rows columns trees) tree-map
+        (loop for i from 0 below rows
+              for limit = -1
+              do (loop for j from 0 below columns
+                       for coord = (complex i j)
+                       for height = (gethash coord trees)
+                       if (< limit height)
+                         do (setf (gethash coord visible) height)
+                            (setf limit height)))
+        (loop for i from 0 below rows
+              for limit = -1
+              do (loop for j from (1- columns) downto 0
+                       for coord = (complex i j)
+                       for height = (gethash coord trees)
+                       if (< limit height)
+                         do (setf (gethash coord visible) height)
+                            (setf limit height)))
+        (loop for j from 0 below columns
+              for limit = -1
+              do (loop for i from 0 below rows
+                       for coord = (complex i j)
+                       for height = (gethash coord trees)
+                       if (< limit height)
+                         do (setf (gethash coord visible) height)
+                            (setf limit height)))
+        (loop for j from 0 below columns
+              for limit = -1
+              do (loop for i from (1- rows) downto 0
+                       for coord = (complex i j)
+                       for height = (gethash coord trees)
+                       if (< limit height)
+                         do (setf (gethash coord visible) height)
+                            (setf limit height)))
+      (values (hash-table-count visible) visible))))
+  (defun print-trees (tree-map)
+    (destructuring-bind
+        (rows columns trees) tree-map
+      (loop for i from 0 below rows
+            do (loop for j from 0 below columns
+                     for coord = (complex i j)
+                     do (format t "~A" (gethash coord trees #\Space)))
+               (format t "~%"))))
+  (defun problem-a () (format t "Problem 08 A: ~a~%" (visible-trees *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun problem-b () (format t "Problem 08 B: ~a~%" (identity *input*)))
+  (defun scenic-score (tree-map tree)
+    (destructuring-bind
+        (rows columns trees) tree-map
+      (let ((height (gethash tree trees)))
+        (*
+         (loop with i = (realpart tree)
+               for j from (1+ (imagpart tree)) below columns
+               for coord = (complex i j)
+               for h = (gethash coord trees)
+               count 1
+               while (< h height))
+         (loop with i = (realpart tree)
+               for j from (1- (imagpart tree)) downto 0
+               for coord = (complex i j)
+               for h = (gethash coord trees)
+               count 1
+               while (< h height))
+         (loop with j = (imagpart tree)
+               for i from (1+ (realpart tree)) below rows
+               for coord = (complex i j)
+               for h = (gethash coord trees)
+               count 1
+               while (< h height))
+         (loop with j = (imagpart tree)
+               for i from (1- (realpart tree)) downto 0
+               for coord = (complex i j)
+               for h = (gethash coord trees)
+               count 1
+               while (< h height))))))
+
+  (defun max-scenic-score (tree-map)
+    (destructuring-bind
+        (rows columns trees) tree-map
+      (declare (ignore trees))
+      (loop for i from 0 below rows
+            maximizing (loop for j from 0 below columns
+                             for scenic = (scenic-score tree-map (complex i j))
+                             maximizing (scenic-score tree-map (complex i j))))))
+
+
+
+  (defun problem-b () (format t "Problem 08 B: ~a~%" (max-scenic-score *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -88,16 +186,41 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-: Problem 4a: 101194
-: Problem 4b: 102095
+: Problem 08 A: 1823
+: Problem 08 B: 211680
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
   (def-suite aoc.2022.08)
   (in-suite aoc.2022.08)
+  (defparameter *sample-input*
+    "30373
+  25512
+  65332
+  33549
+  35390")
+
+  (defparameter *sample*
+    (with-input-from-string (in *sample-input*)
+      (tree-map (process-stream in))))
+
+  (test part-1-sample
+    (is (= 21 (visible-trees *sample*))))
+
+  (test scenic-score
+    (is (= (scenic-score *sample* (complex 3 2)) 8))
+    (is (= (scenic-score *sample* (complex 1 2)) 4)))
 
   (run! 'aoc.2022.08)
 #+END_SRC
 ** Test Results
 #+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.08
+:  Running test PART-1-SAMPLE .
+:  Running test SCENIC-SCORE ..
+:  Did 3 checks.
+:     Pass: 3 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
 ** Thoughts
