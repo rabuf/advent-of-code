@@ -1,7 +1,6 @@
-from collections import defaultdict
-from enum import Enum
-from pathlib import Path
 import sys
+from collections import defaultdict
+from pathlib import Path
 
 from aoc_util import print_day
 
@@ -56,7 +55,7 @@ def collect_sizes(filesystem, path=Path('/'), sizes=None):
         match listing:
             case Path():
                 collect_sizes(filesystem, path / listing, sizes)
-                sizes[path] += sizes[path/listing]
+                sizes[path] += sizes[path / listing]
             case (Path(), int() as size):
                 sizes[path] += size
     return sizes
@@ -79,4 +78,3 @@ def main():
 if __name__ == '__main__':
     print(sys.argv[1])
     main()
-
