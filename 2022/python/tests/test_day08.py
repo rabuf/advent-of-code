@@ -1,3 +1,5 @@
+from operator import mul
+
 import pytest
 
 import aoc_util
@@ -26,4 +28,4 @@ def test_count_visible_trees():
 
 @pytest.mark.parametrize('x,y,score', [(1, 2, 4), (3, 2, 8)])
 def test_scenic_score(x, y, score):
-    assert day08.scenic_score(sample_grid, x, y) == score
+    assert day08.search_from(sample_grid, x, y, op=mul, func=day08.scenic_distance) == score

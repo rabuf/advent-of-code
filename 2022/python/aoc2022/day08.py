@@ -1,45 +1,12 @@
 import sys
+from functools import reduce
+from operator import mul, or_
 from pathlib import Path
 
 from aoc_util import print_day, input_to_grid
 
 
-def sees_edge_dir(grid, x, y, dx, dy):
-    height = grid[x][y]
-    i = x + dx
-    j = y + dy
-    while 0 <= i < len(grid) and 0 <= j < len(grid[0]):
-        if height <= grid[i][j]:
-            return False
-        i += dx
-        j += dy
-    return True
-
-
-def sees_edge(grid, i, j):
-    return (sees_edge_dir(grid, i, j, 0, 1)
-            or sees_edge_dir(grid, i, j, 0, -1)
-            or sees_edge_dir(grid, i, j, 1, 0)
-            or sees_edge_dir(grid, i, j, -1, 0))
-
-
-def print_grid(grid):
-    for row in grid:
-        for c in row:
-            print(c, end='')
-        print()
-
-
-def count_visible_trees(grid):
-    rows = len(grid)
-    cols = len(grid[0])
-    count = sum(sees_edge(grid, i, j)
-                for i in range(0, rows)
-                for j in range(0, cols))
-    return count
-
-
-def scenic_distance_dir(grid, x, y, dx, dy):
+def scenic_distance(grid, x, y, dx, dy):
     height = grid[x][y]
     i = x + dx
     j = y + dy
@@ -53,15 +20,44 @@ def scenic_distance_dir(grid, x, y, dx, dy):
     return count
 
 
-def scenic_score(grid, x, y):
-    return (scenic_distance_dir(grid, x, y, 0, 1)
-            * scenic_distance_dir(grid, x, y, 0, -1)
-            * scenic_distance_dir(grid, x, y, 1, 0)
-            * scenic_distance_dir(grid, x, y, -1, 0))
+def sees_edge(grid, x, y, dx, dy):
+    height = grid[x][y]
+    i = x + dx
+    j = y + dy
+    while 0 <= i < len(grid) and 0 <= j < len(grid[0]):
+        if height <= grid[i][j]:
+            return False
+        i += dx
+        j += dy
+    return True
+
+
+def print_grid(grid):
+    for row in grid:
+        for c in row:
+            print(c, end='')
+        print()
+
+
+def search_from(grid, x, y, op=None, func=None):
+    return reduce(op, [func(grid, x, y, 0, 1),
+                       func(grid, x, y, 0, -1),
+                       func(grid, x, y, 1, 0),
+                       func(grid, x, y, -1, 0)])
+
+
+def search(grid, op=None, func=None, res=None):
+    return res(search_from(grid, x, y, op=op, func=func)
+               for x in range(len(grid))
+               for y in range(len(grid[0])))
+
+
+def count_visible_trees(grid):
+    return search(grid, op=or_, func=sees_edge, res=sum)
 
 
 def max_scenic_score(grid):
-    return max(scenic_score(grid, x, y) for x in range(len(grid)) for y in range(len(grid[0])))
+    return search(grid, op=mul, func=scenic_distance, res=max)
 
 
 def main():
