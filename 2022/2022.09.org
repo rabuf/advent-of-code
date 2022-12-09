@@ -1,0 +1,243 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 09
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-09)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-09
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-09)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (let ((distance (parse-integer (subseq line 2))))
+      (case (elt line 0)
+        (#\U (make-list distance :initial-element #C(0 1)))
+        (#\D (make-list distance :initial-element #C(0 -1)))
+        (#\R (make-list distance :initial-element #C(1 0)))
+        (#\L (make-list distance :initial-element #C(-1 0))))))
+
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (parse-line line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/09.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun distance (head tail)
+    (+ (abs (- (realpart head) (realpart tail)))
+       (abs (- (imagpart head) (imagpart tail)))))
+
+  (defun in-line (head tail)
+    (or (= (realpart head) (realpart tail))
+        (= (imagpart head) (imagpart tail))))
+
+  (defun direction-to (head tail)
+    (if (in-line head tail)
+        (cond ((< (realpart head) (realpart tail))
+               #C(-1 0))
+              ((< (imagpart head) (imagpart tail))
+               #C(0 -1))
+              ((> (realpart head) (realpart tail))
+               #C(1 0))
+              (t #C(0 1)))
+        0))
+
+  (defun diagonal-to (head tail)
+    (let ((dir 0))
+      (if (< (realpart head) (realpart tail))
+          (incf dir #C(-1 0))
+          (incf dir #C(1 0)))
+      (if (< (imagpart head) (imagpart tail))
+          (incf dir #C(0 -1))
+          (incf dir #C(0 1)))
+      dir))
+
+  (defun move (head tail dir)
+    (let* ((head (+ head dir))
+           (distance (distance head tail)))
+      (case distance
+        (0 (list head tail))
+        (1 (list head tail))
+        (2 (list head (+ tail (direction-to head tail))))
+        (otherwise (list head (+ tail (diagonal-to head tail)))))))
+
+  (defun apply-moves (moves)
+    (loop with head = 0
+          with tail = 0
+          with locations = (list 0)
+          for move in moves
+          do (loop for dir in move
+                   for result = (move head tail dir)
+                   do (setf head (first result))
+                      (setf tail (second result))
+                      (pushnew tail locations))
+          finally (return (length locations))))
+  (defun problem-a () (format t "Problem 09 A: ~a~%" (apply-moves *input*)))
+#+END_SRC
+** Part 2
+Instead of two parts there are now 10. I think I can apply the logic
+from above for doing each one in series. The =move= function above can
+be generalized into a =move-to= where the =head= has already been
+moved and I determine what the new =tail= will be.
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun move-to (head tail)
+    (let ((distance (distance head tail)))
+      (case distance
+        (0 tail)
+        (1 tail)
+        (2 (+ tail (direction-to head tail)))
+        (otherwise (+ tail (diagonal-to head tail))))))
+
+  (defun move-snake (moves)
+    (loop with snake = (make-array 10 :initial-element 0)
+          with locations = (list 0)
+          for move in moves
+          do (loop for dir in move
+                   do (incf (aref snake 0) dir)
+                      (loop for i from 1 below 10
+                            for pred = (aref snake (1- i))
+                            for succ = (aref snake i)
+                            do (setf (aref snake i) (move-to pred succ)))
+                      (pushnew (aref snake 9) locations))
+          finally (return (length locations))))
+
+  (defun problem-b () (format t "Problem 09 B: ~a~%" (move-snake *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 09 A: 6367
+: Problem 09 B: 2536
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.09)
+  (in-suite aoc.2022.09)
+  (defparameter *sample-input*
+    "R 4
+  U 4
+  L 3
+  D 1
+  R 4
+  D 1
+  L 5
+  R 2")
+
+  (defparameter *sample*
+    (with-input-from-string (in *sample-input*)
+      (process-stream in)))
+
+  (test part-1
+    (is (= 13 (apply-moves *sample*))))
+
+  (run! 'aoc.2022.09)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+#+begin_example
+
+Running test suite AOC.2022.09
+ Running test PART-1 Moves: (1 1 1 1)
+Head/Tail: (1 0)
+Head/Tail: (2 1)
+Head/Tail: (3 2)
+Head/Tail: (4 3)
+Moves: (#C(0 1) #C(0 1) #C(0 1) #C(0 1))
+Head/Tail: (#C(4 1) 3)
+Head/Tail: (#C(4 2) #C(4 1))
+Head/Tail: (#C(4 3) #C(3 1))
+Head/Tail: (#C(4 4) #C(4 2))
+Moves: (-1 -1 -1)
+Head/Tail: (#C(3 4) #C(3 3))
+Head/Tail: (#C(2 4) #C(3 3))
+Head/Tail: (#C(1 4) #C(2 4))
+Moves: (#C(0 -1))
+Head/Tail: (#C(1 3) #C(2 4))
+Moves: (1 1 1 1)
+Head/Tail: (#C(2 3) #C(2 4))
+Head/Tail: (#C(3 3) #C(2 4))
+Head/Tail: (#C(4 3) #C(3 3))
+Head/Tail: (#C(5 3) #C(4 3))
+Moves: (#C(0 -1))
+Head/Tail: (#C(5 2) #C(4 3))
+Moves: (-1 -1 -1 -1 -1)
+Head/Tail: (#C(4 2) #C(4 3))
+Head/Tail: (#C(3 2) #C(4 3))
+Head/Tail: (#C(2 2) #C(3 2))
+Head/Tail: (#C(1 2) #C(2 2))
+Head/Tail: (#C(0 2) #C(1 2))
+Moves: (1 1)
+Head/Tail: (#C(1 2) #C(1 2))
+Head/Tail: (#C(2 2) #C(1 2))
+.
+ Did 1 check.
+    Pass: 1 (100%)
+    Skip: 0 ( 0%)
+    Fail: 0 ( 0%)
+#+end_example
+** Thoughts

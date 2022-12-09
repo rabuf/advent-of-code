@@ -8,27 +8,23 @@ from aoc_util import print_day, input_to_grid
 
 def scenic_distance(grid, x, y, dx, dy):
     height = grid[x][y]
-    i = x + dx
-    j = y + dy
+    i, j = x + dx, y + dy
     count = 0
     while 0 <= i < len(grid) and 0 <= j < len(grid[0]):
         count = count + 1
         if height <= grid[i][j]:
             return count
-        i += dx
-        j += dy
+        i, j = i + dx, j + dy
     return count
 
 
 def sees_edge(grid, x, y, dx, dy):
     height = grid[x][y]
-    i = x + dx
-    j = y + dy
+    i, j = x + dx, y + dy
     while 0 <= i < len(grid) and 0 <= j < len(grid[0]):
         if height <= grid[i][j]:
             return False
-        i += dx
-        j += dy
+        i, j = i + dx, j + dy
     return True
 
 
