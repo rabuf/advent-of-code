@@ -1,9 +1,8 @@
-from collections import defaultdict
 from pathlib import Path
 
 import pytest
-from aoc2022 import day07
 
+from aoc2022 import day07
 
 sample_input = ('$ cd /\n'
                 '$ ls\n'
