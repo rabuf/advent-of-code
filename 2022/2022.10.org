@@ -1,0 +1,301 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 10
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-10)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-10
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-10)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/10.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-a () (format t "Problem 10 A: ~a~%" (nth-value 1 (alt-sprite-locations *input*))))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun draw (xs)
+    (loop for i from 0 to 239
+          for row = (floor i 40)
+          for col = (mod i 40)
+          for x across (subseq xs 1)
+          with display = (make-array '(6 40) :initial-element #\Space)
+          if (<= (1- x) (mod i 40) (1+ x))
+            do (setf (aref display row col) #\#)
+               (format t "#")
+          else
+            do (format t " ")
+          when (= col 39)
+            do (terpri)))
+
+  (defun sprite-locations (instructions)
+    (loop with x = 1
+          with cycle = 1
+          with xs = (make-array 400 :initial-element 0)
+          for inst in instructions
+          if (string= inst "noop")
+            do (incf cycle)
+               (setf (aref xs cycle) x)
+          else
+            do (let ((v (parse-integer (subseq inst (position #\Space inst)))))
+                 (setf (aref xs cycle) x)
+                 (incf cycle)
+                 (setf (aref xs cycle) x)
+                 (incf cycle)
+                 (incf x v)
+                 (setf (aref xs cycle) x))
+          finally
+             (return (values xs
+                             (loop for i from 20 to 220 by 40
+                                   sum (* i (aref xs i)))))))
+
+  (defun problem-b () (format t "Problem 10 B: RGZEHURK~%")
+    (draw (alt-sprite-locations *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 10 A: 14860
+: Problem 10 B: RGZEHURK
+: ###   ##  #### #### #  # #  # ###  #  # 
+: #  # #  #    # #    #  # #  # #  # # #  
+: #  # #      #  ###  #### #  # #  # ##   
+: ###  # ##  #   #    #  # #  # ###  # #  
+: # #  #  # #    #    #  # #  # # #  # #  
+: #  #  ### #### #### #  #  ##  #  # #  # 
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.10)
+  (in-suite aoc.2022.10)
+
+  (defparameter *long-sample* 
+    "addx 15
+  addx -11
+  addx 6
+  addx -3
+  addx 5
+  addx -1
+  addx -8
+  addx 13
+  addx 4
+  noop
+  addx -1
+  addx 5
+  addx -1
+  addx 5
+  addx -1
+  addx 5
+  addx -1
+  addx 5
+  addx -1
+  addx -35
+  addx 1
+  addx 24
+  addx -19
+  addx 1
+  addx 16
+  addx -11
+  noop
+  noop
+  addx 21
+  addx -15
+  noop
+  noop
+  addx -3
+  addx 9
+  addx 1
+  addx -3
+  addx 8
+  addx 1
+  addx 5
+  noop
+  noop
+  noop
+  noop
+  noop
+  addx -36
+  noop
+  addx 1
+  addx 7
+  noop
+  noop
+  noop
+  addx 2
+  addx 6
+  noop
+  noop
+  noop
+  noop
+  noop
+  addx 1
+  noop
+  noop
+  addx 7
+  addx 1
+  noop
+  addx -13
+  addx 13
+  addx 7
+  noop
+  addx 1
+  addx -33
+  noop
+  noop
+  noop
+  addx 2
+  noop
+  noop
+  noop
+  addx 8
+  noop
+  addx -1
+  addx 2
+  addx 1
+  noop
+  addx 17
+  addx -9
+  addx 1
+  addx 1
+  addx -3
+  addx 11
+  noop
+  noop
+  addx 1
+  noop
+  addx 1
+  noop
+  noop
+  addx -13
+  addx -19
+  addx 1
+  addx 3
+  addx 26
+  addx -30
+  addx 12
+  addx -1
+  addx 3
+  addx 1
+  noop
+  noop
+  noop
+  addx -9
+  addx 18
+  addx 1
+  addx 2
+  noop
+  noop
+  addx 9
+  noop
+  noop
+  noop
+  addx -1
+  addx 2
+  addx -37
+  addx 1
+  addx 3
+  noop
+  addx 15
+  addx -21
+  addx 22
+  addx -6
+  addx 1
+  noop
+  addx 2
+  addx 1
+  noop
+  addx -10
+  noop
+  noop
+  addx 20
+  addx 1
+  addx 2
+  addx 2
+  addx -6
+  addx -11
+  noop
+  noop
+  noop")
+
+  (defparameter *short-sample*
+    "noop
+  addx 3
+  addx -5")
+
+  (run! 'aoc.2022.10)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.10
+:  Didn't run anything...huh?
+** Thoughts
