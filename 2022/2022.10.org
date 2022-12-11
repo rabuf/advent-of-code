@@ -98,6 +98,24 @@ support for lisp installed you can run this by:
                              (loop for i from 20 to 220 by 40
                                    sum (* i (aref xs i)))))))
 
+  (defun alt-sprite-locations (instructions)
+    (loop with x = 1
+          with v = 0
+          with xs = (make-array 1 :fill-pointer t :initial-element 1)
+          for inst in instructions
+          do (vector-push-extend (incf x v) xs)
+          if (string= inst "noop")
+            do (setf v 0)
+          else
+            do (setf v (parse-integer (subseq inst (position #\Space inst))))
+               (vector-push-extend x xs)
+          finally
+             (return
+               (values xs
+                       (loop for i from 20 to 220 by 40
+                             sum (* i (aref xs i)))))))
+
+
   (defun problem-b () (format t "Problem 10 B: RGZEHURK~%")
     (draw (alt-sprite-locations *input*)))
 #+END_SRC
