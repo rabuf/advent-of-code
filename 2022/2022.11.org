@@ -155,8 +155,7 @@ support for lisp installed you can run this by:
                      for test = (elt tests monkey)
                      for true = (elt true-throws monkey)
                      for false = (elt false-throws monkey)
-                     do (loop for it = (pop item)
-                              while (or it item)
+                     do (loop for it in item
                               do (incf (gethash monkey monkey-count 0))
                               do (setf it (mod (funcall op it) mod))
                                  ;(setf it (floor it 3))
