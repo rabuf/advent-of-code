@@ -1,0 +1,250 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 11
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-11)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-11
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-11)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/11.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-monkey-number (line)
+    (cl-ppcre:register-groups-bind
+        ((#'parse-integer number))
+        ("Monkey (\\d+):" line)
+      number))
+
+  (defun parse-monkey-items (line)
+    (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" line)))
+
+  (defun parse-monkey-operation (line)
+    (cl-ppcre:register-groups-bind
+        (lhs op rhs)
+        ("Operation: new = (old|\\d+) (\\+|\\*) (old\|\\d+)" line)
+      (let ((lhs? (parse-integer lhs :junk-allowed t))
+            (rhs? (parse-integer rhs :junk-allowed t))
+            (op (if (string= op "*") #'* #'+)))
+        (lambda (old)
+          (funcall op (or lhs? old) (or rhs? old))))))
+
+  (defun parse-monkey-test (line)
+    (cl-ppcre:register-groups-bind
+        ((#'parse-integer number))
+        ("Test: divisible by (\\d+)" line)
+      number))
+
+  (defun parse-monkey-throw (line)
+    (cl-ppcre:register-groups-bind
+        (_ (#'parse-integer number))
+        ("If (true|false): throw to monkey (\\d+)" line)
+      number))
+
+  (defun parse-monkeys (input)
+    (loop for (n items op test next-true next-false) on input by (lambda (l) (nthcdr 7 l))
+          while (and n items op test next-true next-false)
+          collect (list (parse-monkey-number n)
+                        (parse-monkey-items items)
+                        (parse-monkey-operation op)
+                        (parse-monkey-test test)
+                        (parse-monkey-throw next-true)
+                        (parse-monkey-throw next-false))))
+
+  (defun simulate (monkeys &optional (rounds 20))
+    (let* ((count (length monkeys))
+           (items (make-array count :initial-contents (copy-tree (mapcar #'second monkeys))))
+           (ops (make-array count :initial-contents (mapcar #'third monkeys)))
+           (tests (make-array count :initial-contents (mapcar #'fourth monkeys)))
+           (true-throws (make-array count :initial-contents (mapcar #'fifth monkeys)))
+           (false-throws (make-array count :initial-contents (mapcar #'sixth monkeys))))
+      (loop repeat rounds
+            with monkey-count = (make-hash-table)
+            do (loop for monkey from 0 below (length monkeys)
+                     for item = (elt items monkey)
+                     for op = (elt ops monkey)
+                     for test = (elt tests monkey)
+                     for true = (elt true-throws monkey)
+                     for false = (elt false-throws monkey)
+                     do (loop for it = (pop item)
+                              while (or it item)
+                              do (incf (gethash monkey monkey-count 0))
+                              do (setf it (funcall op it))
+                                 (setf it (floor it 3))
+                                 (if (zerop (mod it test))
+                                     (setf (elt items true) (append (elt items true) (cons it nil)))
+                                     (setf (elt items false) (append (elt items false) (cons it nil))))
+                              finally (setf (elt items monkey) nil)))
+            finally (return monkey-count))))
+
+  (defun monkey-business-level (counts)
+    (reduce #'* (subseq (sort (loop for v being the hash-values of counts
+                                    collect v)
+                              #'>)
+                        0 2)))
+
+  (defun problem-a () (format t "Problem 11 A: ~a~%" (monkey-business-level (simulate (parse-monkeys *input*)))))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun monkey-mod (tests)
+    (reduce #'* tests))
+
+  (defun simulate-worried (monkeys &optional (rounds 10000))
+    (let* ((count (length monkeys))
+           (items (make-array count :initial-contents (copy-tree (mapcar #'second monkeys))))
+           (ops (make-array count :initial-contents (mapcar #'third monkeys)))
+           (tests (make-array count :initial-contents (mapcar #'fourth monkeys)))
+           (mod (monkey-mod tests))
+           (true-throws (make-array count :initial-contents (mapcar #'fifth monkeys)))
+           (false-throws (make-array count :initial-contents (mapcar #'sixth monkeys))))
+      (loop repeat rounds
+            with monkey-count = (make-hash-table)
+            do (loop for monkey from 0 below (length monkeys)
+                     for item = (elt items monkey)
+                     for op = (elt ops monkey)
+                     for test = (elt tests monkey)
+                     for true = (elt true-throws monkey)
+                     for false = (elt false-throws monkey)
+                     do (loop for it = (pop item)
+                              while (or it item)
+                              do (incf (gethash monkey monkey-count 0))
+                              do (setf it (mod (funcall op it) mod))
+                                 ;(setf it (floor it 3))
+                                 (if (zerop (mod it test))
+                                     (setf (elt items true) (append (elt items true) (cons it nil)))
+                                     (setf (elt items false) (append (elt items false) (cons it nil))))
+                              finally (setf (elt items monkey) nil)))
+            finally (return monkey-count))))
+  (defun problem-b () (format t "Problem 11 B: ~a~%" (monkey-business-level (simulate-worried (parse-monkeys *input*)))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 11 A: 55216
+: Problem 11 B: 12848882750
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.11)
+  (in-suite aoc.2022.11)
+
+  (defparameter *sample*
+    "Monkey 0:
+    Starting items: 79, 98
+    Operation: new = old * 19
+    Test: divisible by 23
+      If true: throw to monkey 2
+      If false: throw to monkey 3
+
+  Monkey 1:
+    Starting items: 54, 65, 75, 74
+    Operation: new = old + 6
+    Test: divisible by 19
+      If true: throw to monkey 2
+      If false: throw to monkey 0
+
+  Monkey 2:
+    Starting items: 79, 60, 97
+    Operation: new = old * old
+    Test: divisible by 13
+      If true: throw to monkey 1
+      If false: throw to monkey 3
+
+  Monkey 3:
+    Starting items: 74
+    Operation: new = old + 3
+    Test: divisible by 17
+      If true: throw to monkey 0
+      If false: throw to monkey 1")
+
+  (defparameter *parsed-sample*
+    (with-input-from-string (in *sample*)
+      (parse-monkeys (process-stream in))))
+
+  (test part-1
+    (is (= 10605 (monkey-business-level (simulate *parsed-sample*)))))
+  (test part-2
+    (is (= 2713310158 (monkey-business-level (simulate-worried *parsed-sample*)))))
+  (run! 'aoc.2022.11)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.11
+:  Running test PART-1 .
+:  Running test PART-2 .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts

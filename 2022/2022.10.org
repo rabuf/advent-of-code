@@ -64,16 +64,10 @@ support for lisp installed you can run this by:
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
   (defun draw (xs)
-    (loop for i from 0 to 239
-          for row = (floor i 40)
+    (loop for i from 0
           for col = (mod i 40)
           for x across (subseq xs 1)
-          with display = (make-array '(6 40) :initial-element #\Space)
-          if (<= (1- x) (mod i 40) (1+ x))
-            do (setf (aref display row col) #\#)
-               (format t "#")
-          else
-            do (format t " ")
+          do (format t "~:[ ~;#~]" (<= (1- x) col (1+ x)))
           when (= col 39)
             do (terpri)))
 
@@ -114,7 +108,6 @@ support for lisp installed you can run this by:
                (values xs
                        (loop for i from 20 to 220 by 40
                              sum (* i (aref xs i)))))))
-
 
   (defun problem-b () (format t "Problem 10 B: RGZEHURK~%")
     (draw (alt-sprite-locations *input*)))
