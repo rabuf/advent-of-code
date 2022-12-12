@@ -1,0 +1,196 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 12
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-12)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-12
+    (:use :common-lisp
+          :parseq
+          :priority-queue
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-12)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/12.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun height (c)
+    (cond ((char= c #\S) 0)
+          ((char= c #\E) 25)
+          (t (- (char-code c) (char-code #\a)))))
+
+  (defun to-grid (lines)
+    (let ((grid (make-hash-table))
+          (start nil)
+          (alternatives nil)
+          (end nil))
+      (loop for i from 0 to (length lines)
+            for line in lines
+            do (loop for j from 0 to (length line)
+                     for c across line
+                     for height = (height c)
+                     do (setf (gethash (complex i j) grid) height)
+                     if (char= c #\a)
+                       do (push (complex i j) alternatives)
+                     if (char= c #\S)
+                       do (setf start (complex i j))
+                     if (char= c #\E)
+                       do (setf end (complex i j))))
+      (list grid (cons start alternatives) end)))
+
+  (defun manhattan-distance (start end)
+    (+ (abs (- (first start) (first end)))
+       (abs (- (second start) (second end)))))
+
+
+  (defun grid-search (grid start end)
+    (loop with fringe = (make-pqueue #'<)
+          with distances = (make-hash-table)
+          with visited = (make-hash-table)
+            initially
+               (pqueue-push start 0 fringe)
+               (setf (gethash start distances) 0)
+          finally (return (gethash end distances))
+          until (pqueue-empty-p fringe)
+          for pos = (pqueue-pop fringe)
+          for level = (gethash pos grid)
+          for steps = (gethash pos distances)
+          unless (gethash pos visited)
+            do (setf (gethash pos visited) t)
+               (loop for offset in '(1 -1 #C(0 1) #C(0 -1))
+                     for current = (+ pos offset)
+                     for (height present?) = (multiple-value-list (gethash current grid))
+                     for prior-steps = (gethash current distances 1000000000000)
+                     if present?
+                       do (when (or (<= height level)
+                                    (= height (1+ level)))
+                            (setf (gethash current distances) (min (1+ steps) prior-steps))
+                            (pqueue-push current (gethash current distances) fringe)))))
+
+
+  (defun part-1 (input)
+    (destructuring-bind (grid starts end) (to-grid input)
+      (grid-search grid (first starts) end)))
+
+  (defun problem-a () (format t "Problem 12 A: ~a~%" (part-1 *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun part-2 (area)
+    (destructuring-bind (grid starts end) area
+      (loop for start in starts
+            for distance = (grid-search grid start end)
+            if distance
+              minimizing distance)))
+
+  (defun problem-b () (format t "Problem 12 B: ~a~%" (part-2 (to-grid *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 12 A: 490
+: Problem 12 B: 488
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.12)
+  (in-suite aoc.2022.12)
+
+  (defparameter *sample-lines*
+    "Sabqponm
+  abcryxxl
+  accszExk
+  acctuvwj
+  abdefghi")
+
+  (defparameter *parsed-sample*
+    (with-input-from-string (in *sample-lines*)
+      (to-grid (process-stream in))))
+
+  (test part-1
+    (is (= 31 (grid-search (first *parsed-sample*) (first (second *parsed-sample*)) (third *parsed-sample*)))))
+
+  (test part-2
+    (is (= 29 (part-2 *parsed-sample*))))
+
+  (run! 'aoc.2022.12)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.12
+:  Running test PART-1 .
+:  Running test PART-2 .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
