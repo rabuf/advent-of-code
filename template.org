@@ -12,6 +12,8 @@ support for lisp installed you can run this by:
 *** Packages to load
 #+NAME: packages
 #+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
   (unless (find-package :cl-ppcre)
     (ql:quickload "cl-ppcre"))
   (unless (find-package :parseq)
