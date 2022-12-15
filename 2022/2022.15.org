@@ -1,0 +1,218 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 15
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-15)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-15
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-15)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "-?\\d+" line)))
+
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (parse-line line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/15.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun manhattan-distance (sensor beacon)
+    (+ (abs (realpart (- sensor beacon)))
+       (abs (imagpart (- sensor beacon)))))
+
+  (defun bounds-at-y (data y)
+    (loop for (sx sy bx by) in data
+          for sensor = (complex sx sy)
+          for beacon = (complex bx by)
+          for y-distance = (abs (- sy y))
+          for b-s-distance = (manhattan-distance sensor beacon)
+          for distance = (abs (- y-distance b-s-distance))
+          with min-x = sb-ext:double-float-positive-infinity
+          with max-x = sb-ext:double-float-negative-infinity
+          if (<= y-distance b-s-distance)
+          do (setf min-x (min min-x (- sx distance))
+                   max-x (max max-x (+ sx distance)))
+          finally (return (list min-x max-x))))
+
+  (defun not-a-beacon (sensor beacon point)
+    (let ((distance (manhattan-distance sensor beacon)))
+      (cond ((= beacon point) nil)
+            ((= sensor point) nil)
+            ((< distance (manhattan-distance sensor point)) t)
+            (t t))))
+
+  (defun not-a-beacon-at-y (data y)
+    (loop with bounds = (bounds-at-y data y)
+          for x from (first bounds) to (second bounds)
+          for point = (complex x y)
+          count (loop for (sx sy bx by) in data
+                      for sensor = (complex sx sy)
+                      for beacon = (complex bx by)
+                      always (not-a-beacon sensor beacon point))))
+
+  (defun problem-a () (format t "Problem 15 A: ~a~%" (not-a-beacon-at-y *input* 2000000)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun sensor-range-at-y (sensor beacon y)
+    (let* ((y-distance (manhattan-distance sensor (complex (realpart sensor) y)))
+           (b-s-distance (manhattan-distance sensor beacon))
+           (distance (abs (- y-distance b-s-distance))))
+      (when (<= y-distance b-s-distance)
+        (list (- (realpart sensor) distance)
+              (+ (realpart sensor) distance)))))
+
+  (defun all-ranges (data y)
+    (loop for (sx sy bx by) in data
+          for sensor = (complex sx sy)
+          for beacon = (complex bx by)
+          for range = (sensor-range-at-y sensor beacon y)
+          if range
+            collect range))
+
+  (defun in-range (range x)
+    (<= (first range) x (second range)))
+
+  (defun limits (ranges)
+    (loop for (start end) in ranges
+          minimizing start into min
+          maximizing end into max
+          finally (return (list min max))))
+
+  (defun range<= (r1 r2)
+    (<= (first r1) (first r2)))
+
+  (defun scan-ranges-at-y (data y &key (absolute-min 0) absolute-max)
+    (loop with ranges = (sort (all-ranges data y) #'range<=)
+          with (min max) = (limits ranges)
+          with x = (max 0 min)
+          while (<= x (min (max 0 max) absolute-max))
+          unless (loop for range in ranges
+                       with ret = nil
+                       if (in-range range x)
+                         do (setf x (1+ (second range)))
+                            (setf ret t)
+                       finally (return ret))
+            return x))
+
+  (defun known-locations (data)
+    (loop for (sx sy bx by) in data
+          collect (complex sx sy)
+          collect (complex bx by)))
+
+  (defun beacon-tuning-frequency (data max)
+    (loop for y from 0 to max
+          for x = (scan-ranges-at-y data y :absolute-max max)
+          with beacons-and-sensors = (known-locations data)
+          if (and x (not (member (complex x y) beacons-and-sensors)))
+            do (return (+ y (* 4000000 x)))))
+
+  (defun problem-b () (format t "Problem 15 B: ~a~%" (beacon-tuning-frequency *input* 4000000)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 15 A: 4748135
+: Problem 15 B: 13743542639657
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.15)
+  (in-suite aoc.2022.15)
+
+  (defparameter *sample-input*
+    "Sensor at x=2, y=18: closest beacon is at x=-2, y=15
+  Sensor at x=9, y=16: closest beacon is at x=10, y=16
+  Sensor at x=13, y=2: closest beacon is at x=15, y=3
+  Sensor at x=12, y=14: closest beacon is at x=10, y=16
+  Sensor at x=10, y=20: closest beacon is at x=10, y=16
+  Sensor at x=14, y=17: closest beacon is at x=10, y=16
+  Sensor at x=8, y=7: closest beacon is at x=2, y=10
+  Sensor at x=2, y=0: closest beacon is at x=2, y=10
+  Sensor at x=0, y=11: closest beacon is at x=2, y=10
+  Sensor at x=20, y=14: closest beacon is at x=25, y=17
+  Sensor at x=17, y=20: closest beacon is at x=21, y=22
+  Sensor at x=16, y=7: closest beacon is at x=15, y=3
+  Sensor at x=14, y=3: closest beacon is at x=15, y=3
+  Sensor at x=20, y=1: closest beacon is at x=15, y=3")
+
+  (defparameter *sample*
+    (with-input-from-string (in *sample-input*)
+      (process-stream in)))
+
+  (run! 'aoc.2022.15)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.15
+:  Didn't run anything...huh?
+** Thoughts
