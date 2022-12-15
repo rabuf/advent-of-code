@@ -134,9 +134,32 @@ support for lisp installed you can run this by:
           do (setf (gethash s map) #\o)
           while (/= s source)))
 
+
+  (defun faster-falling-sand-floor? (map y &optional (source #C(500 0)))
+    (loop with sand = 0
+          with path = (list source)
+          with s = source
+          for next = (next-point-floor map y s)
+          until (gethash source map)
+          finally (return (values sand map))
+          if (= next s)
+            do (setf (gethash s map) #\o)
+               (incf sand)
+               (setf s (pop path))
+          else
+            do
+               (push s path)
+               (setf s next)))
+
   (defun solve-b (paths)
     (destructuring-bind (map y) (paths-to-map paths)
-      (falling-sand-floor map y)))
+      (faster-falling-sand-floor? map y)))
+
+  (defun time-b (paths)
+    (time (destructuring-bind (map y) (paths-to-map paths)
+            (print (faster-falling-sand-floor? map y))))
+    (time (destructuring-bind (map y) (paths-to-map paths)
+            (print (falling-sand-floor map y)))))
 
   (defun problem-b () (format t "Problem 14 B: ~a~%" (solve-b *input*)))
 #+END_SRC
