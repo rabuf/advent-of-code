@@ -74,17 +74,21 @@ support for lisp installed you can run this by:
           if (plusp (logand open bit))
             sum (gethash valve rates)))
 
-  (defun maximize-pressure (paths rates bit-map)
+  (defun maximize-pressure (paths rates bit-map &optional (initial-time 30) (initial-open 0))
     (loop with fringe = (make-pqueue #'>)
           with table = (make-hash-table :test #'equalp)
-            initially (pqueue-push (list "AA" 30 0 0) 0 fringe)
+            initially (pqueue-push (list "AA" initial-time 0 initial-open) 0 fringe)
           for (position time pressure open) = (pqueue-pop fringe)
           for state = (list position time open)
           for rate = (gethash position rates)
           for increase = (* (1- time) rate)
           for next-pressure = (+ pressure increase)
+          with max-pressure = 0
+          with max-open = 0
           when (zerop time)
-            maximizing pressure
+            do (setf max-pressure (max max-pressure pressure))
+               (if (= pressure max-pressure) (setf max-open open))
+          finally (return (values max-pressure max-open))
           if (and (< (gethash state table -1) pressure) (plusp time))
             do (setf (gethash state table) pressure)
                (loop for destination in (gethash position paths)
@@ -113,26 +117,28 @@ support for lisp installed you can run this by:
              (setf (gethash valve bit-map) (expt 2 i))
           finally (return (list paths rates bit-map))))
 
-  (defun solve-a (data)
+  (defun solve-a (data &optional (initial-time 30) (initial-open 0))
     (destructuring-bind (paths rates bit-map) (valves-to-paths data)
-      (maximize-pressure paths rates bit-map)))
+      (maximize-pressure paths rates bit-map initial-time initial-open)))
 
   (defun problem-a () (format t "Problem 16 A: ~a~%" (solve-a *input*)))
 #+END_SRC
 ** Part 2
 #+NAME: problem-b
 #+BEGIN_SRC lisp :noweb yes :results silent
-  (defun maximize-pressure-with-help (paths rates bit-map)
+  (defun all-pressure (paths rates bit-map &optional (initial-time 30) (initial-open 0))
     (loop with fringe = (make-pqueue #'>)
           with table = (make-hash-table :test #'equalp)
-            initially (pqueue-push (list (list "AA" "AA") 26 0 0) 0 fringe)
-          for (positions time pressure open) = (pqueue-pop fringe)
-          for state = (list (sort (copy-seq positions)) time open)
-          for rates = (mapcar #'(lambda (position) (gethash position rates)) positions)
-          for increases = (mapcar #'(lambda (rate) (* (1- time) rate)) rates)
+            initially (pqueue-push (list "AA" initial-time 0 initial-open) 0 fringe)
+          for (position time pressure open) = (pqueue-pop fringe)
+          for state = (list position time open)
+          for rate = (gethash position rates)
+          for increase = (* (1- time) rate)
           for next-pressure = (+ pressure increase)
+          with result = (make-hash-table)
+          finally (return result)
           when (zerop time)
-            maximizing pressure
+            do (setf (gethash open result) (max (gethash open result 0) pressure))
           if (and (< (gethash state table -1) pressure) (plusp time))
             do (setf (gethash state table) pressure)
                (loop for destination in (gethash position paths)
@@ -149,7 +155,16 @@ support for lisp installed you can run this by:
                               next-pressure
                               fringe))
           until (pqueue-empty-p fringe)))
-  (defun problem-b () (format t "Problem 16 B: ~a~%" (identity *input*)))
+
+  (defun solve-b (data)
+    (destructuring-bind (paths rates bit-map) (valves-to-paths data)
+      (let ((pairs (all-pressure paths rates bit-map 26)))
+        (loop for o1 being the hash-key of pairs using (hash-value p1)
+              maximizing (loop for o2 being the hash-key of pairs using (hash-value p2)
+                               if (zerop (logand o1 o2))
+                                 maximizing (+ p1 p2))))))
+
+  (defun problem-b () (format t "Problem 16 B: ~a~%" (solve-b *input*)))
 #+END_SRC
 ** Putting it all together
 #+NAME: structs
@@ -174,25 +189,8 @@ support for lisp installed you can run this by:
 #+END_SRC
 ** Answer
 #+RESULTS: answers
-#+begin_example
-Problem 16 A: 2183
-Problem 16 B: ((NA 0 (MU PH)) (NW 0 (KB MH)) (MR 0 (GC FI)) (XD 0 (UN CN))
-               (HK 0 (AA IF)) (JL 0 (IF WB)) (RQ 13 (BL DJ)) (AB 0 (BO RU))
-               (PE 0 (AZ IF)) (QF 0 (TD AZ)) (BA 0 (RF GU)) (SY 0 (MH MU))
-               (NT 0 (DJ UN)) (GU 21 (VJ BA YP)) (AZ 12 (QF PI AS PE))
-               (WQ 23 (VJ UM CN)) (DR 0 (GA CQ)) (UM 0 (IE WQ)) (XI 0 (IE IF))
-               (SS 0 (CQ MH)) (IE 22 (YP UM XI XA)) (BT 24 (KB BL GA))
-               (GA 0 (DR BT)) (AR 0 (IF FI)) (DJ 0 (RQ NT)) (PI 0 (FI AZ))
-               (WB 0 (TD JL)) (OQ 0 (ME TD)) (RU 19 (AB))
-               (IF 7 (AR JL HK PE XI)) (BO 0 (ME AB)) (CN 0 (WQ XD))
-               (HH 0 (AA FS)) (AS 0 (AA AZ)) (FS 0 (HH MH)) (PQ 0 (TD AA))
-               (AA 0 (HH CO AS HK PQ)) (ME 18 (OQ BO PH)) (RF 0 (UN BA))
-               (MH 8 (FS NW SS SY)) (YP 0 (IE GU)) (FI 11 (PI MR AR CO DI))
-               (UU 0 (CQ MU)) (CO 0 (AA FI)) (TD 16 (QF GC OQ WB PQ))
-               (MU 15 (SY UU NA)) (BL 0 (BT RQ)) (PH 0 (ME NA)) (XA 0 (IE DI))
-               (GC 0 (TD MR)) (KB 0 (BT NW)) (DI 0 (XA FI)) (CQ 9 (UU DR SS))
-               (VJ 0 (WQ GU)) (UN 20 (NT XD RF)))
-#+end_example
+: Problem 16 A: 2183
+: Problem 16 B: 2911
 ** Test Cases
 #+NAME: test-cases
 #+BEGIN_SRC lisp :results output :exports both
