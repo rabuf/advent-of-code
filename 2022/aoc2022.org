@@ -1,6 +1,6 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* Advent of Code 2022 [12/25]
+* Advent of Code 2022 [16/25]
 This will be my attempt to solve the various Advent of Code 2021
 problems with Common Lisp.
 ** DONE [[file:2022.01.org][Day 1]]
@@ -15,10 +15,10 @@ problems with Common Lisp.
 ** DONE [[file:2022.10.org][Day 10]]
 ** DONE [[file:2022.11.org][Day 11]]
 ** DONE [[file:2022.12.org][Day 12]]
-** TODO [[file:2022.13.org][Day 13]]
-** TODO [[file:2022.14.org][Day 14]]
-** TODO [[file:2022.15.org][Day 15]]
-** TODO [[file:2022.16.org][Day 16]]
+** DONE [[file:2022.13.org][Day 13]]
+** DONE [[file:2022.14.org][Day 14]]
+** DONE [[file:2022.15.org][Day 15]]
+** DONE [[file:2022.16.org][Day 16]]
 ** TODO [[file:2022.17.org][Day 17]]
 ** TODO [[file:2022.18.org][Day 18]]
 ** TODO [[file:2022.19.org][Day 19]]
