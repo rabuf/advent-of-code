@@ -83,12 +83,8 @@ support for lisp installed you can run this by:
           for rate = (gethash position rates)
           for increase = (* (1- time) rate)
           for next-pressure = (+ pressure increase)
-          with max-pressure = 0
-          with max-open = 0
           when (zerop time)
-            do (setf max-pressure (max max-pressure pressure))
-               (if (= pressure max-pressure) (setf max-open open))
-          finally (return (values max-pressure max-open))
+            maximizing pressure
           if (and (< (gethash state table -1) pressure) (plusp time))
             do (setf (gethash state table) pressure)
                (loop for destination in (gethash position paths)
@@ -105,7 +101,7 @@ support for lisp installed you can run this by:
                               next-pressure
                               fringe))
           until (pqueue-empty-p fringe)))
-
+2
   (defun valves-to-paths (data)
     (loop with paths = (make-hash-table :test 'equalp)
           with rates = (make-hash-table :test 'equalp)
