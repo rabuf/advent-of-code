@@ -83,7 +83,7 @@ TestMoveTail = SnakeGame().TestCase
 def test_small_sample():
     locs = day09.part_1(small_dirs)
     print(locs)
-    assert 13 == len(locs)
+    assert 13 == len(locs[1])
 
 
 if __name__ == '__main__':
