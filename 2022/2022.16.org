@@ -1,0 +1,225 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 16
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-16)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-16
+    (:use :common-lisp
+          :priority-queue
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-16)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  "Valve NA has flow rate=0; tunnels lead to valves MU, PH"
+  (defun parse-line (line)
+    (cl-ppcre:register-groups-bind
+        (valve (#'parse-integer rate) valves)
+        ("Valve ([A-Z]+) has flow rate=(\\d+); tunnels? leads? to valves? (.+)" line)
+      (let ((valves (cl-ppcre:all-matches-as-strings "[A-Z][A-Z]" valves)))
+        (list valve rate valves))))
+
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (parse-line line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/16.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun increase (open bit-map rates)
+    (loop for valve being the hash-keys of bit-map using (hash-value bit)
+          if (plusp (logand open bit))
+            sum (gethash valve rates)))
+
+  (defun maximize-pressure (paths rates bit-map)
+    (loop with fringe = (make-pqueue #'>)
+          with table = (make-hash-table :test #'equalp)
+            initially (pqueue-push (list "AA" 30 0 0) 0 fringe)
+          for (position time pressure open) = (pqueue-pop fringe)
+          for state = (list position time open)
+          for rate = (gethash position rates)
+          for increase = (* (1- time) rate)
+          for next-pressure = (+ pressure increase)
+          when (zerop time)
+            maximizing pressure
+          if (and (< (gethash state table -1) pressure) (plusp time))
+            do (setf (gethash state table) pressure)
+               (loop for destination in (gethash position paths)
+                     for next = (list destination (1- time) pressure open)
+                     for next-rate = (gethash destination rates)
+                     for estimate = (* (- time 2) next-rate)
+                     do (pqueue-push
+                         next
+                         (+ estimate pressure)
+                         fringe))
+               (if (and (zerop (logand (gethash position bit-map) open))
+                        (plusp rate))
+                   (pqueue-push (list position (1- time) next-pressure (logior open (gethash position bit-map)))
+                              next-pressure
+                              fringe))
+          until (pqueue-empty-p fringe)))
+
+  (defun valves-to-paths (data)
+    (loop with paths = (make-hash-table :test 'equalp)
+          with rates = (make-hash-table :test 'equalp)
+          with bit-map = (make-hash-table :test 'equalp)
+          for i from 0
+          for (valve rate valves) in data
+          do (setf (gethash valve rates) rate)
+             (setf (gethash valve paths) valves)
+             (setf (gethash valve bit-map) (expt 2 i))
+          finally (return (list paths rates bit-map))))
+
+  (defun solve-a (data)
+    (destructuring-bind (paths rates bit-map) (valves-to-paths data)
+      (maximize-pressure paths rates bit-map)))
+
+  (defun problem-a () (format t "Problem 16 A: ~a~%" (solve-a *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun maximize-pressure-with-help (paths rates bit-map)
+    (loop with fringe = (make-pqueue #'>)
+          with table = (make-hash-table :test #'equalp)
+            initially (pqueue-push (list (list "AA" "AA") 26 0 0) 0 fringe)
+          for (positions time pressure open) = (pqueue-pop fringe)
+          for state = (list (sort (copy-seq positions)) time open)
+          for rates = (mapcar #'(lambda (position) (gethash position rates)) positions)
+          for increases = (mapcar #'(lambda (rate) (* (1- time) rate)) rates)
+          for next-pressure = (+ pressure increase)
+          when (zerop time)
+            maximizing pressure
+          if (and (< (gethash state table -1) pressure) (plusp time))
+            do (setf (gethash state table) pressure)
+               (loop for destination in (gethash position paths)
+                     for next = (list destination (1- time) pressure open)
+                     for next-rate = (gethash destination rates)
+                     for estimate = (* (- time 2) next-rate)
+                     do (pqueue-push
+                         next
+                         (+ estimate pressure)
+                         fringe))
+               (if (and (zerop (logand (gethash position bit-map) open))
+                        (plusp rate))
+                   (pqueue-push (list position (1- time) next-pressure (logior open (gethash position bit-map)))
+                              next-pressure
+                              fringe))
+          until (pqueue-empty-p fringe)))
+  (defun problem-b () (format t "Problem 16 B: ~a~%" (identity *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+#+begin_example
+Problem 16 A: 2183
+Problem 16 B: ((NA 0 (MU PH)) (NW 0 (KB MH)) (MR 0 (GC FI)) (XD 0 (UN CN))
+               (HK 0 (AA IF)) (JL 0 (IF WB)) (RQ 13 (BL DJ)) (AB 0 (BO RU))
+               (PE 0 (AZ IF)) (QF 0 (TD AZ)) (BA 0 (RF GU)) (SY 0 (MH MU))
+               (NT 0 (DJ UN)) (GU 21 (VJ BA YP)) (AZ 12 (QF PI AS PE))
+               (WQ 23 (VJ UM CN)) (DR 0 (GA CQ)) (UM 0 (IE WQ)) (XI 0 (IE IF))
+               (SS 0 (CQ MH)) (IE 22 (YP UM XI XA)) (BT 24 (KB BL GA))
+               (GA 0 (DR BT)) (AR 0 (IF FI)) (DJ 0 (RQ NT)) (PI 0 (FI AZ))
+               (WB 0 (TD JL)) (OQ 0 (ME TD)) (RU 19 (AB))
+               (IF 7 (AR JL HK PE XI)) (BO 0 (ME AB)) (CN 0 (WQ XD))
+               (HH 0 (AA FS)) (AS 0 (AA AZ)) (FS 0 (HH MH)) (PQ 0 (TD AA))
+               (AA 0 (HH CO AS HK PQ)) (ME 18 (OQ BO PH)) (RF 0 (UN BA))
+               (MH 8 (FS NW SS SY)) (YP 0 (IE GU)) (FI 11 (PI MR AR CO DI))
+               (UU 0 (CQ MU)) (CO 0 (AA FI)) (TD 16 (QF GC OQ WB PQ))
+               (MU 15 (SY UU NA)) (BL 0 (BT RQ)) (PH 0 (ME NA)) (XA 0 (IE DI))
+               (GC 0 (TD MR)) (KB 0 (BT NW)) (DI 0 (XA FI)) (CQ 9 (UU DR SS))
+               (VJ 0 (WQ GU)) (UN 20 (NT XD RF)))
+#+end_example
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.16)
+  (in-suite aoc.2022.16)
+
+  (defparameter *sample-input*
+    "Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
+  Valve BB has flow rate=13; tunnels lead to valves CC, AA
+  Valve CC has flow rate=2; tunnels lead to valves DD, BB
+  Valve DD has flow rate=20; tunnels lead to valves CC, AA, EE
+  Valve EE has flow rate=3; tunnels lead to valves FF, DD
+  Valve FF has flow rate=0; tunnels lead to valves EE, GG
+  Valve GG has flow rate=0; tunnels lead to valves FF, HH
+  Valve HH has flow rate=22; tunnel leads to valve GG
+  Valve II has flow rate=0; tunnels lead to valves AA, JJ
+  Valve JJ has flow rate=21; tunnel leads to valve II")
+
+  (defparameter *sample*
+    (with-input-from-string (in *sample-input*)
+      (process-stream in)))
+
+  (run! 'aoc.2022.16)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.16
+:  Didn't run anything...huh?
+** Thoughts
