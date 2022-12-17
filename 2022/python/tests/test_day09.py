@@ -50,7 +50,8 @@ class SnakeGame(RuleBasedStateMachine):
     @invariant()
     def always_touching(self):
         """This test ensures that after movement the tail is within one of the head."""
-        assert int(self.snake[0].real - self.snake[1].real) in [1, 0, -1] and int(self.snake[0].real - self.snake[1].real) in [1, 0, -1]
+        assert int(self.snake[0].real - self.snake[1].real) in [1, 0, -1] and int(
+            self.snake[0].real - self.snake[1].real) in [1, 0, -1]
 
     @rule()
     def move_up(self):

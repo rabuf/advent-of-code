@@ -1,6 +1,3 @@
-from hypothesis import given, strategies as st
-from operator import mul
-
 from aoc2022 import day10
 
 small_sample = ("noop\n"
@@ -155,6 +152,7 @@ large_sample = ("addx 15\n"
                 "noop\n"
                 "noop\n"
                 "noop")
+
 
 def test_parse():
     assert day10.parse_lines(small_sample.splitlines()) == small_sample_parsed

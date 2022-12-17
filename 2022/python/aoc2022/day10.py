@@ -56,7 +56,7 @@ def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "10.txt") as f:
         instructions = parse_lines(f.read().splitlines())
-        print_day(10, sum_signal_strengths(instructions), '\n'+render(instructions))
+        print_day(10, sum_signal_strengths(instructions), '\n' + render(instructions))
 
 
 if __name__ == '__main__':

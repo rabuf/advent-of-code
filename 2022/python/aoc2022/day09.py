@@ -17,7 +17,7 @@ def sign(x):
 
 def move(snake):
     for i in range(1, len(snake)):
-        dist = snake[i-1] - snake[i]
+        dist = snake[i - 1] - snake[i]
         if abs(dist) >= 2:
             snake[i] += complex(sign(dist.real), sign(dist.imag))
     return snake
