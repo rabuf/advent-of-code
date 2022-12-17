@@ -65,7 +65,7 @@ def test_verify_operation_parsing(monkey, expected, n):
     monkey_operation = day11.parse_monkey(monkey).new
     expected_operation = expected[2]
     assert callable(expected_operation)
-    assert monkey_operation(old=n) == expected_operation(n)
+    assert monkey_operation(n) == expected_operation(n)
 
 
 def test_single_round():
@@ -82,5 +82,6 @@ def test_monkey_business():
 
 def test_worrywart():
     monkeys = [day11.parse_monkey(m) for m in chunk_fill(sample.splitlines(), 7)]
+    divisor = reduce(mul, [m.divisor for m in monkeys])
     assert day11.monkey_business(monkeys, rounds=10000, op=mod,
-                                 divisor=reduce(mul, [m.divisor for m in monkeys])) == 2713310158
+                                 divisor=divisor) == 2713310158

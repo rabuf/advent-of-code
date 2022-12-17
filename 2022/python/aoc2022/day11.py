@@ -39,10 +39,15 @@ def parse_expression(expr):
         case n:
             rhs = int(n)
 
-    def operation(**kwargs):
-        l = kwargs['old'] if lhs == 'old' else lhs
-        r = kwargs['old'] if rhs == 'old' else rhs
-        return op(l, r)
+    match (lhs, rhs):
+        case ('old', 'old'):
+            operation = lambda old: op(old, old)
+        case ('old', n):
+            operation = lambda old: op(old, n)
+        case (n, 'old'):
+            operation = lambda old: op(n, old)
+        case (m, n):
+            operation = lambda old: op(m, n)
 
     return operation
 
@@ -80,7 +85,8 @@ def main():
         monkeys = list(map(parse_monkey, chunk_fill(lines, 7)))
         part1 = monkey_business(monkeys)
         monkeys = list(map(parse_monkey, chunk_fill(lines, 7)))
-        part2 = monkey_business(monkeys, rounds=10000, op=mod, divisor=reduce(mul, [m.divisor for m in monkeys]))
+        divisor = reduce(mul, [m.divisor for m in monkeys])
+        part2 = monkey_business(monkeys, rounds=10000, op=mod, divisor=divisor)
         print_day(11, part1, part2)
 
 
