@@ -34,9 +34,9 @@ def apply(instructions):
             yield next_state[0]
 
 
-def sum_signal_strengths(large):
+def sum_signal_strengths(instructions):
     total = 0
-    for i, val in enumerate(apply(large), 1):
+    for i, val in enumerate(apply(instructions), 1):
         if (i - 20) % 40 == 0:
             total = total + i * val
     return total
