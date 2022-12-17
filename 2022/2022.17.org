@@ -1,0 +1,314 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 17
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-17)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-17
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-17)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun read-input (file)
+    (with-open-file (in file)
+      (read-line in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/17.txt"))
+#+END_SRC
+** Part 1
+Simulating part of a tetris game. =<= and =>= correspond to left and
+right movements. The round alternates between movement and falling.
+
+The game space is 7 units wide, blocks begin with two spaces free to
+the left. They start 3 spaces above the highest point.
+
+The task is to determine how tall the tower gets after 2022 pieces
+fall. The pieces are:
+
+#+BEGIN_EXPORT ascii
+####
+
+.#.
+###
+.#.
+
+..#
+..#
+###
+
+#
+#
+#
+#
+
+##
+##
+#+END_EXPORT
+
+They fall in that order forever.
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun wide-piece (level)
+    (loop for i from 3
+          repeat 4
+          collect (complex i level)))
+
+  (defun narrow-piece (level)
+    (loop for j from 0
+          repeat 4
+          collect (complex 3 (+ level j))))
+
+  (defun square-piece (level)
+    (loop for i from 3 to 4
+          with result = nil
+          finally (return result)
+          do (loop for j from 0 to 1
+                   do (push (complex i (+ level j)) result))))
+
+  (defun ell-piece (level)
+    (list (complex 3 level)
+          (complex 4 level)
+          (complex 5 level)
+          (complex 5 (+ level 1))
+          (complex 5 (+ level 2))))
+
+  (defun plus-piece (level)
+    (list (complex 4 level)
+          (complex 3 (1+ level))
+          (complex 4 (1+ level))
+          (complex 5 (1+ level))
+          (complex 4 (+ level 2))))
+
+  (defun piece-generator ()
+    (let ((functions (list #'wide-piece #'plus-piece #'ell-piece #'narrow-piece #'square-piece)))
+      (setf (cdr (last functions)) functions)
+      (lambda (level)
+        (funcall (pop functions) level))))
+
+  (defun infinite-moves (moves)
+    (let ((moves (loop for c across moves
+                       collect (case c
+                                 (#\< -1)
+                                 (#\> 1)))))
+      (setf (cdr (last moves)) moves)
+      moves))
+
+  (defun drop (piece)
+    (loop for part in piece
+          collect (- part #C(0 1))))
+
+  (defun wind (piece dir)
+    (loop for part in piece
+          collect (+ part dir)))
+
+  (defun can-fall-p (piece world)
+    (loop for part in piece
+          never (gethash (- part #C(0 1)) world)
+          never (= 1 (imagpart part))))
+
+  (defun can-shift-p (piece world dir)
+    (loop for part in piece
+          never (gethash (+ part dir) world)
+          always (<= 1 (+ dir (realpart part)) 7)
+          never (zerop (+ dir (realpart part)))
+          never (= 8 (+ dir (realpart part)))))
+
+  (defun add-piece-to-world (piece world)
+    (loop for part in piece
+          do (setf (gethash part world) t)
+          maximizing (imagpart part)))
+
+  (defun high-level (moves &optional (number-pieces 2022))
+    (loop with moves = (infinite-moves moves)
+          with pieces = (piece-generator)
+          with level = 4
+          with world = (make-hash-table)
+          repeat number-pieces
+          finally (return (values (- level 4) world))
+          do (loop for wind = (pop moves)
+                   with piece = (funcall pieces level)
+                   if (can-shift-p piece world wind)
+                     do (setf piece (wind piece wind))
+                   while (can-fall-p piece world)
+                   do (setf piece (drop piece))
+                   finally (setf level (max level (+ 4 (add-piece-to-world piece world)))))))
+
+
+  (defun print-world (top-level world)
+      (loop for y from top-level downto 1
+            do (format t "|")
+               (loop for x from 1 to 7
+                     for coord = (complex x y)
+                     do (format t "~:[ ~;#~]" (gethash coord world)))
+               (format t "|~%"))
+    (format t "+-------+"))
+
+  (defun problem-a () (format t "Problem 17 A: ~a~%" (high-level *input*)))
+#+END_SRC
+** Part 2
+Now do it literally a trillion times. I'm not solving this one totally
+programmatically. Here's what I know: There is a period to this, after
+1934 lines a cycle becomes obvious. The question is how many piece
+drops correspond to those repetition points. So I'm writing these
+utility functions.
+
+I know that 1994 -> 4638 corresponds to a full cycle. That section
+repeats (demonstrated below). So the question is at what number of
+pieces does this repetition occur. This is 2644 lines that are
+repeated from that point forward. If I can determine how many pieces
+it takes to get to 1994, and how many for the repetition. Then I can
+calculate the result for the 1 trillion case.
+
+I now know it takes 1310 pieces to fill in 1994's section, and 3040 to
+repeat the pattern. So every 1730 pieces from that point will be
+filled. And the level is 3 above the newly filled in row.
+
+Removing the initial 1310 pieces from 1 trillion and performing a mod,
+there are 560 extra pieces. So the level is going to be 884 over the
+other math. 1997 + (1 trillion - 1310) / 1730 * 2644 + 884?
+
+Answer was too high. Technically the pattern did start earlier. Maybe
+I should figure that part out. Same idea as before, but targeting
+different points.
+
+The initial 222 pieces get to a height of 351, then the next 1730
+(same as before) get to a height of 2995. Now the extra on top of the
+repetition point is 1648 pieces. That gets to a height of 5522, or an
+extra 2527 levels. So starting with the base:
+
+351 + (1 trillion - 222) / 1730 * 2644 + 2527?
+
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun full-rows (level world)
+    (loop for y from level downto 1
+          if (loop for x from 1 to 7
+                   always (gethash (complex x y) world))
+            collect (print y)))
+
+  (defun full-row (level world)
+    (loop for x from 1 to 7
+          always (gethash (complex x level) world)))
+
+  (defun compare-sections (world lower middle upper)
+    (loop for a from lower below middle
+          for b from middle below upper
+          always (loop for x from 1 to 7
+                       for ap = (complex x a)
+                       for bp = (complex x b)
+                       always (and (if (gethash ap world) (gethash bp world) t)
+                                   (if (gethash bp world) (gethash ap world) t)))))
+
+  (defun find-cycle-time ()
+    (multiple-value-bind (level world)
+        (high-level *input* 10000)
+      (format t "Sections match: ~A~%" (compare-sections world 1994 4638 7282))
+      (print level)))
+
+  (defun high-level-modified (moves &optional (number-pieces 2022))
+    (loop with moves = (infinite-moves moves)
+          with pieces = (piece-generator)
+          with level = 4
+          with world = (make-hash-table)
+          with count = 0
+          with found-1994 = nil
+          with found-4638 = nil
+          repeat number-pieces
+          finally (return (values (- level 4) world))
+          when (and (full-row 350 world) (not found-1994))
+            do (format t "~A: ~A (~A)~%" 350 count (- level 4))
+               (setf found-1994 t)
+          when (and (full-row 2994 world) (not found-4638))
+            do (format t "~A: ~A (~A)~%" 2994 count (- level 4))
+               (setf found-4638 t)
+          do (loop for wind = (pop moves)
+                   with piece = (funcall pieces level)
+                     initially (incf count)
+                   if (can-shift-p piece world wind)
+                     do (setf piece (wind piece wind))
+                   while (can-fall-p piece world)
+                   do (setf piece (drop piece))
+                   finally (setf level (max level (+ 4 (add-piece-to-world piece world)))))))
+
+
+  (defun problem-b () (format t "Problem 17 B: ~a~%" (+ 351 2527
+                                                        (* 2644
+                                                           (floor (- 1000000000000 222)
+                                                                  1730)))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 17 A: 3092
+: Problem 17 B: 1528323699442
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.17)
+  (in-suite aoc.2022.17)
+
+  (run! 'aoc.2022.17)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
