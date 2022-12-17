@@ -1,6 +1,14 @@
+from itertools import zip_longest
+
+
 def chunk(lst, size):
     args = [iter(lst)] * size
     return zip(*args)
+
+
+def chunk_fill(lst, size):
+    args = [iter(lst)] * size
+    return zip_longest(*args)
 
 
 def print_day(day, *args):
