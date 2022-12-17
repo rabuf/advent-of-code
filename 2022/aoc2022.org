@@ -19,7 +19,7 @@ problems with Common Lisp.
 ** DONE [[file:2022.14.org][Day 14]]
 ** DONE [[file:2022.15.org][Day 15]]
 ** DONE [[file:2022.16.org][Day 16]]
-** TODO [[file:2022.17.org][Day 17]]
+** DONE [[file:2022.17.org][Day 17]]
 ** TODO [[file:2022.18.org][Day 18]]
 ** TODO [[file:2022.19.org][Day 19]]
 ** TODO [[file:2022.20.org][Day 20]]
