@@ -107,8 +107,8 @@ def floyd(winds):
 
 
 def brent(winds):
-    '''This will return lambda and mu, the cycle length and the "remainder", initial
-    portion preceding the cycle. Using this, the level for 1 trillion can be calculated.'''
+    """This will return lambda and mu, the cycle length and the "remainder", initial
+    portion preceding the cycle. Using this, the level for 1 trillion can be calculated."""
     game = play_game(winds)
     _, fingerprints = unzip(game)
     l, f1, f2 = tee(fingerprints, 3)
