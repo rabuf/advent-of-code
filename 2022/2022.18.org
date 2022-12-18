@@ -1,0 +1,254 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 18
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-18)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-18
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-18)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" line)))
+
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (parse-line line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/18.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun exposed-surface-area (cubes)
+    (loop for cube in cubes
+          for (x y z) = cube
+          for rest = (cdr cubes) then (cdr rest)
+          with total = (* 6 (length cubes))
+          do (loop for dx in '(-1 1)
+                   for neighbor = (list (+ x dx) y z)
+                   if (member neighbor rest :test #'equal)
+                     do (decf total 2))
+          do (loop for dy in '(-1 1)
+                   for neighbor = (list x (+ y dy) z)
+                   if (member neighbor rest :test #'equal)
+                     do (decf total 2))
+          do (loop for dz in '(-1 1)
+                   for neighbor = (list x y (+ z dz))
+                   if (member neighbor rest :test #'equal)
+                     do (decf total 2))
+          finally (return total)))
+
+  (defun problem-a () (format t "Problem 18 A: ~a~%" (exposed-surface-area *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun list-to-grid (cubes)
+    (loop with grid = (make-hash-table :test #'equalp)
+          for cube in cubes
+          do (setf (gethash cube grid) #\#)
+          finally (return grid)))
+
+  (defun bounds (cubes)
+    (loop for (x y z) in cubes
+          maximizing x into max-x
+          maximizing y into max-y
+          maximizing z into max-z
+          minimizing x into min-x
+          minimizing y into min-y
+          minimizing z into min-z
+          finally (return (list (list min-x min-y min-z)
+                                (list max-x max-y max-z)))))
+
+  (defun total-surface-area (cubes)
+    (loop for cube being the hash-keys of cubes
+          for (x y z) = cube
+          with total = (* 6 (hash-table-count cubes))
+          do (loop for dx in '(-1 1)
+                   for neighbor = (list (+ x dx) y z)
+                   if (gethash neighbor cubes)
+                     do (decf total))
+          do (loop for dy in '(-1 1)
+                   for neighbor = (list x (+ y dy) z)
+                   if (gethash neighbor cubes)
+                     do (decf total))
+          do (loop for dz in '(-1 1)
+                   for neighbor = (list x y (+ z dz))
+                   if (gethash neighbor cubes)
+                     do (decf total))
+          finally (return total)))
+
+  (defun in-bounds-p (cube min max)
+    (every #'<= min cube max))
+
+  (defun exterior-p (cube cubes min max)
+    (destructuring-bind (x y z) cube
+      (or
+       (loop for dx from 1
+             for option = (list (+ x dx) y z)
+             while (in-bounds option min max)
+             never (gethash option cubes))
+       (loop for dx downfrom -1
+             for option = (list (+ x dx) y z)
+             while (in-bounds option min max)
+             never (gethash option cubes))
+       (loop for dy from 1
+             for option = (list x (+ y dy) z)
+             while (in-bounds option min max)
+             never (gethash option cubes))
+       (loop for dy downfrom -1
+             for option = (list x (+ y dy) z)
+             always (in-bounds option min max)
+             never (gethash option cubes))
+       (loop for dz from 1
+             for option = (list x y (+ z dz))
+             while (in-bounds option min max)
+             never (gethash option cubes))
+       (loop for dz downfrom -1
+             for option = (list x y (+ z dz))
+             while (in-bounds option min max)
+             never (gethash option cubes)))))
+
+  (defun neighbors (cube)
+    (destructuring-bind (x y z) cube
+      (append
+       (loop for dx in '(-1 1)
+             collect (list (+ x dx) y z))
+       (loop for dy in '(-1 1)
+             collect (list x (+ y dy) z))
+       (loop for dz in '(-1 1)
+             collect (list x y (+ z dz))))))
+
+  (defun fill-space (cube cubes min max)
+    (loop with queue = (list cube)
+          with visited = (make-hash-table :test #'equal)
+          for c = (pop queue)
+          do (setf (gethash c visited) t)
+          if (exterior-p c cubes min max)
+            return nil
+          do (loop for n in (neighbors c)
+                   unless (or (gethash n visited)
+                              (gethash n cubes))
+                     do (push n queue))
+          if (zerop (length queue))
+            do (loop for k being the hash-keys of visited
+                     do (setf (gethash k cubes) t))
+               (return nil)))
+
+  (defun exterior-surface-area (cubes)
+    (let ((grid (list-to-grid cubes)))
+      (destructuring-bind (min max) (bounds cubes)
+        (loop with (+x +y +z) = max
+              with (-x -y -z) = min
+              for x from -x to +x
+              do (loop for y from -y to +y
+                       do (loop for z from -z to +z
+                                for cube = (list x y z)
+                                unless (gethash cube grid)
+                                  do (fill-space cube grid min max))))
+        (total-surface-area grid))))
+
+  (defun problem-b () (format t "Problem 18 B: ~a~%" (exterior-surface-area *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 18 A: 4628
+: Problem 18 B: 2582
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.18)
+  (in-suite aoc.2022.18)
+
+  (defparameter *sample-input*
+    "2,2,2
+  1,2,2
+  3,2,2
+  2,1,2
+  2,3,2
+  2,2,1
+  2,2,3
+  2,2,4
+  2,2,6
+  1,2,5
+  3,2,5
+  2,1,5
+  2,3,5")
+
+  (defparameter *sample*
+    (with-input-from-string (in *sample-input*)
+      (process-stream in)))
+
+  (run! 'aoc.2022.18)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.18
+:  Didn't run anything...huh?
+** Thoughts
