@@ -1,7 +1,7 @@
 from itertools import islice
 
 from hypothesis import given, strategies as st
-from more_itertools import nth_or_last
+from more_itertools import unzip
 
 from aoc2022 import day17
 
@@ -60,11 +60,21 @@ sample = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
 
 def test_play_game():
     game = day17.play_game(sample)
-    assert next(game) == 1
-    assert next(game) == 4
-    assert next(game) == 6
+    levels, _ = unzip(game)
+    assert next(levels) == 1
+    assert next(levels) == 4
+    assert next(levels) == 6
 
 
 def test_play_game_2022():
     game = day17.play_game(sample)
-    assert next(islice(game, 2021, 2022)) == 3068
+    levels, _ = unzip(game)
+    assert next(islice(levels, 2021, 2022)) == 3068
+
+
+def test_find_cycle():
+    assert day17.brent(sample) == (35, 27)
+
+
+def test_high_level():
+    assert day17.high_level(sample, 1000000000000) == 1514285714288
