@@ -1,0 +1,229 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 19
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-19)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-19
+    (:use :common-lisp
+          :parseq
+          :priority-queue
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-19)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" line))))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/19.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  #|
+  Blueprint 1:
+  - Each ore robot costs 4 ore.
+  - Each clay robot costs 4 ore.
+  - Each obsidian robot costs 4 ore and 20 clay.
+  - Each geode robot costs 2 ore and 12 obsidian.
+
+  Every buleprint follows this same pattern and order, so I parsed them
+  to a list of numbers.
+
+  Quality level is max # geodes * blueprint number.
+  |#
+
+  (defun quality-level (blueprint &optional (base-time 24))
+    (let ((best 0))
+      (destructuring-bind
+          (n ore-ore clay-ore obsidian-ore obsidian-clay geode-ore geode-obsidian)
+          blueprint
+        (labels ((recur (ore clay obsidian geode ore-bot clay-bot obsidian-bot geode-bot &optional (time base-time))
+                   (let ((estimate (+ geode (* geode-bot time)
+                                      (if (and (<= geode-ore ore)
+                                               (<= geode-obsidian obsidian))
+                                          (/ (* (1- time) time) 2)
+                                          (/ (* (- time 2) (1- time)) 2)))))
+                   (setf best (max best geode))
+                   (cond ((<= estimate best) ;(+ geode (* geode-bot time) (/ (* (1- time) time) 2)) best)
+                          best)
+                         ((zerop time)
+                          best)
+                         (t
+                          (max
+                           (if (and (<= geode-ore ore)
+                                    (<= geode-obsidian obsidian))
+                               (recur (+ ore ore-bot (- geode-ore)) (+ clay clay-bot)
+                                      (+ obsidian obsidian-bot (- geode-obsidian)) (+ geode geode-bot)
+                                      ore-bot clay-bot obsidian-bot (1+ geode-bot)
+                                      (1- time))
+                               0)
+                           (if (and (<= obsidian-ore ore)
+                                    (<= obsidian-clay clay))
+                               (recur (+ ore ore-bot (- obsidian-ore)) (+ clay clay-bot (- obsidian-clay))
+                                      (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                      ore-bot clay-bot (1+ obsidian-bot) geode-bot
+                                      (1- time))
+                               0)
+                           (if (<= clay-ore ore)
+                               (recur (+ ore ore-bot (- clay-ore)) (+ clay clay-bot)
+                                      (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                      ore-bot (1+ clay-bot) obsidian-bot geode-bot
+                                      (1- time))
+                               0)
+                           (if (<= ore-ore ore)
+                               (recur (+ (- ore ore-ore) ore-bot) (+ clay clay-bot)
+                                      (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                      (1+ ore-bot) clay-bot obsidian-bot geode-bot
+                                      (1- time))
+                               0)
+                           (recur (+ ore ore-bot) (+ clay clay-bot) (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                  ore-bot clay-bot obsidian-bot geode-bot
+                                  (1- time))))))))
+          (recur 0 0 0 0 1 0 0 0)
+          (values (* n best) n best)))))
+
+  (defun sum-all-qualities (blueprints &optional (time 24))
+    (loop for blueprint in blueprints
+          do (format t "Blueprint: ~A~%" (first blueprint))
+          sum (time (quality-level blueprint time))))
+
+
+  (defun problem-a () (format t "Problem 19 A: ~a~%" 600))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+
+  (defun quality-level-faster (blueprint &optional (base-time 24))
+    (let ((best 0))
+      (destructuring-bind
+          (n ore-ore clay-ore obsidian-ore obsidian-clay geode-ore geode-obsidian)
+          blueprint
+        (labels ((possible-geodes (ore clay obsidian geode ore-bot clay-bot obsidian-bot geode-bot time)
+                   (+ geode (* geode-bot time)
+                      (if (and (<= geode-ore ore)
+                               (<= geode-obsidian obsidian))
+                          (/ (* (1- time) time) 2)
+                          (/ (* (- time 2) (1- time)) 2))))
+                 (recur (ore clay obsidian geode ore-bot clay-bot obsidian-bot geode-bot &optional (time base-time))
+                   (setf best (max best geode))
+                   (cond ((<= (possible-geodes ore clay obsidian geode ore-bot clay-bot obsidian-bot geode-bot time)
+                              best)
+                          best)
+                         ((zerop time)
+                          best)
+                         (t
+                          (max
+                           (if (and (<= geode-ore ore)
+                                    (<= geode-obsidian obsidian))
+                               (recur (+ ore ore-bot (- geode-ore)) (+ clay clay-bot)
+                                      (+ obsidian obsidian-bot (- geode-obsidian)) (+ geode geode-bot)
+                                      ore-bot clay-bot obsidian-bot (1+ geode-bot)
+                                      (1- time))
+                               0)
+                           (if (and (<= obsidian-ore ore)
+                                    (<= obsidian-clay clay))
+                               (recur (+ ore ore-bot (- obsidian-ore)) (+ clay clay-bot (- obsidian-clay))
+                                      (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                      ore-bot clay-bot (1+ obsidian-bot) geode-bot
+                                      (1- time))
+                               0)
+                           (if (<= clay-ore ore)
+                               (recur (+ ore ore-bot (- clay-ore)) (+ clay clay-bot)
+                                      (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                      ore-bot (1+ clay-bot) obsidian-bot geode-bot
+                                      (1- time))
+                               0)
+                           (if (<= ore-ore ore)
+                               (recur (+ (- ore ore-ore) ore-bot) (+ clay clay-bot)
+                                      (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                      (1+ ore-bot) clay-bot obsidian-bot geode-bot
+                                      (1- time))
+                               0)
+                           (recur (+ ore ore-bot) (+ clay clay-bot) (+ obsidian obsidian-bot) (+ geode geode-bot)
+                                  ore-bot clay-bot obsidian-bot geode-bot
+                                  (1- time)))))))
+          (recur 0 0 0 0 1 0 0 0)
+          (values (* n best) n best)))))
+
+  (defun problem-b () (format t "Problem 19 B: ~a~%" (* 10 40 15)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 19 A: 600
+: Problem 19 B: 6000
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.19)
+  (in-suite aoc.2022.19)
+
+  (run! 'aoc.2022.19)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
