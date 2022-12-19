@@ -227,3 +227,7 @@ support for lisp installed you can run this by:
 ** Test Results
 #+RESULTS: test-cases
 ** Thoughts
+I hardcoded the results becaues it takes so damn long to run. Right
+now, the third value for part 2 takes an hour and a half to
+calculate. I can speed things up, but haven't yet and probably won't
+until I redo it in Python.
