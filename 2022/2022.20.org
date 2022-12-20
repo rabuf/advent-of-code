@@ -105,10 +105,9 @@ support for lisp installed you can run this by:
                      for value = (aref table (car element))
                      for shift-by = (mod value (1- (length table)))
                      for new-previous = (nthcdr shift-by element)
-                     unless (zerop (mod value (1- (length table))))
-                       do (setf (cdr previous) (cdr element)) ;; remove the number
-                          (psetf (cdr new-previous) element
-                                 (cdr element) (cdr new-previous))))
+                     unless (zerop shift-by)
+                       do (shiftf (cdr previous) (cdr element)
+                                  (cdr new-previous) element)))
       (let* ((zero (position 0 table))
              (start (loop for pos on sequence
                           until (= (car pos) zero)
