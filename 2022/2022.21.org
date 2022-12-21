@@ -1,0 +1,266 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 21
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-21)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-21
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-21)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/21.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun i-am-root (jobs)
+    (let ((monkeys (make-hash-table :test #'equal)))
+      (labels ((get-monkey (name)
+                 (let ((monkey (gethash name monkeys)))
+                   (cond ((numberp monkey)
+                          monkey)
+                         ((functionp monkey)
+                          (funcall monkey)))))
+               (process-job (job)
+                 (cl-ppcre:register-groups-bind
+                     (name (#'parse-integer number))
+                     ("([a-z]+): (\\d+)" job)
+                   (setf (gethash name monkeys) number))
+                 (cl-ppcre:register-groups-bind
+                     (name lhs op rhs)
+                     ("([a-z]+): ([a-z]+) (\\*|\\+|\\/|-) ([a-z]+)" job)
+                   (setf (gethash name monkeys)
+                         (lambda ()
+                           (let ((l (get-monkey lhs))
+                                 (r (get-monkey rhs)))
+                             (case (elt op 0)
+                               (#\/ (/ l r))
+                               (#\* (* l r))
+                               (#\+ (+ l r))
+                               (#\- (- l r)))))))))
+        (loop for job in jobs
+              do (process-job job))
+        (get-monkey "root"))))
+
+  (defun problem-a () (format t "Problem 21 A: ~a~%" (i-am-root *input*)))
+#+END_SRC
+** Part 2
+"Borrowing" the solution from above to make changes. The idea is ok,
+but root and humn are now special. "root" returns true or false, not
+awful. Just need to special case it.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun i-am-humn (jobs)
+    (let ((monkeys (make-hash-table :test #'equal))
+          factor
+          start
+          left
+          right)
+      (labels ((get-monkey (name)
+                 (let ((monkey (gethash name monkeys)))
+                   (cond ((numberp monkey)
+                          monkey)
+                         ((functionp monkey)
+                          (funcall monkey)))))
+               (process-job (job)
+                 (cl-ppcre:register-groups-bind
+                     (name (#'parse-integer number))
+                     ("([a-z]+): (\\d+)" job)
+                   (setf (gethash name monkeys) number))
+                 (cl-ppcre:register-groups-bind
+                     (name lhs op rhs)
+                     ("([a-z]+): ([a-z]+) (\\*|\\+|\\/|-) ([a-z]+)" job)
+                   (cond ((string= name "root")
+                          (setf left lhs)
+                          (setf right rhs)
+                          (setf (gethash name monkeys)
+                                (lambda ()
+                                  (let ((l (get-monkey lhs))
+                                        (r (get-monkey rhs)))
+                                    (= l r)))))
+                         (t
+                          (setf (gethash name monkeys)
+                                (case (elt op 0)
+                                  (#\/
+                                   (lambda ()
+                                     (let ((l (get-monkey lhs))
+                                           (r (get-monkey rhs)))
+                                       (/ l r))))
+                                  (#\+
+                                   (lambda ()
+                                     (let ((l (get-monkey lhs))
+                                           (r (get-monkey rhs)))
+                                       (+ l r))))
+                                  (#\-
+                                   (lambda ()
+                                     (let ((l (get-monkey lhs))
+                                           (r (get-monkey rhs)))
+                                       (- l r))))
+                                  (#\*
+                                   (lambda ()
+                                     (let ((l (get-monkey lhs))
+                                           (r (get-monkey rhs)))
+                                       (* l r)))))))))))
+        (loop for job in jobs
+              do (process-job job))
+        (setf (gethash right monkeys) (get-monkey right))
+        ;; Search for the factor to increase by
+        (loop for humn from 0
+              do (setf (gethash "humn" monkeys) humn)
+              until (integerp (get-monkey left))
+              finally (setf start humn))
+        (loop for humn from (1+ start)
+              do (setf (gethash "humn" monkeys) humn)
+              until (integerp (get-monkey left))
+              finally (setf factor (- humn start)))
+        (let (first second)
+          (setf (gethash "humn" monkeys) start)
+          (setf first (get-monkey left))
+          (setf (gethash "humn" monkeys) (+ start factor))
+          (setf second (get-monkey right))
+          (if (< first second)
+              (loop with humn = start
+                    with step = 1
+                    repeat 100
+                    do (setf (gethash "humn" monkeys) humn)
+                    until (get-monkey "root")
+                    finally (return humn)
+                    if (< (get-monkey left) (get-monkey right))
+                      do (incf step step)
+                         (incf humn (* step factor))
+                    else
+                      do (setf step (max 1 (floor step 2)))
+                         (decf humn (* step factor)))
+              (loop with humn = start
+                    with step = 1
+                    do (setf (gethash "humn" monkeys) humn)
+                    until (get-monkey "root")
+                    finally (return humn)
+                    if (< (get-monkey right) (get-monkey left))
+                      do (incf step step)
+                         (incf humn (* step factor))
+                    else
+                      do (setf step (max 1 (floor step 2)))
+                         (decf humn (* step factor))))))))
+
+    (defun problem-b () (format t "Problem 21 B: ~a~%" (i-am-humn *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 21 A: 124765768589550
+: Problem 21 B: 3059361893920
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.21)
+  (in-suite aoc.2022.21)
+
+  (defparameter *sample-input*
+    "root: pppw + sjmn
+  dbpl: 5
+  cczh: sllz + lgvd
+  zczc: 2
+  ptdq: humn - dvpt
+  dvpt: 3
+  lfqf: 4
+  humn: 5
+  ljgn: 2
+  sjmn: drzm * dbpl
+  sllz: 4
+  pppw: cczh / lfqf
+  lgvd: ljgn * ptdq
+  drzm: hmdt - zczc
+  hmdt: 32")
+
+  (defparameter *sample*
+    (with-input-from-string (in *sample-input*)
+      (process-stream in)))
+
+  (test root
+    (is (= 152 (i-am-root *sample*)))
+    (is (= 124765768589550 (i-am-root *input*))))
+  (test humn
+    (is (= 301 (i-am-humn *sample*)))
+    (is (= 3059361893920 (i-am-humn *input*))))
+
+  (run! 'aoc.2022.21)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.21
+:  Running test ROOT ..
+:  Running test HUMN ..
+:  Did 4 checks.
+:     Pass: 4 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
