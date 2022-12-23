@@ -1,0 +1,218 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 23
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-23)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-23
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-23)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/23.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun lines-to-grid (lines)
+    (loop for j from 0
+          for line in lines
+          with grid = (make-hash-table)
+          finally (return grid)
+          do (loop for i from 0
+                   for c across line
+                   for coord = (complex i j)
+                   when (char= #\# c)
+                     do (setf (gethash coord grid) t))))
+
+  (defun alone-p (grid elf)
+    (loop for j in '(-1 0 1)
+          always (loop for i in '(-1 0 1)
+                       for coord = (complex i j)
+                       always (or (zerop coord)
+                                  (not (gethash (+ elf coord) grid))))))
+
+  (defun check-north-south (grid elf dir)
+    (loop for i in '(-1 0 1)
+          for space = (+ i dir elf)
+          never (gethash space grid)))
+
+  (defun check-east-west (grid elf dir)
+    (loop for i in '(#C(0 -1) 0 #C(0 1))
+          for space = (+ i dir elf)
+          never (gethash space grid)))
+
+  (defun print-grid (grid)
+    (loop for pos being the hash-keys of grid
+          for x = (realpart pos)
+          for y = (imagpart pos)
+          minimizing x into min-x
+          minimizing y into min-y
+          maximizing x into max-x
+          maximizing y into max-y
+          finally (loop for y from min-y to max-y
+                        do (loop for x from min-x to max-x
+                                 do (format t "~:[.~;#~]" (gethash (complex x y) grid)))
+                           (terpri))))
+
+
+  (defun spread-out (grid &optional (rounds 10))
+    (let ((preferences (list #C(0 -1) #C(0 1) #C(-1 0) #C(1 0))))
+      (setf (cdr (last preferences)) preferences)
+      (loop repeat rounds
+            for proposals = (make-hash-table)
+            for (a b c d) on preferences
+            for dirs = (list a b c d)
+            do (loop for elf being the hash-keys of grid
+                     unless (alone-p grid elf)
+                       do (loop for dir in dirs
+                                if (integerp dir)
+                                  do (when (check-east-west grid elf dir)
+                                       (push elf (gethash (+ elf dir) proposals))
+                                       (return nil))
+                                else
+                                  do (when (check-north-south grid elf dir)
+                                       (push elf (gethash (+ elf dir) proposals))
+                                       (return nil))))
+               (loop for pos being the hash-keys of proposals using (hash-value elves)
+                     if (= 1 (length elves))
+                        do (remhash (first elves) grid)
+                           (setf (gethash pos grid) t)))
+      (loop for pos being the hash-keys of grid
+            for x = (realpart pos)
+            for y = (imagpart pos)
+            minimizing x into min-x
+            minimizing y into min-y
+            maximizing x into max-x
+            maximizing y into max-y
+            finally (return (- (* (1+ (- max-x min-x))
+                                  (1+ (- max-y min-y)))
+                               (hash-table-count grid))))))
+
+
+
+  (defun problem-a () (format t "Problem 23 A: ~a~%" (spread-out (lines-to-grid *input*))))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun fully-spread-out (grid)
+    (let ((preferences (list #C(0 -1) #C(0 1) #C(-1 0) #C(1 0))))
+      (setf (cdr (last preferences)) preferences)
+      (loop for round from 1
+            for proposals = (make-hash-table)
+            for (a b c d) on preferences
+            for dirs = (list a b c d)
+            for moved = 0
+            do (loop for elf being the hash-keys of grid
+                     unless (alone-p grid elf)
+                       do (loop for dir in dirs
+                                if (integerp dir)
+                                  do (when (check-east-west grid elf dir)
+                                       (push elf (gethash (+ elf dir) proposals))
+                                       (return nil))
+                                else
+                                  do (when (check-north-south grid elf dir)
+                                       (push elf (gethash (+ elf dir) proposals))
+                                       (return nil))))
+               (loop for pos being the hash-keys of proposals using (hash-value elves)
+                     if (= 1 (length elves))
+                       do (incf moved)
+                          (remhash (first elves) grid)
+                          (setf (gethash pos grid) t))
+            when (zerop moved)
+              return round)))
+
+  (defun problem-b () (format t "Problem 23 B: ~a~%" (fully-spread-out (lines-to-grid *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 23 A: 4005
+: Problem 23 B: 1008
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.23)
+  (in-suite aoc.2022.23)
+
+  (defparameter *sample*
+    (list "....#.."
+          "..###.#"
+          "#...#.#"
+          ".#...##"
+          "#.###.."
+          "##.#.##"
+          ".#..#.."))
+
+  (run! 'aoc.2022.23)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
