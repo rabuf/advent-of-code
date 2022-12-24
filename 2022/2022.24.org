@@ -1,0 +1,220 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 24
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-24)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-24
+    (:use :common-lisp
+          :parseq
+          :priority-queue
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-24)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun lines-to-map (lines)
+    (loop for line in lines
+          for y from -1
+          with blizzards = (make-hash-table :test #'equal)
+          with max-x = -1
+          with max-y = -1
+          do (setf max-y (max max-y y))
+          do (loop for x from -1
+                   for coord = (list x y)
+                   for c across line
+                   do (setf max-x (max max-x x))
+                   do (case c
+                        (#\> (push '(1 0) (gethash coord blizzards)))
+                        (#\< (push '(-1 0) (gethash coord blizzards)))
+                        (#\^ (push '(0 -1) (gethash coord blizzards)))
+                        (#\v (push '(0 1) (gethash coord blizzards)))))
+          finally (return (list blizzards max-x max-y))))
+
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (lines-to-map (process-stream in))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/24.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun manhattan (a b)
+    (destructuring-bind ((ax ay) (bx by)) (list a b)
+      (+ (abs (- ax bx))
+         (abs (- ay by)))))
+
+  (defun find-path (initial-blizzards x y)
+    (flet ((move-blizzards (blizzards)
+             (loop with next-blizzards = (make-hash-table :test #'equalp)
+                   for (px py) being the hash-keys of blizzards using (hash-value storms)
+                   do (loop for (dx dy) in storms
+                            do (push (list dx dy) (gethash (list (mod (+ px dx) x) (mod (+ py dy) y)) next-blizzards)))
+                   finally (return next-blizzards))))
+      (loop with start = (list 0 -1)
+            with end = (list (1- x) y)
+            with fringe = (make-pqueue #'<)
+            with blizzards = (make-hash-table)
+            with visited = (make-hash-table :test #'equalp)
+              initially
+                 (pqueue-push (list start 0) (manhattan start end) fringe)
+                 (setf (gethash 0 blizzards) initial-blizzards)
+                 (setf (gethash 1 blizzards) (move-blizzards initial-blizzards))
+            for (position time) = (pqueue-pop fringe)
+            when (equal position end)
+              return time
+            unless (gethash (1+ time) blizzards)
+              do (setf (gethash (1+ time) blizzards) (move-blizzards (gethash time blizzards)))
+            unless (gethash (list position time) visited)
+              do (setf (gethash (list position time) visited) t)
+                 (loop for (dx dy) in '((1 0) (-1 0) (0 1) (0 -1) (0 0))
+                       with (px py) = position
+                       for (nx ny) = (list (+ px dx) (+ py dy))
+                       if (or (and (<= 0 nx (1- x))
+                                   (<= 0 ny (1- y))
+                                   (not (gethash (list nx ny) (gethash (1+ time) blizzards))))
+                              (equal start (list nx ny))
+                              (equal end (list nx ny)))
+                         do (pqueue-push (list (list nx ny) (1+ time)) (+ 1 time (manhattan (list nx ny) end)) fringe))
+          until (pqueue-empty-p fringe))))
+
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (apply #'find-path *input*)))
+#+END_SRC
+** Part 2
+I'm going to be lazy and reuse the above code but with some
+modifications to handle the swapping, but not changing the above
+itself.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun find-path-2 (initial-blizzards x y start end)
+    (flet ((move-blizzards (blizzards)
+             (loop with next-blizzards = (make-hash-table :test #'equalp)
+                   for (px py) being the hash-keys of blizzards using (hash-value storms)
+                   do (loop for (dx dy) in storms
+                            do (push (list dx dy) (gethash (list (mod (+ px dx) x) (mod (+ py dy) y)) next-blizzards)))
+                   finally (return next-blizzards))))
+      (loop with fringe = (make-pqueue #'<)
+            with blizzards = (make-hash-table)
+            with visited = (make-hash-table :test #'equalp)
+              initially
+                 (pqueue-push (list start 0) (manhattan start end) fringe)
+                 (setf (gethash 0 blizzards) initial-blizzards)
+                 (setf (gethash 1 blizzards) (move-blizzards initial-blizzards))
+            for (position time) = (pqueue-pop fringe)
+            when (equal position end)
+              return (values time (gethash time blizzards))
+            unless (gethash (1+ time) blizzards)
+              do (setf (gethash (1+ time) blizzards) (move-blizzards (gethash time blizzards)))
+            unless (gethash (list position time) visited)
+              do (setf (gethash (list position time) visited) t)
+                 (loop for (dx dy) in '((1 0) (-1 0) (0 1) (0 -1) (0 0))
+                       with (px py) = position
+                       for (nx ny) = (list (+ px dx) (+ py dy))
+                       if (or (and (<= 0 nx (1- x))
+                                   (<= 0 ny (1- y))
+                                   (not (gethash (list nx ny) (gethash (1+ time) blizzards))))
+                              (equal start (list nx ny))
+                              (equal end (list nx ny)))
+                         do (pqueue-push (list (list nx ny) (1+ time)) (+ 1 time (manhattan (list nx ny) end)) fringe))
+          until (pqueue-empty-p fringe))))
+
+  (defun get-snacks (initial-blizzards x y)
+    (let ((start (list 0 -1))
+          (end (list (1- x) y)))
+    (multiple-value-bind (t1 b1)
+        (find-path-2 initial-blizzards x y start end)
+      (multiple-value-bind (t2 b2)
+          (find-path-2 b1 x y end start)
+        (multiple-value-bind (t3 b3)
+            (find-path-2 b2 x y start end)
+          (+ t1 t2 t3))))))
+
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (apply #'get-snacks *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 24 A: 326
+: Problem 24 B: 976
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.24)
+  (in-suite aoc.2022.24)
+  (defparameter *sample-input*
+    (list "#.######"
+          "#>>.<^<#"
+          "#.<..<<#"
+          "#>v.><>#"
+          "#<^v^^>#"
+          "######.#"))
+  (defparameter *sample*
+    (lines-to-map *sample-input*))
+  (run! 'aoc.2022.24)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.24
+:  Didn't run anything...huh?
+** Thoughts
