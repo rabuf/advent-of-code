@@ -89,9 +89,7 @@ the reverse will be a challenge.
           (4 (cons #\- (%integer-balanced-quinary (floor (+ 3 n) 5)))))))
 
   (defun integer-balanced-quinary (n)
-    (let ((number (%integer-balanced-quinary n)))
-      (setf number (reverse number))
-      (format nil "~{~A~}" number)))
+    (format nil "~{~A~}" (reverse (%integer-balanced-quinary n))))
 
   (defun problem-a () (format t "Problem 25 A: ~a~%" (integer-balanced-quinary (sum-quinary *input*))))
 #+END_SRC
