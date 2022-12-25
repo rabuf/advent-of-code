@@ -85,8 +85,8 @@ the reverse will be a challenge.
           (0 (cons #\0 (%integer-balanced-quinary (/ n 5))))
           (1 (cons #\1 (%integer-balanced-quinary (floor n 5))))
           (2 (cons #\2 (%integer-balanced-quinary (floor n 5))))
-          (3 (cons #\= (%integer-balanced-quinary (floor (+ 3 n) 5))))
-          (4 (cons #\- (%integer-balanced-quinary (floor (+ 3 n) 5)))))))
+          (3 (cons #\= (%integer-balanced-quinary (floor (+ 2 n) 5))))
+          (4 (cons #\- (%integer-balanced-quinary (floor (+ 2 n) 5)))))))
 
   (defun integer-balanced-quinary (n)
     (format nil "~{~A~}" (reverse (%integer-balanced-quinary n))))
