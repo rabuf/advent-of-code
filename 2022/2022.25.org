@@ -1,0 +1,156 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day DAY
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2022-DAY)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2022-25
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2022-25)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/25.txt"))
+#+END_SRC
+** Part 1
+First part is not too bad, balanced base-5 to integers and sum. But
+the reverse will be a challenge.
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun parse-balanced-quinary (string)
+    (loop for c across string
+          with n = 0
+          finally (return n)
+          do (setf n (* 5 n))
+             (incf n (ecase c
+                       (#\= -2)
+                       (#\- -1)
+                       (#\0 0)
+                       (#\1 1)
+                       (#\2 2)))))
+
+  (defun sum-quinary (numbers)
+    (loop for n in numbers
+          sum (parse-balanced-quinary n)))
+
+  (defun %integer-balanced-quinary (n)
+    (if (zerop n)
+        nil
+        (case (mod n 5)
+          (0 (cons #\0 (%integer-balanced-quinary (/ n 5))))
+          (1 (cons #\1 (%integer-balanced-quinary (floor n 5))))
+          (2 (cons #\2 (%integer-balanced-quinary (floor n 5))))
+          (3 (cons #\= (%integer-balanced-quinary (floor (+ 3 n) 5))))
+          (4 (cons #\- (%integer-balanced-quinary (floor (+ 3 n) 5)))))))
+
+  (defun integer-balanced-quinary (n)
+    (let ((number (%integer-balanced-quinary n)))
+      (setf number (reverse number))
+      (format nil "~{~A~}" number)))
+
+  (defun problem-a () (format t "Problem 25 A: ~a~%" (integer-balanced-quinary (sum-quinary *input*))))
+#+END_SRC
+** Part 2
+This one is a freebie.
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 25 A: 2-0=11=-0-2-1==1=-22
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2022.25)
+  (in-suite aoc.2022.25)
+  (defparameter *sample*
+    (list "1=-0-2"
+          "12111"
+          "2=0="
+          "21"
+          "2=01"
+          "111"
+          "20012"
+          "112"
+          "1=-1="
+          "1-12"
+          "12"
+          "1="
+          "122"))
+
+  (test sum-sample
+    (is (= 4890 (sum-quinary *sample*))))
+  (run! 'aoc.2022.25)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2022.25
+:  Running test SUM-SAMPLE .
+:  Did 1 check.
+:     Pass: 1 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
