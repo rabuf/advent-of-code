@@ -1,0 +1,217 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 24
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2016-24)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2016-24
+    (:use :common-lisp
+          :parseq
+          :priority-queue
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2016-24)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/24.txt"))
+#+END_SRC
+** Part 1
+Trying something new for me. Floyd-Warshall (mentioned by others for
+their solutions on similar puzzles) will create a table of shortest
+paths between all nodes of a graph so long as there are no negative
+cycles (easy here since all weights for existing paths are 1).
+
+The plan: Use Floyd-Warshall to construct a table of shortest
+distances between all points. Discard all points that aren't one of
+the controls (0-7 in my input). Perform a breadthfirst search on the
+remaining points.
+
+
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun text-to-grid (lines)
+    (loop with grid = (make-hash-table)
+          with controls = nil
+          for y from 0
+          for line in lines
+          do (loop for x from 0
+                   for coord = (complex x y)
+                   for c across line
+                   when (or (char= c #\.)
+                            (digit-char-p c))
+                     do (setf (gethash coord grid) c)
+                   when (digit-char-p c)
+                     do (push (cons c coord) controls))
+          finally (return (list grid (sort controls #'char< :key #'car)))))
+
+  (defun manhattan (a b)
+    (+ (abs (- (realpart a) (realpart b)))
+       (abs (- (imagpart a) (imagpart b)))))
+
+  (defun shortest-route (lines)
+    (destructuring-bind (grid controls) (text-to-grid lines)
+      (let ((distances (make-hash-table :test #'equal))
+            (control-names (mapcar #'car controls)))
+        (labels ((bfs (start end)
+                   (loop with fringe = (make-pqueue #'<)
+                         with visited = (make-hash-table)
+                           initially
+                              (pqueue-push (list start 0) 0 fringe)
+                         for (position distance) = (pqueue-pop fringe)
+                         when (= position end)
+                           return distance
+                         do (setf (gethash position visited) t)
+                         do (loop for delta in '(#C(0 1) #C(0 -1) #C(1 0) #C(-1 0))
+                                  for neighbor = (+ delta position)
+                                  for value = (gethash neighbor grid)
+                                  when value
+                                    do (unless (gethash neighbor visited)
+                                         (pqueue-push (list neighbor (1+ distance))
+                                                      (+ 1 distance (manhattan position end))
+                                                      fringe)))
+                         until (pqueue-empty-p fringe)))
+                 (dfs (current remaining)
+                   (loop for control in remaining
+                         for distance = (dfs control (remove control remaining))
+                         minimizing (+ (gethash (list current control) distances)
+                                       (dfs control (remove control remaining))))))
+          (loop for (n1 . p1) in controls
+                do (loop for (n2 . p2) in controls
+                         when (char/= n1 n2)
+                           do (let ((distance (bfs p1 p2)))
+                                (setf (gethash (list n1 n2) distances) distance
+                                      (gethash (list n2 n1) distances) distance))))
+          (dfs #\0 (remove #\0 control-names))))))
+
+  (defun problem-a () (format t "Problem 24 A: ~a~%" (shortest-route *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun shortest-route-return (lines)
+      (destructuring-bind (grid controls) (text-to-grid lines)
+        (let ((distances (make-hash-table :test #'equal))
+              (control-names (mapcar #'car controls)))
+          (labels ((bfs (start end)
+                     (loop with fringe = (make-pqueue #'<)
+                           with visited = (make-hash-table)
+                             initially
+                                (pqueue-push (list start 0) 0 fringe)
+                           for (position distance) = (pqueue-pop fringe)
+                           when (= position end)
+                             return distance
+                           do (setf (gethash position visited) t)
+                           do (loop for delta in '(#C(0 1) #C(0 -1) #C(1 0) #C(-1 0))
+                                    for neighbor = (+ delta position)
+                                    for value = (gethash neighbor grid)
+                                    when value
+                                      do (unless (gethash neighbor visited)
+                                           (pqueue-push (list neighbor (1+ distance))
+                                                        (+ 1 distance (manhattan position end))
+                                                        fringe)))
+                           until (pqueue-empty-p fringe)))
+                   (dfs (current remaining)
+                     (cond ((null remaining)
+                            (gethash (list current #\0) distances))
+                           (t
+                            (loop for control in remaining
+                                  for distance = (dfs control (remove control remaining))
+                                  minimizing (+ (gethash (list current control) distances)
+                                                (dfs control (remove control remaining))))))))
+            (loop for (n1 . p1) in controls
+                  do (loop for (n2 . p2) in controls
+                           when (char/= n1 n2)
+                             do (let ((distance (bfs p1 p2)))
+                                  (setf (gethash (list n1 n2) distances) distance
+                                        (gethash (list n2 n1) distances) distance))))
+            (dfs #\0 (remove #\0 control-names))))))
+
+  (defun problem-b () (format t "Problem 24 B: ~a~%" (shortest-route-return *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 24 A: 490
+: Problem 24 B: 744
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2016.24)
+  (in-suite aoc.2016.24)
+  (defparameter *sample*
+    (list "###########"
+          "#0.1.....2#"
+          "#.#######.#"
+          "#4.......3#"
+          "###########"))
+  (run! 'aoc.2016.24)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2016.24
+:  Didn't run anything...huh?
+** Thoughts
