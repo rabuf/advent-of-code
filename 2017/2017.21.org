@@ -1,0 +1,188 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 21
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2017-21)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2017-21
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2017-21)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun parse-line (line)
+    (destructuring-bind (left right)
+        (cl-ppcre:split " => " line)
+      (list (mapcar (lambda (part) (cl-ppcre:split "" part))
+                    (cl-ppcre:split "/" left))
+            (mapcar (lambda (part) (cl-ppcre:split "" part))
+                    (cl-ppcre:split "/" right)))))
+
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (parse-line line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/21.txt"))
+#+END_SRC
+** Part 1
+This is an "enhancement" algorithm. Starting with:
+
+#+BEGIN_EXPORT ascii
+.#.
+..#
+###
+#+END_EXPORT
+
+Find a matching rule (may have to rotate or flip the image) and
+replace with the new value. I'm going to represent the current state
+with a pair of hash table (complex -> boolean) and width/height (which
+will be the same, it's square).
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *initial*
+    (list (list "." "#" ".")
+          (list "." "." "#")
+          (list "#" "#" "#")))
+
+  (defun flip-y (pattern)
+    (reverse pattern))
+
+  (defun flip-x (pattern)
+    (mapcar #'reverse pattern))
+
+  (defun rotate (pattern)
+    (apply #'mapcar #'list pattern))
+
+  (defun find-and-apply-rule (rules &optional (pattern *initial*))
+    (loop for (left right) in rules
+          if (loop for value in (list pattern (flip-y pattern) (flip-x pattern) (flip-y (flip-x pattern))
+                                      (rotate pattern) (flip-y (rotate pattern)) (flip-x (rotate pattern)) (flip-y (flip-x (rotate pattern))))
+                     thereis (equalp value left))
+            do (return right)))
+
+
+  (defun chunkify (sequence size)
+    (loop for i from 0 to (- (length sequence) size) by size
+          collect (subseq sequence i (+ i size))))
+
+  (defun chunkify-row (lines size)
+    (apply #'mapcar #'list (loop for line in lines
+                                 collect (chunkify line size))))
+
+  (defun chunkify-patterns (patterns size)
+    (loop for row in (chunkify patterns size)
+          collect (chunkify-row row size)))
+
+  (defun unchunkify (parts)
+    (loop for part in parts
+          with result = nil
+          do (setf result (append result (apply #'mapcar #'append part)))
+          finally (return result)))
+
+  (defun print-pattern (pattern)
+    (format t "~{~{~A~}~%~}" pattern))
+
+  (defun apply-rules (rules &optional (rounds 1) (pattern *initial*))
+    (loop repeat rounds
+          with result = pattern
+          for n = (length result)
+          for size = (if (zerop (mod n 2)) 2 3)
+          for chunked = (chunkify-patterns result size)
+          for next = (loop for part in chunked
+                           collect (loop for p in part
+                                         collect (find-and-apply-rule rules p)))
+          do (setf result (unchunkify next))
+          finally (return result)))
+
+  (defun count-on (lines)
+    (loop for line in lines
+          sum (loop for c in line
+                    count (string= "#" c))))
+
+  (defun problem-a () (format t "Problem 21 A: ~a~%" (count-on (apply-rules *input* 5))))
+#+END_SRC
+** Part 2
+Very slow approach, it takes about 9.5 seconds on my laptop to run
+this one. There is a lot of consing involved. There is certainly a
+pattern which can be exploited, but this works well enough.
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun problem-b () (format t "Problem 21 B: ~a~%" (count-on (apply-rules *input* 18))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 21 A: 150
+: Problem 21 B: 2606275
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2017.21)
+  (in-suite aoc.2017.21)
+
+  (run! 'aoc.2017.21)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
