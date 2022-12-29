@@ -1,6 +1,6 @@
 #+STARTUP: indent
 #+OPTIONS: toc:nil num:nil
-* TODO Advent of Code 2017 [24/25]
+* DONE Advent of Code 2017 [25/25]
 ** DONE [[file:2017.01.org][Day 1]]
 ** DONE [[file:2017.02.org][Day 2]]
 ** DONE [[file:2017.03.org][Day 3]]
@@ -21,7 +21,7 @@
 ** DONE [[file:2017.18.org][Day 18]]
 ** DONE [[file:2017.19.org][Day 19]]
 ** DONE [[file:2017.20.org][Day 20]]
-** TODO [[file:2017.21.org][Day 21]]
+** DONE [[file:2017.21.org][Day 21]]
 ** DONE [[file:2017.22.org][Day 22]]
 ** DONE [[file:2017.23.org][Day 23]]
 ** DONE [[file:2017.24.org][Day 24]]
