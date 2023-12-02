@@ -20,3 +20,5 @@
 **/.DS_Store
 /2021/ada/
 **/input
+**/.hypothesis
+**/.ipynb_checkpoints
