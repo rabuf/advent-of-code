@@ -1,4 +1,5 @@
 from pytest import mark
+
 from aoc2023.day01 import *
 
 day1_sample = """two1nine
@@ -22,5 +23,6 @@ def test_day1_part2_parsing(line, expected):
 
 
 def test_day1_part2_sample():
-    values = (line_to_calibration_value(line, r'(\d|one|two|three|four|five|six|seven|eight|nine)') for line in day1_sample.splitlines())
+    values = (line_to_calibration_value(line, r'(\d|one|two|three|four|five|six|seven|eight|nine)')
+              for line in day1_sample.splitlines())
     assert sum(values) == sum(day1_part2_interp)

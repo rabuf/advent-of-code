@@ -13,7 +13,7 @@ def find_parts(schematic: list[str]):
         for match in re.finditer(r'\d+', schematic[i]):
             start, end = match.span()
             start, end = max(start - 1, 0), min(end + 1, len(schematic[i]))
-            region = ''.join([row[start:end] for row in padded[i:i+3]])
+            region = ''.join([row[start:end] for row in padded[i:i + 3]])
             if re.search(r'[^.0-9]', region):
                 parts.append(int(match.group(0)))
     return parts
@@ -26,7 +26,7 @@ def find_gear_ratios(schematic):
     for i in range(len(schematic)):
         for gear in re.finditer(r'\*', schematic[i]):
             numbers = []
-            for row in padded[i:i+3]:
+            for row in padded[i:i + 3]:
                 for n in re.finditer(r'\d+', row):
                     lower, upper = n.span()
                     if lower - 1 <= gear.start() <= upper:
