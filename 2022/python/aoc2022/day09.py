@@ -45,7 +45,7 @@ def part_1(lines, length=2):
 
 def main():
     input_dir = Path(sys.argv[1])
-    with open(input_dir / "09.txt") as f:
+    with open(input_dir / "2022" / "09.txt") as f:
         lines = list(map(parse_line, f.read().splitlines()))
         visited = part_1(lines, length=10)
         print_day(9, len(visited[1]), len(visited[9]))

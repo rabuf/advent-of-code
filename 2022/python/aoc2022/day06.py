@@ -25,7 +25,7 @@ def start_of_marker(tx, length=4):
 
 def main():
     input_dir = Path(sys.argv[1])
-    with open(input_dir / "06.txt") as f:
+    with open(input_dir / "2022" / "06.txt") as f:
         tx = f.read()
         print_day(6, start_of_packet(tx), start_of_message(tx))
 

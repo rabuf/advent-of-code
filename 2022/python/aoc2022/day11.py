@@ -80,7 +80,7 @@ def monkey_business(monkeys, rounds=20, op=floordiv, divisor=3):
 
 def main():
     input_dir = Path(sys.argv[1])
-    with open(input_dir / "11.txt") as f:
+    with open(input_dir / "2022" / "11.txt") as f:
         lines = f.read().splitlines()
         monkeys = list(map(parse_monkey, chunk_fill(lines, 7)))
         part1 = monkey_business(monkeys)

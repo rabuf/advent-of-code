@@ -22,7 +22,7 @@ def overlaps(ranges):
 
 def main():
     input_path = Path(sys.argv[1])
-    with open(input_path / "04.txt", "r") as f:
+    with open(input_path / "2022" / "04.txt", "r") as f:
         lines = f.readlines()
         ranges = list(map(parse_line, lines))
         a = sum(map(contains, ranges))

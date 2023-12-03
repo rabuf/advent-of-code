@@ -58,7 +58,7 @@ def max_scenic_score(grid):
 
 def main():
     input_dir = Path(sys.argv[1])
-    with open(input_dir / "08.txt") as f:
+    with open(input_dir / "2022" / "08.txt") as f:
         grid = input_to_grid(f.readlines(), int)
         print_day(8,
                   count_visible_trees(grid),

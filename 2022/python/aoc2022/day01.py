@@ -18,7 +18,7 @@ def parse(elves):
 
 def main():
     input_path = Path(sys.argv[1])
-    with open(input_path / "01.txt", "r") as f:
+    with open(input_path / "2022" / "01.txt", "r") as f:
         elves = parse(f.read().strip())
         print_day(1, *solve(elves))
 

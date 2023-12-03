@@ -154,7 +154,7 @@ def high_level(winds, number_pieces):
 
 def main():
     input_dir = Path(sys.argv[1])
-    with open(input_dir / "17.txt") as f:
+    with open(input_dir / "2022" / "17.txt") as f:
         winds = f.readline().strip()
     game = play_game(winds)
     level, _ = nth_or_last(game, 2021)

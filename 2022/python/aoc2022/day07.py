@@ -63,7 +63,7 @@ def collect_sizes(filesystem, path=Path('/'), sizes=None):
 
 def main():
     input_dir = Path(sys.argv[1])
-    with open(input_dir / "07.txt") as f:
+    with open(input_dir / "2022" / "07.txt") as f:
         interactions = [parse_line(line) for line in f.readlines()]
         filesystem = process_interactions(interactions)
         sizes = collect_sizes(filesystem)

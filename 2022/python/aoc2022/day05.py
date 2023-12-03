@@ -43,7 +43,7 @@ def apply_moves_9001(crates, moves):
 
 def main():
     input_path = Path(sys.argv[1])
-    with open(input_path / "05.txt", "r") as f:
+    with open(input_path / "2022" / "05.txt", "r") as f:
         text = f.read()
         crates, moves = parse(text)
         part1 = {}

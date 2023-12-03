@@ -57,7 +57,7 @@ def solve(plays):
 
 def main():
     input_path = Path(sys.argv[1])
-    with open(input_path / "02.txt", "r") as f:
+    with open(input_path / "2022" / "02.txt", "r") as f:
         plays = parse(f)
         print_day(2, *solve(plays))
 
