@@ -1,3 +1,4 @@
 hypothesis~=6.91.0
 pytest
 more-itertools
+regex
