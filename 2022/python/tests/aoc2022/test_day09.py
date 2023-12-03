@@ -1,5 +1,5 @@
 import pytest
-from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize
+from hypothesis.stateful import RuleBasedStateMachine, rule, invariant, initialize, precondition
 
 from aoc2022 import day09
 
@@ -42,6 +42,14 @@ class SnakeGame(RuleBasedStateMachine):
     snake = None
     old = None
 
+    @staticmethod
+    def touching(a, b):
+        return int(a.real - b.real) in [1, 0, -1] and int(a.imag - b.imag) in [1, 0, -1]
+
+    @staticmethod
+    def in_line(a, b):
+        return (a.real == b.real and a.imag != b.imag) or (a.real != b.real and a.imag == b.imag)
+
     @initialize()
     def set_snake(self):
         self.snake = [0, 0]
@@ -50,8 +58,29 @@ class SnakeGame(RuleBasedStateMachine):
     @invariant()
     def always_touching(self):
         """This test ensures that after movement the tail is within one of the head."""
-        assert int(self.snake[0].real - self.snake[1].real) in [1, 0, -1] and int(
-            self.snake[0].real - self.snake[1].real) in [1, 0, -1]
+        assert SnakeGame.touching(self.snake[0], self.snake[1])
+
+    @precondition(lambda self: SnakeGame.touching(self.old[1], self.snake[0]))
+    @invariant()
+    def tail_does_not_move_if_head_stays_near(self):
+        assert self.old[1] == self.snake[1]
+
+    @precondition(lambda self: not SnakeGame.touching(self.old[1], self.snake[0]))
+    @invariant()
+    def tail_moves_if_head_goes_too_far(self):
+        assert self.old[1] != self.snake[1]
+
+    @precondition(lambda self: (not SnakeGame.touching(self.old[1], self.snake[0])
+                                and SnakeGame.in_line(self.old[1], self.snake[0])))
+    @invariant()
+    def tail_moves_in_line(self):
+        assert SnakeGame.in_line(self.old[1], self.snake[1])
+
+    @precondition(lambda self: (not SnakeGame.touching(self.old[1], self.snake[0])
+                                and not SnakeGame.in_line(self.old[1], self.snake[0])))
+    @invariant()
+    def tail_moves_diagonal(self):
+        assert not SnakeGame.in_line(self.old[1], self.snake[1])
 
     @rule()
     def move_up(self):
