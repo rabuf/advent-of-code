@@ -12,7 +12,6 @@ sample = """467..114..
 .664.598..
 """
 
-
 part1_parts = [467, 35, 633, 617, 592, 755, 664, 598]
 
 
@@ -26,6 +25,7 @@ def test_part1():
 
 def test_gear_ratios():
     assert day03.find_gear_ratios(sample.splitlines()) == [16345, 451490]
+
 
 def test_parse_line():
     assert True
