@@ -25,7 +25,3 @@ def test_part1():
 
 def test_gear_ratios():
     assert day03.find_gear_ratios(sample.splitlines()) == [16345, 451490]
-
-
-def test_parse_line():
-    assert True
