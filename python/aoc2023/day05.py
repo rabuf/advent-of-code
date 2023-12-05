@@ -64,11 +64,10 @@ def determine_location(seed, maps, resource_maps) -> int:
     value = seed
     resource_type = 'seed'
     while resource_type != 'location':
-        if any(value in key for key in maps[resource_type].keys()):
-            for (key, base) in maps[resource_type].items():
-                if value in key:
-                    value = base + value - key[0]
-                    break
+        for (key, base) in maps[resource_type].items():
+            if value in key:
+                value = base + value - key[0]
+                break
         resource_type = resource_maps[resource_type]
 
     return value
