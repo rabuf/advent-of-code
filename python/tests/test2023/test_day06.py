@@ -8,5 +8,5 @@ def test_approaches(time, distance):
     # if this value is negative, then we end up with a complex number
     # when calculating the sqrt, these are treated as invalid inputs
     # by calling `assume`, rather than causing a test failure.
-    assume(0 <= time ** 2 - 4 * distance - 1)
+    assume(0 <= time ** 2 - 4 * distance)
     assert fast_ways_to_beat(time, distance) == ways_to_beat(time, distance)
