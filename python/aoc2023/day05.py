@@ -19,7 +19,7 @@ def next_ranges(initial, ranges) -> list[range]:
             if s[0] < r[0] and r[-1] < s[-1]:
                 result.append(range(base, base + len(r)))
                 next_set.append(range(s[0], r[0]))
-                next_set.append(range(r[-1]+1, s[-1]+1))
+                next_set.append(range(r[-1] + 1, s[-1] + 1))
             # s is entirely within r
             if r[0] <= s[0] and s[-1] <= r[-1]:
                 start = s[0] + base - r[0]
@@ -47,7 +47,7 @@ def create_map(ranges):
     section_map = {}
     for line in lines[1:]:
         parts = [int(part) for part in line.split()]
-        section_map[range(parts[1], parts[1]+parts[2])] = parts[0]
+        section_map[range(parts[1], parts[1] + parts[2])] = parts[0]
     return name, section_map
 
 
