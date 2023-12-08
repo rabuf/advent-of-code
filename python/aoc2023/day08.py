@@ -11,11 +11,11 @@ def parse_node(node_line):
     return re.findall(r'\w+', node_line)
 
 
-def walk_map(directions, network, start='AAA', limit=lambda pos: pos == 'ZZZ'):
+def walk_map(directions, network, start='AAA', arrived=lambda pos: pos == 'ZZZ'):
     directions = cycle(directions)
     current = start
     count = 0
-    while not limit(current):
+    while not arrived(current):
         count += 1
         match next(directions):
             case 'L':
@@ -31,10 +31,10 @@ def ghost_walk(directions, network):
     positions = [location for location in network if location.endswith('A')]
     print(positions)
 
-    def limit(pos):
+    def arrived(pos):
         return pos.endswith('Z')
 
-    steps = [walk_map(directions, network, start=position, limit=limit) for position in positions]
+    steps = [walk_map(directions, network, start=position, arrived=arrived) for position in positions]
     print(steps)
     return lcm(*steps)
 
