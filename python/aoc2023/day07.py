@@ -1,7 +1,6 @@
 import sys
 from collections import Counter
 from enum import IntEnum
-from functools import cmp_to_key
 from pathlib import Path
 
 from aoc_util import print_day
@@ -65,24 +64,16 @@ def compare_cards(c1: str, c2: str):
     return 1
 
 
-def compare_hands(hand1, hand2):
-    c1, k1, _ = hand1
-    c2, k2, _ = hand2
-    if k1 < k2:
-        return -1
-    if k1 > k2:
-        return 1
-    for a, b in zip(c1, c2):
-        match compare_cards(a, b):
-            case -1:
-                return -1
-            case 1:
-                return 1
-    return 0
+def hand_to_number(hand: str) -> int:
+    result = 0
+    for card in hand:
+        result = card_to_value(card) + result * 15
+    return result
 
 
 def score_hand(hands):
-    hands = sorted(hands, key=cmp_to_key(compare_hands))
+    hands = sorted(hands, key=lambda hand: hand_to_number(hand[0]))
+    hands = sorted(hands, key=lambda hand: hand[1])
     scores = [bid * pos for pos, (_, _, bid) in enumerate(hands, start=1)]
     score = sum(scores)
     return score
