@@ -17,25 +17,17 @@ def walk_map(directions, network, start='AAA', arrived=lambda pos: pos == 'ZZZ')
     count = 0
     while not arrived(current):
         count += 1
-        match next(directions):
-            case 'L':
-                current = network[current][0]
-            case 'R':
-                current = network[current][1]
-            case _:
-                raise ValueError(f'Invalid directions')
+        current = network[current][next(directions) == 'R']
     return count
 
 
 def ghost_walk(directions, network):
     positions = [location for location in network if location.endswith('A')]
-    print(positions)
 
     def arrived(pos):
         return pos.endswith('Z')
 
     steps = [walk_map(directions, network, start=position, arrived=arrived) for position in positions]
-    print(steps)
     return lcm(*steps)
 
 
