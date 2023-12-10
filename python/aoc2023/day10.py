@@ -1,12 +1,11 @@
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 from aoc_util import print_day
 
 
 def input_to_grid(lines):
-    grid = defaultdict(lambda: '.')
+    grid = {}
     start = 0
     for (row, pipes) in enumerate(lines):
         for (col, pipe) in enumerate(pipes):
@@ -48,17 +47,10 @@ turning = {
 
 
 def enclosed_area(grid, start):
-    if grid[start + -1j] in '7F|':
-        start_direction = -1j
-    elif grid[start + 1j] in 'LJ|':
-        start_direction = 1j
-    elif grid[start + 1] in '-J7':
-        start_direction = 1
-    else:
-        start_direction = -1
+    start_direction = initial_direction(grid, start)
     pos = start + start_direction
     direction = start_direction
-    loop_only = defaultdict(str)
+    loop_only = {}
     loop_only[start] = 'S'
     turns = 0
     while grid[pos] != 'S':
@@ -66,11 +58,9 @@ def enclosed_area(grid, start):
         direction = next_direction[(grid[pos], direction)]
         loop_only[pos] = grid[pos]
         pos = pos + direction
-    print(f'{turns=}')
     frontier = set()
     not_loop = set(grid) - set(loop_only)
-    print(f'{(4-1j) in grid.keys()}')
-    print(f'{not_loop=}')
+
     def check(pos):
         if pos in not_loop:
             frontier.add(pos)
@@ -125,15 +115,10 @@ def enclosed_area(grid, start):
                     check(pos - 1j)
         direction = next_direction[(grid[pos], direction)]
         pos = pos + direction
-
-    print(f'{not_loop=}\n{len(not_loop)=}')
-    print(f'{turns=}')
     for pos in list(not_loop):
         if pos.real == 0 or pos.imag == 0:
             frontier.add(pos)
             not_loop.remove(pos)
-    print(f'{not_loop}\n{frontier}')
-    print(f'{not_loop & frontier=}')
     while frontier:
         pos = frontier.pop()
         for i in [-1, 1, -1j, +1j]:
@@ -141,19 +126,23 @@ def enclosed_area(grid, start):
             if potential in not_loop and potential:
                 not_loop.remove(potential)
                 frontier.add(potential)
-    print(not_loop)
     return len(not_loop)
 
 
-def loop_length(grid, start):
-    if grid[start + -1j] in '7F|':
-        direction = -1j
-    elif grid[start + 1j] in 'LJ|':
-        direction = 1j
-    elif grid[start + 1] in '-J7':
-        direction = 1
+def initial_direction(grid, start):
+    if (start - 1j) in grid and grid[start + -1j] in '7F|':
+        start_direction = -1j
+    elif (start + 1j) in grid and grid[start + 1j] in 'LJ|':
+        start_direction = 1j
+    elif (start + 1) in grid and grid[start + 1] in '-J7':
+        start_direction = 1
     else:
-        direction = -1
+        start_direction = -1
+    return start_direction
+
+
+def loop_length(grid, start):
+    direction = initial_direction(grid, start)
     length = 1
     pos = start + direction
     while pos != start:
