@@ -69,66 +69,56 @@ def enclosed_area(grid, start):
     pos = start + start_direction
     direction = start_direction
     while grid[pos] != 'S':
-        if turns < 0:
-            match grid[pos], direction:
-                case ('|', -1j):
-                    check(pos + 1, right)
-                case ('|', 1j):
-                    check(pos - 1, right)
-                case ('-', 1):
-                    check(pos + 1j, right)
-                case ('-', -1):
-                    check(pos - 1j, right)
-                case ('J', 1):
-                    check(pos + 1j, right)
-                    check(pos + 1, right)
-                case ('L', 1j):
-                    check(pos - 1, right)
-                    check(pos + 1j, right)
-                case ('7', -1j):
-                    check(pos + 1, right)
-                    check(pos - 1j, right)
-                case ('F', -1):
-                    check(pos - 1, right)
-                    check(pos - 1j, right)
-            frontier = right
-        else:
-            match grid[pos], direction:
-                case ('|', -1j):
-                    check(pos - 1, left)
-                case ('|', 1j):
-                    check(pos + 1, left)
-                case ('-', 1):
-                    check(pos - 1j, left)
-                case ('-', -1):
-                    check(pos + 1j, left)
-                case ('J', 1j):
-                    check(pos + 1j, left)
-                    check(pos + 1, left)
-                case ('L', -1):
-                    check(pos - 1, left)
-                    check(pos + 1j, left)
-                case ('7', 1):
-                    check(pos + 1, left)
-                    check(pos - 1j, left)
-                case ('F', -1j):
-                    check(pos - 1, left)
-                    check(pos - 1j, left)
-            frontier = left
+        match grid[pos], direction:
+            case ('|', -1j):
+                check(pos + 1, right)
+                check(pos - 1, left)
+            case ('|', 1j):
+                check(pos - 1, right)
+                check(pos + 1, left)
+            case ('-', 1):
+                check(pos + 1j, right)
+                check(pos - 1j, left)
+            case ('-', -1):
+                check(pos - 1j, right)
+                check(pos + 1j, left)
+            case ('J', 1):
+                check(pos + 1j, right)
+                check(pos + 1, right)
+            case ('L', 1j):
+                check(pos - 1, right)
+                check(pos + 1j, right)
+            case ('7', -1j):
+                check(pos + 1, right)
+                check(pos - 1j, right)
+            case ('F', -1):
+                check(pos - 1, right)
+                check(pos - 1j, right)
+            case ('J', 1j):
+                check(pos + 1j, left)
+                check(pos + 1, left)
+            case ('L', -1):
+                check(pos - 1, left)
+                check(pos + 1j, left)
+            case ('7', 1):
+                check(pos + 1, left)
+                check(pos - 1j, left)
+            case ('F', -1j):
+                check(pos - 1, left)
+                check(pos - 1j, left)
         direction = next_direction[(grid[pos], direction)]
         pos = pos + direction
-    for pos in list(not_loop):
-        if pos.real == 0 or pos.imag == 0:
-            frontier.add(pos)
-            not_loop.remove(pos)
+    frontier = left if turns < 0 else right
+    inside = frontier.copy()
     while frontier:
         pos = frontier.pop()
         for i in [-1, 1, -1j, +1j]:
             potential = pos + i
-            if potential in not_loop and potential:
+            if potential in not_loop:
                 not_loop.remove(potential)
                 frontier.add(potential)
-    return len(not_loop)
+                inside.add(potential)
+    return len(inside)
 
 
 def initial_direction(grid, start):
