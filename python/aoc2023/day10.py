@@ -50,16 +50,16 @@ def enclosed_area(grid, start):
     start_direction = initial_direction(grid, start)
     pos = start + start_direction
     direction = start_direction
-    loop_only = {start: 'S'}
+    loop_only = {start}
     turns = 0
     while grid[pos] != 'S':
         turns += turning[(grid[pos], direction)]
         direction = next_direction[(grid[pos], direction)]
-        loop_only[pos] = grid[pos]
+        loop_only.add(pos)
         pos = pos + direction
     left = set()
     right = set()
-    not_loop = set(grid) - set(loop_only)
+    not_loop = set(grid) - loop_only
 
     def check(pos, side):
         if pos in not_loop:
