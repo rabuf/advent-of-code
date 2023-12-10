@@ -51,23 +51,13 @@ def enclosed_area(grid, start):
     pos = start + start_direction
     direction = start_direction
     loop_only = {start}
+    left, right = set(), set()
     turns = 0
-    while grid[pos] != 'S':
-        turns += turning[(grid[pos], direction)]
-        direction = next_direction[(grid[pos], direction)]
-        loop_only.add(pos)
-        pos = pos + direction
-    left = set()
-    right = set()
-    not_loop = set(grid) - loop_only
 
     def check(pos, side):
-        if pos in not_loop:
+        if pos in grid:
             side.add(pos)
-            not_loop.remove(pos)
 
-    pos = start + start_direction
-    direction = start_direction
     while grid[pos] != 'S':
         match grid[pos], direction:
             case ('|', -1j):
@@ -106,16 +96,19 @@ def enclosed_area(grid, start):
             case ('F', -1j):
                 check(pos - 1, left)
                 check(pos - 1j, left)
+        turns += turning[(grid[pos], direction)]
         direction = next_direction[(grid[pos], direction)]
+        loop_only.add(pos)
         pos = pos + direction
-    frontier = left if turns < 0 else right
+    remaining = set(grid) - loop_only - left - right
+    frontier = (left if turns < 0 else right) - loop_only
     inside = frontier.copy()
     while frontier:
         pos = frontier.pop()
         for i in [-1, 1, -1j, +1j]:
             potential = pos + i
-            if potential in not_loop:
-                not_loop.remove(potential)
+            if potential in remaining:
+                remaining.remove(potential)
                 frontier.add(potential)
                 inside.add(potential)
     return len(inside)
