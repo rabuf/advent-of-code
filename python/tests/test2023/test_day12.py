@@ -17,14 +17,14 @@ sample_unfolded_results = [1, 16384, 1, 16, 2500, 506250]
 @mark.parametrize("record, configurations",
                   zip((parse_line(line) for line in sample_data.splitlines()), sample_results))
 def test_part1_fast(record, configurations):
-    assert actually_fast_count(*record) == configurations
+    assert configuration_count(*record) == configurations
 
 
 @mark.parametrize("record, configurations",
                   zip((parse_line(line) for line in sample_data.splitlines()), sample_unfolded_results))
 def test_part2_fast(record, configurations):
     unfolded = unfold(record)
-    assert actually_fast_count(*unfolded) == configurations
+    assert configuration_count(*unfolded) == configurations
 
 
 def test_unfold():

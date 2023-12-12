@@ -6,7 +6,7 @@ from functools import cache
 from aoc_util import print_day
 
 
-def actually_fast_count(row: str, groups) -> int:
+def configuration_count(row: str, groups) -> int:
     def valid_group(start, length):
         valid = row[start:start + length].count('.') == 0
         valid = valid and len(row[start:start + length]) == length
@@ -46,8 +46,8 @@ def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "2023" / "12.txt") as f:
         records = list(map(parse_line, f.read().splitlines()))
-        p1 = sum(actually_fast_count(*record) for record in records)
-        p2 = sum(actually_fast_count(*unfold(record)) for record in records)
+        p1 = sum(configuration_count(*record) for record in records)
+        p2 = sum(configuration_count(*unfold(record)) for record in records)
         print_day(12, p1, p2)
 
 
