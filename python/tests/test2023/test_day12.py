@@ -11,22 +11,28 @@ sample_data = """???.### 1,1,3
 """
 
 sample_results = [1, 4, 1, 1, 4, 10]
-
-sample_regexes = [r'\.*#\.+#\.+###\.*',
-                  r'\.*#\.+#\.+###\.*',
-                  r'\.*#\.+###\.+#\.+######\.*',
-                  r'\.*####\.+#\.+#\.*',
-                  r'\.*#\.+######\.+#####\.*',
-                  r'\.*###\.+##\.+#\.*',
-                  ]
+sample_unfolded_results = [1, 16384, 1, 16, 2500, 506250]
 
 
-@mark.parametrize("record, configurations", zip((parse_line(line) for line in sample_data.splitlines()), sample_results))
-def test_part1(record, configurations):
-    assert configuration_count(record) == configurations
+@mark.parametrize("record, configurations",
+                  zip((parse_line(line) for line in sample_data.splitlines()), sample_results))
+def test_part1_fast(record, configurations):
+    assert actually_fast_count(*record) == configurations
 
 
-@mark.parametrize("record, regex", zip((parse_line(line) for line in sample_data.splitlines()), sample_regexes))
-def test_regex_generation(record, regex):
-    assert groups_to_regex(record.groups) == re.compile(regex)
+@mark.parametrize("record, configurations",
+                  zip((parse_line(line) for line in sample_data.splitlines()), sample_unfolded_results))
+def test_part2_fast(record, configurations):
+    unfolded = unfold(record)
+    assert actually_fast_count(*unfolded) == configurations
 
+
+def test_unfold():
+    assert unfold(('...', [1, 2])) == ('...?...?...?...?...', [1, 2, 1, 2, 1, 2, 1, 2, 1, 2])
+
+
+def test_unfold_increases_by_five():
+    row, groups = '.?.', [1]
+    row_unfolded, groups_unfolded = unfold((row, groups))
+    assert row_unfolded.count(row) == 5
+    assert len(groups_unfolded) == 5 * len(groups)

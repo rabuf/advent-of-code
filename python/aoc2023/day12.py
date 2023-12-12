@@ -1,58 +1,54 @@
+import datetime
 import sys
 from pathlib import Path
-from dataclasses import dataclass
-
-import re
-
-from more_itertools import distinct_permutations
+from functools import cache
 
 from aoc_util import print_day
 
 
-@dataclass
-class Record:
-    row: str
-    groups: list[int]
+def actually_fast_count(row: str, groups) -> int:
+    def valid_group(start, length):
+        valid = row[start:start + length].count('.') == 0
+        valid = valid and len(row[start:start + length]) == length
+        valid = valid and (start + length >= len(row) or row[start + length] in '.?')
+        return valid
 
-
-def groups_to_regex(groups: list[int]):
-    pattern = r'\.*' + r'\.+'.join('#'*c for c in groups) + r'\.*'
-    return re.compile(pattern)
-
-
-def fill_row(row: str, springs):
-    for c in springs:
-        next_q = row.find('?')
-        row = row[:next_q] + c + row[next_q+1:]
-    return row
-
-
-def configuration_count(record: Record) -> int:
-    regex = groups_to_regex(record.groups)
-    count = 0
-    unknowns = record.row.count('?')
-    missing_count = sum(record.groups) - record.row.count('#')
-    missing_springs = '#'*missing_count + '.'*(unknowns-missing_count)
-    for springs in distinct_permutations(missing_springs):
-        subbed = fill_row(record.row, springs)
-        if regex.match(subbed):
-            count += 1
-
-    return count
+    @cache
+    def recur(position, group_id):
+        if group_id == len(groups):
+            return row[position:].count('#') == 0
+        if position >= len(row):
+            return 0
+        if row[position] == '#':
+            if valid_group(position, groups[group_id]):
+                return recur(position + groups[group_id] + 1, group_id + 1)
+            else:
+                return 0
+        if valid_group(position, groups[group_id]):
+            return (recur(position + groups[group_id] + 1, group_id + 1)
+                    + recur(position + 1, group_id))
+        return recur(position + 1, group_id)
+    return recur(0, 0)
 
 
 def parse_line(line):
     row, groups = line.split()
     groups = [int(c) for c in groups.split(',')]
-    return Record(row, groups)
+    return row, groups
+
+
+def unfold(record):
+    row, groups = record
+    return '?'.join([row]*5), groups * 5
 
 
 def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "2023" / "12.txt") as f:
         records = list(map(parse_line, f.read().splitlines()))
-        p1 = sum(configuration_count(record) for record in records)
-        print_day(12, p1, len(records))
+        p1 = sum(actually_fast_count(*record) for record in records)
+        p2 = sum(actually_fast_count(*unfold(record)) for record in records)
+        print_day(12, p1, p2)
 
 
 if __name__ == '__main__':
