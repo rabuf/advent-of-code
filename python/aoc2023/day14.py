@@ -15,52 +15,28 @@ def load(grid):
     return weight_load
 
 
-def tilt(row):
-    '#'.join(''.join(section) for section in row.split('#'))
+def tilt(row, reverse=False):
+    return list('#'.join(''.join(sorted(section, reverse=reverse)) for section in (''.join(row)).split('#')))
 
 
 def tilt_east(grid):
-    changed = True
-    while changed:
-        changed = False
-        for y, row in enumerate(grid):
-            for x in range(len(row)-1, 0, -1):
-                if row[x] == '.' and row[x-1] == 'O':
-                    row[x], row[x-1] = row[x-1], row[x]
-                    changed = True
+    grid[:] = [tilt(row) for row in grid]
 
 
 def tilt_south(grid):
-    changed = True
-    while changed:
-        changed = False
-        for y in range(len(grid) - 1, 0, -1):
-            for x, cell in enumerate(grid[y]):
-                if cell == '.' and grid[y-1][x] == 'O':
-                    grid[y-1][x], grid[y][x] = grid[y][x], grid[y-1][x]
-                    changed = True
+    grid[:] = [[*row] for row in transpose(grid)]
+    tilt_east(grid)
+    grid[:] = [[*row] for row in transpose(grid)]
 
 
 def tilt_west(grid):
-    changed = True
-    while changed:
-        changed = False
-        for y, row in enumerate(grid):
-            for x in range(len(row) - 1):
-                if row[x] == '.' and row[x+1] == 'O':
-                    row[x], row[x+1] = row[x+1], row[x]
-                    changed = True
+    grid[:] = [tilt(row, reverse=True) for row in grid]
 
 
 def tilt_north(grid):
-    changed = True
-    while changed:
-        changed = False
-        for y in range(len(grid) - 1):
-            for x in range(len(grid[y])):
-                if grid[y][x] == '.' and grid[y+1][x] == 'O':
-                    grid[y][x], grid[y+1][x] = 'O', '.'
-                    changed = True
+    grid[:] = [[*row] for row in transpose(grid)]
+    tilt_west(grid)
+    grid[:] = [[*row] for row in transpose(grid)]
 
 
 def print_grid(grid):
@@ -108,7 +84,6 @@ def main():
         tilt_north(tilted)
         grid = [row.copy() for row in lines]
         lam, mu = cycle_finder(grid)
-        print((lam, mu))
         count = mu + (1000000000 - mu) % lam
         p2 = load(spin_cycle(lines, times=count))
         print_day(14, load(tilted), p2)
