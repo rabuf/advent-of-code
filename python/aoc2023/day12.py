@@ -1,6 +1,6 @@
 import sys
-from pathlib import Path
 from functools import cache
+from pathlib import Path
 
 from aoc_util import print_day
 
@@ -27,6 +27,7 @@ def configuration_count(row: str, groups) -> int:
             return (recur(position + groups[group_id] + 1, group_id + 1)
                     + recur(position + 1, group_id))
         return recur(position + 1, group_id)
+
     return recur(0, 0)
 
 
@@ -38,7 +39,7 @@ def parse_line(line):
 
 def unfold(record):
     row, groups = record
-    return '?'.join([row]*5), groups * 5
+    return '?'.join([row] * 5), groups * 5
 
 
 def main():

@@ -29,7 +29,7 @@ def smudge(field: list[str], vertical, horizontal):
     for i in range(len(field)):
         for j in range(len(field[0])):
             new_field = field[:]
-            new_field[i] = field[i][:j] + ('.' if field[i][j] == '#' else '.') + field[i][j+1:]
+            new_field[i] = field[i][:j] + ('.' if field[i][j] == '#' else '.') + field[i][j + 1:]
             v, h = find_reflections(new_field)
             v = list(set(v) - set(vertical))
             h = list(set(h) - set(horizontal))

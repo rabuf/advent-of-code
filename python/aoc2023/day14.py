@@ -3,7 +3,6 @@ from pathlib import Path
 
 from more_itertools import transpose
 
-import aoc_util
 from aoc_util import print_day
 
 

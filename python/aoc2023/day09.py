@@ -1,5 +1,5 @@
-from operator import sub
 import sys
+from operator import sub
 from pathlib import Path
 
 from aoc_util import print_day
