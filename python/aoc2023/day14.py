@@ -7,11 +7,7 @@ from aoc_util import print_day
 
 
 def load(grid):
-    height = len(grid)
-    weight_load = 0
-    for y, row in enumerate(grid):
-        weight_load += (height - y) * row.count('O')
-    return weight_load
+    return sum(y * row.count('O') for y, row in enumerate(grid[::-1], start=1))
 
 
 def tilt(row, reverse=False):
