@@ -16,7 +16,7 @@ def load(grid):
 
 
 def tilt(row, reverse=False):
-    return list('#'.join(''.join(sorted(section, reverse=reverse)) for section in (''.join(row)).split('#')))
+    return '#'.join(''.join(sorted(section, reverse=reverse)) for section in row.split('#'))
 
 
 def tilt_east(grid):
@@ -24,9 +24,9 @@ def tilt_east(grid):
 
 
 def tilt_south(grid):
-    grid[:] = [[*row] for row in transpose(grid)]
+    grid[:] = [''.join(row) for row in transpose(grid)]
     tilt_east(grid)
-    grid[:] = [[*row] for row in transpose(grid)]
+    grid[:] = [''.join(row) for row in transpose(grid)]
 
 
 def tilt_west(grid):
@@ -34,9 +34,9 @@ def tilt_west(grid):
 
 
 def tilt_north(grid):
-    grid[:] = [[*row] for row in transpose(grid)]
+    grid[:] = [''.join(row) for row in transpose(grid)]
     tilt_west(grid)
-    grid[:] = [[*row] for row in transpose(grid)]
+    grid[:] = [''.join(row) for row in transpose(grid)]
 
 
 def print_grid(grid):
@@ -46,17 +46,17 @@ def print_grid(grid):
 
 def cycle_finder(grid):
     power = lam = 1
-    tortoise = [row.copy() for row in grid]
-    hare = spin_cycle([row.copy() for row in grid])
+    tortoise = grid.copy()
+    hare = spin_cycle(grid.copy())
     while tortoise != hare:
         if power == lam:
-            tortoise = [row.copy() for row in hare]
+            tortoise = hare.copy()
             power *= 2
             lam = 0
         spin_cycle(hare)
         lam += 1
-    tortoise = [row.copy() for row in grid]
-    hare = [row.copy() for row in grid]
+    tortoise = grid.copy()
+    hare = grid.copy()
     spin_cycle(hare, times=lam)
 
     mu = 0
@@ -79,10 +79,10 @@ def spin_cycle(grid, times=1):
 def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "2023" / "14.txt") as f:
-        lines = [list(line) for line in f.read().splitlines()]
-        tilted = [row.copy() for row in lines]
+        lines = f.read().splitlines()
+        tilted = lines.copy()
         tilt_north(tilted)
-        grid = [row.copy() for row in lines]
+        grid = lines.copy()
         lam, mu = cycle_finder(grid)
         count = mu + (1000000000 - mu) % lam
         p2 = load(spin_cycle(lines, times=count))
