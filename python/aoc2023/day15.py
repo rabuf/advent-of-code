@@ -24,7 +24,7 @@ def focusing_power(hashmap):
     return total
 
 
-def apply(hashmap: dict[int, tuple[dict,list]], label, operation, n):
+def apply(hashmap: dict[int, tuple[dict, list]], label, operation, n):
     box = hashmap[hash_algorithm(label)]
     match operation:
         case '=':
