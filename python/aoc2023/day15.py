@@ -1,22 +1,14 @@
 import re
 import sys
 from collections import defaultdict
+from functools import reduce
 from pathlib import Path
 
 from aoc_util import print_day
 
 
 def hash_algorithm(s):
-    h = 0
-    for c in s:
-        h += ord(c)
-        h *= 17
-        h %= 256
-    return h
-
-
-def parse_line(line):
-    pass
+    return reduce(lambda h, c: (h + ord(c)) * 17 % 256, s, 0)
 
 
 def process(instruction):
@@ -27,43 +19,37 @@ def process(instruction):
 def focusing_power(hashmap):
     total = 0
     for i, box in hashmap.items():
-        for j, [_, focal_length] in enumerate(box[1], start=1):
-            total += (i + 1) * j * focal_length
+        for j, label in enumerate(box[1], start=1):
+            total += (i + 1) * j * box[0][label]
     return total
 
 
-def hash_map(instructions):
-    m = defaultdict(lambda: (set(), []))
-    for instruction in instructions:
-        match process(instruction):
-            case label, '=', n:
-                box = m[hash_algorithm(label)]
-                if label in box[0]:
-                    for entry in box[1]:
-                        if entry[0] == label:
-                            entry[1] = n
-                else:
-                    box[0].add(label)
-                    box[1].append([label, n])
-            case label, '-', _:
-                box = m[hash_algorithm(label)]
-                if label in box[0]:
-                    box[0].remove(label)
-                    for i, entry in enumerate(box[1]):
-                        if entry[0] == label:
-                            break
-                    if i < len(box[1]):
-                        box[1].remove(entry)
-    return m
+def apply(hashmap, label, operation, n):
+    box = hashmap[hash_algorithm(label)]
+    match operation:
+        case '=':
+            if label in box[0]:
+                box[0][label] = n
+            else:
+                box[0][label] = n
+                box[1].append(label)
+        case '-':
+            if label in box[0]:
+                del box[0][label]
+                box[1].remove(label)
+    return hashmap
 
 
 def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "2023" / "15.txt") as f:
-        instructions = f.readline().strip().split(',')
-        m = hash_map(instructions)
+        raw_instructions = f.readline().strip().split(',')
+        p1 = sum(hash_algorithm(i) for i in raw_instructions)
+        instructions = [process(instruction) for instruction in raw_instructions]
+        m = defaultdict(lambda: ({}, []))
+        reduce(lambda m, instruction: apply(m, *instruction), instructions, m)
         p2 = focusing_power(m)
-        print_day(15, sum(hash_algorithm(i) for i in instructions), p2)
+        print_day(15, p1, p2)
 
 
 if __name__ == '__main__':

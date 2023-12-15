@@ -13,7 +13,8 @@ def test_part1():
 
 
 def test_hash_map():
-    instructions = sample.split(',')
-    m = hash_map(instructions)
+    instructions = map(process, sample.split(','))
+    m = defaultdict(lambda: ({}, []))
+    reduce(lambda m, instruction: apply(m, *instruction), instructions, m)
     total = focusing_power(m)
     assert total == 145
