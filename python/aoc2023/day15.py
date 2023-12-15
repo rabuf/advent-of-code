@@ -24,15 +24,13 @@ def focusing_power(hashmap):
     return total
 
 
-def apply(hashmap, label, operation, n):
+def apply(hashmap: dict[int, tuple[dict,list]], label, operation, n):
     box = hashmap[hash_algorithm(label)]
     match operation:
         case '=':
-            if label in box[0]:
-                box[0][label] = n
-            else:
-                box[0][label] = n
+            if label not in box[0]:
                 box[1].append(label)
+            box[0][label] = n
         case '-':
             if label in box[0]:
                 del box[0][label]
