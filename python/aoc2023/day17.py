@@ -4,24 +4,24 @@ from queue import PriorityQueue
 from aoc_util import print_day
 
 
-def least_heat(grid, height, width, min_path=0, max_path=3):
+def least_heat(grid, height, width, minimum_streak=0, maximum_steak=3):
     frontier = PriorityQueue()
     frontier.put((grid[(1, 0)], (1, 0), (1, 0), 1))
     frontier.put((grid[(0, 1)], (0, 1), (0, 1), 1))
     visited = set()
     target = (width - 1, height - 1)
     while not frontier.empty():
-        cost, (x, y), (dx, dy), straight = frontier.get()
-        if (x, y) == target and min_path <= straight:
+        cost, (x, y), (dx, dy), streak = frontier.get()
+        if (x, y) == target and minimum_streak <= streak:
             return cost
-        if ((x, y), (dx, dy), straight) in visited:
+        if ((x, y), (dx, dy), streak) in visited:
             continue
-        visited.add(((x, y), (dx, dy), straight))
-        if straight < (max_path - 1) and (x + dx, y + dy) in grid:
+        visited.add(((x, y), (dx, dy), streak))
+        if streak < (maximum_steak - 1) and (x + dx, y + dy) in grid:
             straight_position = (x + dx, y + dy)
             straight_cost = cost + grid[straight_position]
-            frontier.put((straight_cost, straight_position, (dx, dy), straight + 1))
-        if min_path <= straight:
+            frontier.put((straight_cost, straight_position, (dx, dy), streak + 1))
+        if minimum_streak <= streak:
             lx, ly = dy, -dx
             left_position = (x + lx, y + ly)
             rx, ry = -dy, dx
@@ -41,7 +41,7 @@ def main():
     height, width = len(lines), len(lines[0])
     grid = {(x, y): int(n) for y, line in enumerate(lines) for x, n in enumerate(line)}
     p1 = least_heat(grid, height, width)
-    p2 = least_heat(grid, height, width, min_path=3, max_path=10)
+    p2 = least_heat(grid, height, width, minimum_streak=3, maximum_steak=10)
     print_day(17, p1, p2)
 
 

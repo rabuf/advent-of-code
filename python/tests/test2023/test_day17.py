@@ -27,18 +27,18 @@ def test_part1():
     lines = sample.splitlines()
     height, width = len(lines), len(lines[0])
     grid = {(x, y): int(n) for y, line in enumerate(lines) for x, n in enumerate(line)}
-    assert least_heat(grid, height, width, max_path=3) == 102
+    assert least_heat(grid, height, width, maximum_steak=3) == 102
 
 
 def test_part2():
     lines = sample.splitlines()
     height, width = len(lines), len(lines[0])
     grid = {(x, y): int(n) for y, line in enumerate(lines) for x, n in enumerate(line)}
-    assert least_heat(grid, height, width, min_path=3, max_path=10) == 94
+    assert least_heat(grid, height, width, minimum_streak=3, maximum_steak=10) == 94
 
 
 def test_part2_sample2():
     lines = sample_2.splitlines()
     height, width = len(lines), len(lines[0])
     grid = {(x, y): int(n) for y, line in enumerate(lines) for x, n in enumerate(line)}
-    assert least_heat(grid, height, width, min_path=3, max_path=10) == 71
+    assert least_heat(grid, height, width, minimum_streak=3, maximum_steak=10) == 71
