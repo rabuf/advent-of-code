@@ -7,8 +7,8 @@ from aoc_util import print_day
 
 def least_heat(grid, height, width, minimum_streak=0, maximum_steak=3):
     frontier = PriorityQueue()
-    frontier.put((grid[(1, 0)], (1, 0), (1, 0), 1))
-    frontier.put((grid[(0, 1)], (0, 1), (0, 1), 1))
+    frontier.put((grid[(1, 0)], (1, 0), (1, 0), 0))
+    frontier.put((grid[(0, 1)], (0, 1), (0, 1), 0))
     visited = set()
     target = (width - 1, height - 1)
     while not frontier.empty():
