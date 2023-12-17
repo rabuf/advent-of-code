@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from queue import PriorityQueue
+
 from aoc_util import print_day
 
 
