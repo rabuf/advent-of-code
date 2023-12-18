@@ -17,6 +17,37 @@ U 2 (#7a21e3)
 """
 
 
+def dig_out(lines):
+    grid = {}
+    position = 0
+    min_x, min_y, max_x, max_y = 0, 0, 0, 0
+    for direction, length, color in lines:
+        for _ in range(length):
+            position += direction
+            grid[position] = color
+            min_x = min(min_x, position.real)
+            max_x = max(max_x, position.real)
+            min_y = min(min_y, position.imag)
+            max_y = max(max_y, position.imag)
+    return grid, min_x + min_y * 1j, max_x + max_y * 1j
+
+
+def fill_in(grid, top_left, bottom_right):
+    frontier = {1 + 1j}
+    visited = set()
+    while frontier:
+        consider = frontier.pop()
+        if consider.imag < top_left.imag or consider.imag > bottom_right.imag:
+            continue
+        if consider.real < top_left.real or consider.real > bottom_right.real:
+            continue
+        if consider not in visited:
+            new = {consider + direction for direction in [1, -1, 1j, -1j]}
+            new = new - set(grid)
+            frontier = frontier | new
+            grid[consider] = '#'
+
+
 def test_day18():
     lines = list(map(parse_line, sample.splitlines()))
     path = [(direction, length) for direction, length, _ in lines]
