@@ -1,9 +1,11 @@
 import sys
 from collections import defaultdict
 from functools import reduce
-from pathlib import Path
 from operator import lt, gt, mul
+from pathlib import Path
+
 import regex as re
+
 from aoc_util import print_day
 
 

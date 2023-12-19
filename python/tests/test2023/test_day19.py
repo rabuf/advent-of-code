@@ -20,7 +20,7 @@ hdj{m>838:A,pv}
 
 
 def test_parse_category():
-    assert parse_part("{x=787,m=2655,a=1222,s=2876}") == {"x": 787, "m": 2655, "a":1222, "s": 2876}
+    assert parse_part("{x=787,m=2655,a=1222,s=2876}") == {"x": 787, "m": 2655, "a": 1222, "s": 2876}
 
 
 def test_part1():
@@ -34,5 +34,5 @@ def test_part1():
 def test_part2():
     workflows, _ = sample.split('\n\n')
     workflows = dict(map(parse_workflow_range, workflows.splitlines()))
-    accepted = apply_workflows_range({'x':(1, 4000), 'm':(1, 4000), 'a': (1, 4000), 's': (1, 4000)}, workflows)
+    accepted = apply_workflows_range({'x': (1, 4000), 'm': (1, 4000), 'a': (1, 4000), 's': (1, 4000)}, workflows)
     assert accepted == 167409079868000
