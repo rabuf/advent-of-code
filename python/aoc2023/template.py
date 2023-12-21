@@ -5,7 +5,7 @@ from aoc_util import print_day
 
 
 def parse_line(line):
-    pass
+    return line
 
 
 def main():
