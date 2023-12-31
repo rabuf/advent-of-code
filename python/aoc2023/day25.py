@@ -1,12 +1,9 @@
 import sys
 from functools import reduce
-from operator import mul, and_
+from operator import mul
 from pathlib import Path
 
 import networkx
-from networkx import Graph, condensation, enumerate_all_cliques, is_k_edge_connected, bridges, edge_connectivity, \
-    k_edge_components, k_edge_subgraphs, connected_components, set_edge_attributes
-from networkx.algorithms.approximation import min_edge_dominating_set, min_weighted_dominating_set
 from networkx.algorithms.community import greedy_modularity_communities
 
 from aoc_util import print_day
