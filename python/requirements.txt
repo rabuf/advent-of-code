@@ -1,5 +1,10 @@
 hypothesis~=6.91.0
-pytest
+pytest~=7.4.3
 more-itertools
-regex
+regex~=2023.10.3
 pytest-xdist
+z3-solver
+numpy~=1.26.2
+opencv-python~=4.8.1.78
+ortools~=9.8.3296
+shapely~=2.0.2
