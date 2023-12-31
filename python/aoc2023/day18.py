@@ -19,7 +19,7 @@ def coordinates(lines):
 
 
 def shoelace(coords):
-    return int(sum((i.real * j.imag - i.imag*j.real + abs(i - j))
+    return int(sum((i.real * j.imag - i.imag * j.real + abs(i - j))
                    for i, j in zip(coords, coords[1:] + coords[:1]))) // 2 + 1
 
 

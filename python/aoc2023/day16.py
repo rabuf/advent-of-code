@@ -1,8 +1,7 @@
-import datetime
-from operator import or_
 import sys
 from collections import defaultdict
 from functools import reduce
+from operator import or_
 from pathlib import Path
 
 from aoc_util import print_day
@@ -72,14 +71,8 @@ def main():
         lines = f.read().splitlines()
     height, width = len(lines), len(lines[0])
     grid = lines_to_grid(lines)
-    start = datetime.datetime.now()
     energy = energized(grid)
-    end = datetime.datetime.now()
-    print(f'Part 1: {end - start}')
-    start = datetime.datetime.now()
     max_energy = maximize_energized_region(grid, height, width)
-    end = datetime.datetime.now()
-    print(f'Brute Force: {end - start}')
     print_day(16, energy, max_energy)
 
 

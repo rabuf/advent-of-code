@@ -8,3 +8,4 @@ numpy~=1.26.2
 opencv-python~=4.8.1.78
 ortools~=9.8.3296
 shapely~=2.0.2
+networkx~=3.2.1

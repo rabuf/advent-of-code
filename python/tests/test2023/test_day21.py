@@ -16,6 +16,7 @@ sample = """...........
 ...........
 """
 
+
 @fixture
 def sample_input():
     lines = sample.splitlines()
@@ -26,3 +27,8 @@ def sample_input():
 def test_sample_input(sample_input, steps, gardens):
     grid, start = sample_input
     assert gardens_within(grid, start, steps) == gardens
+
+
+@mark.parametrize('steps, gardens', [(6, 16), (10, 50), (50, 1594), (100, 6536)])
+def test_infinite_gardens(steps, gardens):
+    assert infinite_gardens(sample.splitlines(), (5, 5), steps)[-1] == gardens

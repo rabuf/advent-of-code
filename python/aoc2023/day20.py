@@ -1,10 +1,7 @@
 import re
 import sys
-from abc import abstractmethod
-from collections import defaultdict, Counter
 from enum import IntEnum
 from pathlib import Path
-from typing import Iterable
 
 from aoc_util import print_day
 
@@ -132,7 +129,7 @@ def main():
         p1_modules = process_module_list(modules)
         p2_modules = process_module_list(modules)
         low, high = press_button(p1_modules, times=1000)
-        presses = lowest_presses(p2_modules)
+        presses = 0  # lowest_presses(p2_modules)
         print_day(20, low * high, presses)
 
 
