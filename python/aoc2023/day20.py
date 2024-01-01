@@ -1,6 +1,8 @@
 import re
 import sys
+from collections import defaultdict
 from enum import IntEnum
+from math import lcm
 from pathlib import Path
 
 from aoc_util import print_day
@@ -20,10 +22,12 @@ class PulseModule:
     def __init__(self, name, destinations):
         self.name = name
         self.destinations = destinations
-        self._sources = []
+        self.sources = []
+        self.watch = False
 
     def add_source(self, source):
-        self._sources.append(source)
+        if source not in self.sources:
+            self.sources.append(source)
 
     def apply(self, origin, pulse):
         raise NotImplementedError
@@ -62,15 +66,18 @@ class FlipFlop(PulseModule):
 class Conjunction(PulseModule):
     def __init__(self, name, destinations):
         super().__init__(name, destinations)
-        self._received = {}
+        self.received = {}
+        self.sent_high = False
 
     def add_source(self, source):
         super().add_source(source)
-        self._received[source] = Pulse.LOW
+        self.received[source] = Pulse.LOW
 
     def apply(self, origin, pulse):
-        self._received[origin] = pulse
-        result = Pulse.LOW if pulse and all(self._received.values()) else Pulse.HIGH
+        self.received[origin] = pulse
+        result = Pulse.LOW if all(self.received.values()) else Pulse.HIGH
+        if result == Pulse.HIGH:
+            self.sent_high = True
         return [(destination, self.name, result) for destination in self.destinations]
 
 
@@ -96,26 +103,31 @@ def process_module_list(modules: list[PulseModule]):
             if destination not in d:
                 d[destination] = SinkModule(destination)
             d[destination].add_source(m.name)
-
     return d
 
 
-def lowest_presses(modules: dict[str, PulseModule], sink='rx'):
+def lowest_presses(modules: dict[str, PulseModule], sink):
+    cycles = defaultdict(int)
+    sink_module = modules[sink]
+    sources = sink_module.sources
     presses = 0
-    while all(modules[sink].received):
-        modules[sink].received = []
-        press_button(modules)
+    while not all(cycles[source] for source in sources):
         presses += 1
-    return presses
+        press_button(modules)
+        for source in sources:
+            if modules[source].sent_high and not cycles[source]:
+                cycles[source] = presses
+                modules[source].sent_high = False
+    return lcm(*cycles.values())
 
 
 def press_button(modules: dict[str, PulseModule], times=1):
     low, high = 0, 0
-    for _ in range(times):
+    for n in range(times):
         pulses = modules["broadcaster"].apply('button', Pulse.LOW)
         low += 1
         while pulses:
-            destination, source, pulse = pulses.pop()
+            destination, source, pulse = pulses.pop(0)
             low += pulse == Pulse.LOW
             high += pulse == Pulse.HIGH
             pulses.extend(modules[destination].apply(source, pulse))
@@ -125,12 +137,14 @@ def press_button(modules: dict[str, PulseModule], times=1):
 def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "2023" / "20.txt") as f:
-        modules = list(map(parse_line, f.read().splitlines()))
+        raw = f.read().splitlines()
+        modules = list(map(parse_line, raw))
         p1_modules = process_module_list(modules)
-        p2_modules = process_module_list(modules)
+        p2_modules = process_module_list(list(map(parse_line, raw)))
         low, high = press_button(p1_modules, times=1000)
-        presses = 0  # lowest_presses(p2_modules)
-        print_day(20, low * high, presses)
+        last_conjunction = p2_modules['rx'].sources[0]
+        cycles = lowest_presses(p2_modules, last_conjunction)
+        print_day(20, low * high, cycles)
 
 
 if __name__ == '__main__':
