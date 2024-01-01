@@ -46,7 +46,7 @@ def process_interactions(interactions):
     return filesystem
 
 
-def collect_sizes(filesystem, path=Path('/'), sizes=None):
+def collect_sizes(filesystem, path=Path('/').resolve(), sizes=None):
     if sizes is None:
         sizes = defaultdict(int)
     if path not in sizes:
@@ -70,7 +70,7 @@ def main():
         under_limit = sum(size for size in sizes.values() if size <= 100000)
         available = 70000000
         needed = 30000000
-        limit = sizes[Path('/')] - (available - needed)
+        limit = sizes[Path('/').resolve()] - (available - needed)
         to_remove = min(*[size for size in sizes.values() if size >= limit])
         print_day(7, under_limit, to_remove)
 
