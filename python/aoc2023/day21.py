@@ -34,14 +34,16 @@ def infinite_gardens(lines, start, steps):
     height, width = len(lines), len(lines[0])
     places = {start}
     gardens = [1]
-    for steps in range(steps):
+    past_gardens = [frozenset(places)]
+    for step in range(1, steps + 1):
         next_places = set()
         for x, y in places:
             for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
                 if lines[(y + dy) % height][(x + dx) % width] in '.S':
                     next_places.add((dx + x, dy + y))
-        places = next_places
-        gardens.append(len(places))
+        places = next_places - (past_gardens[step - 2] if step > 2 else set())
+        past_gardens.append(frozenset(places))
+        gardens.append(len(places) + (gardens[step - 2] if step > 2 else 0))
     return gardens
 
 
