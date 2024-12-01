@@ -11,8 +11,6 @@ def parse_line(line: str):
 
 
 def part1(left, right):
-    left = sorted(left)
-    right = sorted(right)
     return sum(abs(l - r) for (l,r) in zip(left, right))
 
 
@@ -24,8 +22,9 @@ def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "2024" / "01.txt") as f:
         lines = list(map(parse_line, f.read().splitlines()))
-        p1 = part1(*zip(*lines))
-        p2 = part2(*zip(*lines))
+        l, r = map(sorted, zip(*lines))
+        p1 = part1(l, r)
+        p2 = part2(l, r)
         print_day(1, p1, p2)
 
 
