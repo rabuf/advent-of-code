@@ -13,7 +13,15 @@ problems in Rust.
 Each year has its own org file (linked below). From there you can get
 to my code and write up for each of the problems I've solved for that
 year.
-* Events
+* Events🌚
+** TODO [[file:2024/aoc2024.org][Advent of Code 2024]]
+| M  | T  | W  | R  | F  | S  | S  |
+|----+----+----+----+----+----+----|
+|    |    |    |    |    | 🌟 | 🌚 |
+| 🌚 | 🌚 | 🌚 | 🌚 | 🌚 | 🌚 | 🌚 |
+| 🌚 | 🌚 | 🌚 | 🌚 | 🌚 | 🌚 | 🌚 |
+| 🌚 | 🌚 | 🌚 | 🌚 | 🌚 | 🌚 | 🌚 |
+| 🌚 | 🌚 |    |    |    |    |    |
 ** DONE [[file:2023/aoc2023.org][Advent of Code 2023]]
 | M  | T  | W  | R  | F  | S  | S  |
 |----+----+----+----+----+----+----|
