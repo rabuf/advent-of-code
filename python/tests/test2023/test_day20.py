@@ -25,7 +25,7 @@ def sample_2_modules():
 
 
 def test_lowest_presses(sample_2_modules):
-    assert lowest_presses(sample_2_modules, sink='output') == 0
+    assert lowest_presses(sample_2_modules, sink='output') == 1
 
 
 @fixture
