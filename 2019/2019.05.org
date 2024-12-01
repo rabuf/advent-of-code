@@ -159,6 +159,7 @@ solution.
 #+BEGIN_SRC lisp :noweb yes :results silent
   <<read-input>>
   <<input>>
+  <<intcode>>
 #+END_SRC
 #+NAME: answers
 #+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle 2019.05.lisp
