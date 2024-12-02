@@ -1,0 +1,144 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 02
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2024-02)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2024-02
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2024-02)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (mapcar #'parse-integer (cl-ppcre:split "\\s+" line))))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/02.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun differences (sequence)
+    (loop for a in sequence
+          for b in (cdr sequence)
+          collect (- a b)))
+  (defun safep (record)
+    (let ((differences (differences record)))
+      (and (or (every #'plusp differences)
+               (every #'minusp differences))
+           (every (lambda (x) (<= 1 (abs x) 3)) differences))))
+
+  (defun problem-a () (format t "Problem 02 A: ~a~%" (count-if #'safep *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun make-safe (record)
+    (loop for i from 0 below (length record)
+          for attempt = (append (subseq record 0 i) (subseq record (1+ i)))
+          when (safep attempt)
+            do (return attempt)
+          finally (return record)))
+  (defun safe-or-made-safe-p (record)
+    (or (safep record)
+        (safep (make-safe record))))
+  (defun problem-b () (format t "Problem 02 B: ~a~%" (count-if #'safe-or-made-safe-p *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 02 A: 411
+: Problem 02 B: 465
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2024.02)
+  (in-suite aoc.2024.02)
+
+  (defparameter *sample*
+    '((7 6 4 2 1)
+      (1 2 7 8 9)
+      (9 7 6 2 1)
+      (1 3 2 4 5)
+      (8 6 4 4 1)
+      (1 3 6 7 9)))
+
+  (test part-1
+    (is (= 2 (count-if #'safep *sample*))))
+  (test part-2
+    (is (= 4 (count-if #'safe-or-made-safe-p *sample*))))
+  (run! 'aoc.2024.02)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+: 
+: Running test suite AOC.2024.02
+:  Running test PART-1 .
+:  Running test PART-2 .
+:  Did 2 checks.
+:     Pass: 2 (100%)
+:     Skip: 0 ( 0%)
+:     Fail: 0 ( 0%)
+** Thoughts
