@@ -15,11 +15,7 @@ def safe(record):
 
 
 def make_safe(record):
-    if safe(record): return True
-    for i in range(len(record)):
-        r = record[0:i] + record[i+1:]
-        if safe(r): return True
-    return False
+    return any(safe(record[0:i] + record[i+1:]) for i in range(len(record)))
 
 
 def main():
