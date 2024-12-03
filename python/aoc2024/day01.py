@@ -1,6 +1,6 @@
 import sys
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
 
 from aoc_util import print_day
 
@@ -11,12 +11,13 @@ def parse_line(line: str):
 
 
 def part1(left, right):
-    return sum(abs(l - r) for (l,r) in zip(left, right))
+    return sum(abs(l - r) for (l, r) in zip(left, right))
 
 
 def part2(left, right):
     counts = Counter(right)
     return sum(l * counts[l] for l in left)
+
 
 def main():
     input_dir = Path(sys.argv[1])

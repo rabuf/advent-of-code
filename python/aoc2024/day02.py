@@ -15,7 +15,7 @@ def safe(record):
 
 
 def make_safe(record):
-    return any(safe(record[0:i] + record[i+1:]) for i in range(len(record)))
+    return any(safe(record[0:i] + record[i + 1:]) for i in range(len(record)))
 
 
 def main():
