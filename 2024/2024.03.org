@@ -1,0 +1,122 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 03
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2024-03)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2024-03
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2024-03)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect  (cl-ppcre:all-matches-as-strings "mul\\(\\d+,\\d+\\)|do\\(\\)|don't\\(\\)" line)))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (apply #'append (process-stream in))))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/03.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun multiply (operation)
+    (apply #'* (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" operation))))
+  (defun part-1 (operations)
+    (loop for operation in operations
+          for multiply = (string= "mul" (subseq operation 0 3))
+          when multiply
+            sum (multiply operation)))
+  (defun problem-a () (format t "Problem 03 A: ~a~%" (part-1 *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun compute (operations)
+    (loop for operation in operations
+          with enabled = t
+          for multiply = (string= "mul" (subseq operation 0 3))
+          when (and multiply enabled)
+            sum (multiply operation)
+          when (string= "do()" operation)
+            do (setf enabled t)
+          when (string= "don't()" operation)
+            do (setf enabled nil)))
+  (defun problem-b () (format t "Problem 03 B: ~a~%" (compute *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 03 A: 170778545
+: Problem 03 B: 82868252
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2024.03)
+  (in-suite aoc.2024.03)
+
+  (run! 'aoc.2024.03)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
