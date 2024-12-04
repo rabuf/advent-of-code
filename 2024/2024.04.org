@@ -1,0 +1,185 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 04
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2024-04)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2024-04
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2024-04)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/04.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun lines-to-grid (lines)
+    (let ((grid (make-hash-table)))
+      (loop for i from 0
+            for line in lines
+            do (loop for j from 0
+                     for c across line
+                     do (setf (gethash (complex i j) grid) c)))
+      grid))
+
+  (defun search-around (grid pos)
+    (let ((count 0))
+      (when (and (char= #\M (gethash (+ pos 1) grid #\~))
+                 (char= #\A (gethash (+ pos 2) grid #\~))
+                 (char= #\S (gethash (+ pos 3) grid #\~)))
+        (incf count))
+      (when (and (char= #\M (gethash (- pos 1) grid #\~))
+                 (char= #\A (gethash (- pos 2) grid #\~))
+                 (char= #\S (gethash (- pos 3) grid #\~)))
+        (incf count))
+      (when (and (char= #\M (gethash (- pos #C(0 1)) grid #\~))
+                 (char= #\A (gethash (- pos #C(0 2)) grid #\~))
+                 (char= #\S (gethash (- pos #C(0 3)) grid #\~)))
+        (incf count))
+      (when (and (char= #\M (gethash (+ pos #C(0 1)) grid #\~))
+                 (char= #\A (gethash (+ pos #C(0 2)) grid #\~))
+                 (char= #\S (gethash (+ pos #C(0 3)) grid #\~)))
+        (incf count))
+      (when (and (char= #\M (gethash (+ pos #C(1 1)) grid #\~))
+                 (char= #\A (gethash (+ pos #C(2 2)) grid #\~))
+                 (char= #\S (gethash (+ pos #C(3 3)) grid #\~)))
+        (incf count))
+      (when (and (char= #\M (gethash (- pos #C(1 1)) grid #\~))
+                 (char= #\A (gethash (- pos #C(2 2)) grid #\~))
+                 (char= #\S (gethash (- pos #C(3 3)) grid #\~)))
+        (incf count))
+      (when (and (char= #\M (gethash (+ pos #C(-1 1)) grid #\~))
+                 (char= #\A (gethash (+ pos #C(-2 2)) grid #\~))
+                 (char= #\S (gethash (+ pos #C(-3 3)) grid #\~)))
+        (incf count))
+      (when (and (char= #\M (gethash (- pos #C(-1 1)) grid #\~))
+                 (char= #\A (gethash (- pos #C(-2 2)) grid #\~))
+                 (char= #\S (gethash (- pos #C(-3 3)) grid #\~)))
+        (incf count))
+      count))
+
+
+  (defun xmas-search (grid)
+    (loop for i from 0
+          with count = 0
+          while (gethash (complex i 0) grid)
+          finally (return count)
+          do (loop for j from 0
+                   for pos = (complex i j)
+                   for c = (gethash pos grid)
+                   while c
+                   if (char= c #\X)
+                     do (incf count (search-around grid (complex i j)))
+                   end)))
+
+  (defun problem-a () (format t "Problem 04 A: ~a~%" (xmas-search (lines-to-grid *input*))))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun search-around-x-mas (grid pos)
+    (and (or (and (char= #\M (gethash (+ pos #C(1 1)) grid #\~))
+                  (char= #\S (gethash (- pos #C(1 1)) grid #\~)))
+             (and (char= #\M (gethash (- pos #C(1 1)) grid #\~))
+                  (char= #\S (gethash (+ pos #C(1 1)) grid #\~))))
+         (or (and (char= #\M (gethash (+ pos #C(-1 1)) grid #\~))
+                  (char= #\S (gethash (- pos #C(-1 1)) grid #\~)))
+             (and (char= #\M (gethash (- pos #C(-1 1)) grid #\~))
+                  (char= #\S (gethash (+ pos #C(-1 1)) grid #\~))))))
+
+  (defun x-mas-search (grid)
+    (loop for i from 0
+          with count = 0
+          while (gethash (complex i 0) grid)
+          sum (loop for j from 0
+                   for pos = (complex i j)
+                   for c = (gethash pos grid)
+                   while c
+                   when (char= c #\A)
+                     count (search-around-x-mas grid pos))))
+
+  (defun problem-b () (format t "Problem 04 B: ~a~%" (x-mas-search (lines-to-grid *input*))))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 4a: 101194
+: Problem 4b: 102095
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2024.04)
+  (in-suite aoc.2024.04)
+
+  (run! 'aoc.2024.04)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
