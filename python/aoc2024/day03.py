@@ -56,7 +56,7 @@ def main():
         p1 = part1(lines)
         p2 = part2(lines)
         p3 = part3(lines)
-        print_day(1, p1, p2, p3)
+        print_day(3, p1, p2, p3)
 
 
 if __name__ == '__main__':

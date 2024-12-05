@@ -24,7 +24,7 @@ def main():
         lines = list(map(parse_line, f.read().splitlines()))
         p1 = sum(map(safe, lines))
         p2 = sum(map(make_safe, lines))
-        print_day(1, p1, p2)
+        print_day(2, p1, p2)
 
 
 if __name__ == '__main__':
