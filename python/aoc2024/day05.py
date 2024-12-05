@@ -1,9 +1,10 @@
 import sys
 from collections import defaultdict
-from functools import cmp_to_key
+from functools import cmp_to_key, partial
 from pathlib import Path
 
 from more_itertools.more import is_sorted
+from more_itertools.recipes import partition
 
 from aoc_util import print_day
 
@@ -42,10 +43,13 @@ def main():
         rules, printouts = f.read().split('\n\n')
         rules = parse_rules(rules)
         printouts = [list(map(int, printout.split(','))) for printout in printouts.splitlines()]
-        valids = (p for p in printouts if valid_printout(rules, p))
-        invalids = (fix_printout(rules, p) for p in printouts if not valid_printout(rules, p))
+
+        valid = partial(valid_printout, rules)
+        fix = partial(fix_printout, rules)
+        invalids, valids = partition(valid, printouts)
         p1 = sum(p[len(p) // 2] for p in valids)
-        p2 = sum(p[len(p)//2] for p in invalids)
+        p2 = sum(p[len(p) // 2] for p in map(fix, invalids))
+
         print_day(5, p1, p2)
 
 
