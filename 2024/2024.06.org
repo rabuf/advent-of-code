@@ -1,0 +1,177 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 06
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2024-06)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2024-06
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2024-06)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect line))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun lines-to-map (lines)
+    (loop for i from 0
+          for line in lines
+          with map = (make-hash-table)
+          with start = nil
+          finally (return (list map start))
+          do (loop for j from 0
+                   for c across line
+                   for pos = (complex j i)
+                   when (char= #\^ c)
+                     do (progn
+                          (setf start pos)
+                          (setf (gethash pos map) #\.))
+                   unless (char= #\^ c)
+                     do (setf (gethash pos map) c))))
+
+  (defparameter *input*
+    (lines-to-map (read-input "input/06.txt")))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun traverse (map start)
+    (loop with position = start
+          with direction = #C(0 -1)
+          with visited = (make-hash-table)
+          for c = (gethash (+ position direction) map)
+          finally (return (hash-table-count visited))
+          do (setf (gethash position visited) 't)
+          while c
+          when (char= #\# c)
+            do (setf direction (* direction #C(0 1)))
+          unless (char= #\# c)
+            do (incf position direction)))
+
+  (defun problem-a (&optional (input *input*)) (format t "Problem 06 A: ~a~%" (apply #'traverse input)))
+#+END_SRC
+** Part 2
+For part 2 the task is to create an obstruction and force a loop for the guard.
+
+This isn't as straightforward as I thought, loops can be complex. Current idea is to modify traverse to indicate whether 
+
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun obstacle-positions (map)
+    (loop for pos being the hash-key using (hash-value c) of map
+          when (char= #\# c)
+            collect pos))
+
+  (defun visits (map start)
+    (loop with position = start
+          with direction = #C(0 -1)
+          with visited = (make-hash-table)
+          for c = (gethash (+ position direction) map)
+          do (setf (gethash position visited) t)
+          while c
+          finally (return (loop for k being the hash-key of visited collect k))
+          when (char= #\# c)
+            do (setf direction (* direction #C(0 1)))
+          unless (char= #\# c)
+            do (incf position direction)))
+
+  (defun escapes (map start &optional (obstruction -2))
+    (loop with position = start
+          with direction = #C(0 -1)
+          with visited = (make-hash-table)
+          for c = (gethash (+ position direction) map)
+          while c
+          finally (return t)
+          when (member direction (gethash position visited))
+            do (return)
+          do (pushnew direction (gethash position visited))
+          do (cond ((or (char= #\# c) (= obstruction (+ position direction)))
+                    (setf direction (* direction #C(0 1))))
+                   ((and (char= #\. c) (/= obstruction (+ position direction)))
+                    (incf position direction)))))
+
+  (defun looping-obstructions (map start)
+    (loop with visits = (visits map start)
+          for location in visits
+          unless (= location start)
+            count (not (escapes map start location))))
+
+  (defun problem-b (&optional (input *input*)) (format t "Problem 06 B: ~a~%" (apply #'looping-obstructions input)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 4a: 101194
+: Problem 4b: 102095
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2024.06)
+  (in-suite aoc.2024.06)
+
+  (run! 'aoc.2024.06)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
