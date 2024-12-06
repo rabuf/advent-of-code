@@ -1,6 +1,6 @@
 #+STARTUP: indent contents
 #+OPTIONS: toc:nil num:nil
-* TODO Advent of Code 2024 [5/25]
+* TODO Advent of Code 2024 [6/25]
 This will be my attempt to solve the various Advent of Code 2024
 problems with Common Lisp.
 ** DONE [[file:2024.01.org][Day 1]]
@@ -8,7 +8,7 @@ problems with Common Lisp.
 ** DONE [[file:2024.03.org][Day 3]]
 ** DONE [[file:2024.04.org][Day 4]]
 ** DONE [[file:2024.05.org][Day 5]]
-** TODO [[file:2024.06.org][Day 6]]
+** DONE [[file:2024.06.org][Day 6]]
 ** TODO [[file:2024.07.org][Day 7]]
 ** TODO [[file:2024.08.org][Day 8]]
 ** TODO [[file:2024.09.org][Day 9]]
