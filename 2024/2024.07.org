@@ -1,0 +1,153 @@
+#+STARTUP: indent contents
+#+OPTIONS: num:nil toc:nil
+* Day 07
+** Executing this code
+If you have a lisp installation, emacs, org-mode, and org-babel
+support for lisp installed you can run this by:
+1. Starting slime (=M-x slime=)
+2. Typing =C-c C-c= in the block [[initialize][initialize]].
+3. In the repl type =(in-package :aoc-2024-07)=
+4. Typing =C-c C-c= in the block [[answers][answers]]
+** Initial stuffs
+*** Packages to load
+#+NAME: packages
+#+BEGIN_SRC lisp :results silent
+  (unless (find-package :priority-queue)
+    (ql:quickload "priority-queue"))
+  (unless (find-package :cl-ppcre)
+    (ql:quickload "cl-ppcre"))
+  (unless (find-package :parseq)
+    (ql:quickload "parseq"))
+  (unless (find-package :lparallel)
+    (ql:quickload "lparallel"))
+  (unless (find-package :fiveam)
+    (ql:quickload "fiveam"))
+  (unless (find-package :series)
+    (ql:quickload "series"))
+  (unless (find-package :cl-permutation)
+    (ql:quickload "cl-permutation"))
+  (unless (find-package :bordeaux-threads)
+    (ql:quickload "bordeaux-threads"))
+#+END_SRC
+*** Create package for this day
+#+NAME: initialize
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<packages>>
+  (defpackage :aoc-2024-07
+    (:use :common-lisp
+          :parseq
+          :fiveam)
+    (:export :problem-a
+             :problem-b))
+  (in-package :aoc-2024-07)
+#+END_SRC
+** Input
+#+NAME: read-input
+#+BEGIN_SRC lisp :results silent
+  (defun process-stream (in)
+    (loop for line = (read-line in nil)
+          while line
+          collect (mapcar #'parse-integer (cl-ppcre:all-matches-as-strings "\\d+" line))))
+  (defun read-input (file)
+    (with-open-file (in file)
+      (process-stream in)))
+#+END_SRC
+#+NAME: input
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defparameter *input*
+    (read-input "input/07.txt"))
+#+END_SRC
+** Part 1
+#+NAME: problem-a
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun valid-p (target numbers &optional (operations (list #'+ #'*)))
+    (labels ((recur (first rest)
+               (cond ((null rest) (= first target))
+                     (t
+                      (loop for op in operations
+                            with second = (car rest)
+                            for next = (funcall op first second)
+                              thereis (and (<= next target) (recur next (cdr rest))))))))
+      (recur (car numbers) (cdr numbers))))
+  (defun reverse-valid-p (target numbers)
+    (destructuring-bind (first . rest) numbers
+      (or (and (null rest) (= first target))
+          (and rest
+               (or (reverse-valid-p (- target first) rest)
+                   (and (= 0 (mod target first)) (reverse-valid-p (/ target first) rest)))))))
+
+  (defun total-valid (lines)
+    (loop for (target . numbers) in lines
+          when (valid-p target numbers)
+            sum target))
+
+  (defun total-valid-reverse (lines)
+    (loop for (target . numbers) in lines
+          for reversed = (reverse numbers)
+          when (reverse-valid-p target reversed)
+            sum target))
+  (defun problem-a () (format t "Problem 07 A: ~a~%" (total-valid-reverse *input*)))
+#+END_SRC
+** Part 2
+#+NAME: problem-b
+#+BEGIN_SRC lisp :noweb yes :results silent
+  (defun concatenate-number (a b)
+    (+ (* a (floor (expt 10 (1+ (floor (log b 10)))))) b))
+
+  (defun reverse-valid-with-concat-p (target numbers)
+    (destructuring-bind (first . rest) numbers
+      (or (and (null rest) (= first target))
+          (and rest
+               (or (reverse-valid-with-concat-p (- target first) rest)
+                   (and (= first (mod target (expt 10 (1+ (floor (log first 10))))))
+                        (reverse-valid-with-concat-p (truncate target (expt 10 (1+ (floor (log first 10))))) rest))
+                   (and (= 0 (mod target first)) (reverse-valid-with-concat-p (/ target first) rest)))))))
+
+  (defun total-valid-with-concat (lines)
+    (loop for (target . numbers) in lines
+          with operations = (list #'+ #'* #'concatenate-number)
+          when (valid-p target numbers operations)
+            sum target))
+  (defun total-valid-reverse-with-concat (lines)
+    (loop for (target . numbers) in lines
+          for reversed = (reverse numbers)
+          when (reverse-valid-with-concat-p target reversed)
+            sum target))
+  (defun problem-b () (format t "Problem 07 B: ~a~%" (total-valid-reverse-with-concat *input*)))
+#+END_SRC
+** Putting it all together
+#+NAME: structs
+#+BEGIN_SRC lisp :noweb yes :results silent
+
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC lisp :noweb yes :results silent
+  <<read-input>>
+  <<input>>
+#+END_SRC
+#+NAME: answers
+#+BEGIN_SRC lisp :results output :exports both :noweb yes :tangle no
+  <<initialize>>
+  <<structs>>
+  <<functions>>
+  <<input>>
+  <<problem-a>>
+  <<problem-b>>
+  (problem-a)
+  (problem-b)
+#+END_SRC
+** Answer
+#+RESULTS: answers
+: Problem 07 A: 1038838357795
+: Problem 07 B: 254136560217241
+** Test Cases
+#+NAME: test-cases
+#+BEGIN_SRC lisp :results output :exports both
+  (def-suite aoc.2024.07)
+  (in-suite aoc.2024.07)
+
+  (run! 'aoc.2024.07)
+#+END_SRC
+** Test Results
+#+RESULTS: test-cases
+** Thoughts
