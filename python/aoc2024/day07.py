@@ -15,7 +15,7 @@ def check_inverse_concatenate(x, current):
     return current % 10 ** floor(log10(x) + 1) == x
 
 
-def check_sub(x, current):
+def check_sub(_x, _current):
     return True
 
 
@@ -25,15 +25,12 @@ def check_div(x, current):
 
 def reverse_search(expected, operands, operations=(sub, floordiv), checks=(check_sub, check_div)):
     op_checks = list(zip(operations, checks))
-    def recur(current, *rest):
+    def recur(current, first, *rest):
         if not rest:
-            if current == 0:
-                return True
-            else:
-                return False
+            return current == first
         for op, check in op_checks:
-            if check(rest[0], current):
-                if recur(op(current, rest[0]), *rest[1:]):
+            if check(first, current):
+                if recur(op(current, first), *rest):
                     return True
         return False
     return recur(expected, *operands)
