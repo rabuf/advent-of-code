@@ -1,6 +1,7 @@
 import sys
 from operator import mul, add
 from pathlib import Path
+from math import log10, floor
 
 from aoc_util import print_day
 
@@ -25,7 +26,7 @@ def find_operands(expected, operands, operations=(mul, add)):
     return recur(*operands)
 
 
-catenate = lambda a, b: int(str(a) + str(b))
+catenate = lambda a, b: a * 10 ** floor(log10(b) + 1) + b
 
 
 def main():
