@@ -13,15 +13,17 @@ def parse_line(line):
 
 def find_operands(expected, operands, operations=(mul, add)):
     def recur(first, second, *rest):
-        if first > expected: return False
-        result = False
+        if first > expected:
+            return False
         for op in operations:
             temp = op(first, second)
             if rest:
-                result = result or recur(temp, *rest)
+                if recur(temp, *rest):
+                    return True
             else:
-                result = result or temp == expected
-        return result
+                if temp == expected:
+                    return True
+        return False
 
     return recur(*operands)
 
