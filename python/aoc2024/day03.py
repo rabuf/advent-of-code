@@ -38,7 +38,7 @@ def part3(operations):
     enabled = True
     pattern = re.compile(r"(mul)\((\d+),(\d+)\)|(do)\(\)|(don't)\(\)")
     for operation in operations:
-        op = list(filter(None,re.match(pattern, operation).groups()))
+        op = list(filter(None, re.match(pattern, operation).groups()))
         match op:
             case ["mul", lhs, rhs]:
                 result += enabled * int(lhs) * int(rhs)

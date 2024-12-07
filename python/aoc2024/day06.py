@@ -10,19 +10,17 @@ def parse_line(line):
 
 
 def lines_to_grid(lines):
-    grid = defaultdict(str)
+    grid = {}
     for j, line in enumerate(lines):
         for i, c in enumerate(line):
             grid[i + j * 1j] = c
             if c == '^':
-                start = i + j*1j
+                start = i + j * 1j
     return grid, start
 
 
-def loops(grid, start, direction=-1j):
-    visited = set()
-    position = start
-    while grid[position + direction] != '':
+def loops(grid, position, direction, visited):
+    while (position + direction) in grid:
         if (position, direction) in visited:
             return True
         visited.add((position, direction))
@@ -33,24 +31,28 @@ def loops(grid, start, direction=-1j):
     return False
 
 
-def looping_obstruction_count(grid, start):
-    position = start
+def looping_obstruction_count(grid, position):
     direction = -1j
-    obstacles = set()
-    visited = {start}
-    while grid[position] != '':
+    obstacles = 0
+    visited = set()
+    moves = set()
+    while position in grid:
         next_position = position + direction
         visited.add(position)
+        if next_position not in grid: break
+        moves.add((position, direction))
         match grid[next_position]:
             case '#':
                 direction *= 1j
-            case '.':
-                if next_position not in visited and loops(grid | {next_position: '#'}, position, direction):
-                    obstacles.add(next_position)
+            case '.' if next_position not in visited:
+                grid[next_position] = '#'
+                if loops(grid, position, direction, moves - {(position, direction)}):
+                    obstacles += 1
+                grid[next_position] = '.'
                 position += direction
             case _:
                 position += direction
-    return len(visited), len(obstacles)
+    return len(visited), obstacles
 
 
 def main():
