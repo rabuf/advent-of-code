@@ -1,10 +1,10 @@
 hypothesis
 pytest
 more-itertools
-regex~=2023.10.3
+regex
 pytest-xdist
 z3-solver
-numpy~=1.26.2
-ortools~=9.8.3296
-shapely~=2.0.2
-networkx~=3.2.1
+numpy
+ortools
+shapely
+networkx
