@@ -36,16 +36,14 @@ def checksum(files: list):
     return sum(i * file for i, file in enumerate(files) if file is not None)
 
 
-def compact_whole_files(files, file_blocks, free_blocks: list[tuple[int,int]]):
-    compacted = files[:]
-    for file_number in sorted(file_blocks, reverse=True):
-        start, length = file_blocks[file_number]
+def compact_whole_files(disk, file_blocks, free_blocks: list[tuple[int,int]]):
+    compacted = disk[:]
+    for (file_number, start, length) in reversed(file_blocks):
         for i, (p, l) in enumerate(free_blocks):
             if p > start:
                 break
             if l >= length:
-                compacted[p:p + length] = [file_number] * length
-                compacted[start:start + length] = [None] * length
+                compacted[p:p + length], compacted[start:start + length] = compacted[start:start + length], compacted[p:p + length]
                 if length < l:
                     free_blocks[i] = (p + length, l - length)
                 else:
@@ -55,13 +53,13 @@ def compact_whole_files(files, file_blocks, free_blocks: list[tuple[int,int]]):
 
 
 def to_file_blocks(line):
-    blocks = {}
+    blocks = []
     free = []
     position = 0
     for i, length in enumerate(line):
         l = int(length)
         if i % 2 == 0:
-            blocks[i//2] = (position, l)
+            blocks.append((i//2, position, l))
             position = position + l
         else:
             free.append((position, l))
