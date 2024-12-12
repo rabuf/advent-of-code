@@ -46,7 +46,7 @@ def find_all_antinodes(positions: set[complex], max_x, max_y):
 def main():
     input_dir = Path(sys.argv[1])
     with open(input_dir / "2024" / "08.txt") as f:
-        antennas, max_x, max_y= lines_to_grid(f.read().splitlines())
+        antennas, max_x, max_y = lines_to_grid(f.read().splitlines())
         antinodes = set()
         all_antinodes = set()
         for _, positions in antennas.items():

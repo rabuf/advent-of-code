@@ -1,7 +1,6 @@
-from aoc2024.day02 import *
-
 from pytest import fixture
 
+from aoc2024.day02 import *
 
 sample = """7 6 4 2 1
 1 2 7 8 9

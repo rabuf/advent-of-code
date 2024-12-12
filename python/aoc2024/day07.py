@@ -1,7 +1,7 @@
 import sys
+from math import log10, floor
 from operator import mul, add, sub, floordiv
 from pathlib import Path
-from math import log10, floor
 
 from aoc_util import print_day
 
@@ -25,6 +25,7 @@ def check_div(x, current):
 
 def reverse_search(expected, operands, operations=(sub, floordiv), checks=(check_sub, check_div)):
     op_checks = list(zip(operations, checks))
+
     def recur(current, first, *rest):
         if not rest:
             return current == first
@@ -33,6 +34,7 @@ def reverse_search(expected, operands, operations=(sub, floordiv), checks=(check
                 if recur(op(current, first), *rest):
                     return True
         return False
+
     return recur(expected, *operands)
 
 

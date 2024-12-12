@@ -2,9 +2,11 @@ import pytest
 
 from aoc2024.day09 import *
 
+
 @pytest.fixture()
 def sample():
     return parse_line('2333133121414131402')
+
 
 def test_part1(sample):
     compacted = compact(sample)

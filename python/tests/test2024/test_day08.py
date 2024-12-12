@@ -1,5 +1,3 @@
-import pytest
-
 from aoc2024.day08 import *
 
 lower_a = """..........
@@ -14,9 +12,10 @@ lower_a = """..........
 ..........
 """
 
+
 def test_as():
     antennas = lines_to_grid(lower_a.splitlines())
-    assert {3+1j, 6+7j} == find_antinodes(antennas['a'])
+    assert {3 + 1j, 6 + 7j} == find_antinodes(antennas['a'])
 
 
 upper_a_and_zero = """............
@@ -32,7 +31,6 @@ upper_a_and_zero = """............
 ............
 ............"""
 
-
 upper_a_and_zero_antinodes = """......#....#
 ...#....0...
 ....#0....#.
@@ -45,6 +43,7 @@ upper_a_and_zero_antinodes = """......#....#
 .........A..
 ..........#.
 ..........#."""
+
 
 def test_upper_a_and_zero():
     antennas, max_x, max_y = lines_to_grid(upper_a_and_zero.splitlines())
@@ -67,6 +66,7 @@ all_antinodes = """##....#....#
 ....#....A..
 .#........#.
 ...#......##"""
+
 
 def test_all_antinodes():
     antennas, max_x, max_y = lines_to_grid(upper_a_and_zero.splitlines())
