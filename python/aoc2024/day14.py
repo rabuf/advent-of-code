@@ -1,3 +1,4 @@
+import math
 import re
 import sys
 from functools import partial
@@ -24,7 +25,6 @@ def safety_factor(positions):
             q3 = q3 + 1
         if qx < 0 and qy < 0:
             q4 = q4 + 1
-    print(q1, q2, q3, q4)
     return q1 * q2 * q3 * q4
 
 def parse_line(line):
@@ -53,7 +53,6 @@ def main():
             while True:
                 positions = list(map(partial(future, time=time), *zip(*lines)))
                 if len(set(positions)) == len(positions):
-                    print_positions(positions)
                     break
                 time = time + 1
             print_day(14, p1, time)
