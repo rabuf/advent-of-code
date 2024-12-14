@@ -11,9 +11,9 @@ def parse_line(line):
 def main():
     input_dir = Path(sys.argv[1])
     try:
-        with open(input_dir / "2024" / "01.txt") as f:
+        with open(input_dir / "2024" / "14.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
-            print_day(1, len(lines), len(lines))
+            print_day(14, len(lines), len(lines))
     except IOError as e:
         print(e)
 

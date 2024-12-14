@@ -10,6 +10,7 @@ def parse_line(line):
 
 def lines_to_grid(lines):
     grid = {}
+    start = 0
     for j, line in enumerate(lines):
         for i, c in enumerate(line):
             grid[i + j * 1j] = c

@@ -17,7 +17,7 @@ def machine_cost(machine, offset=0):
     s = z3.Optimize()
     ax, ay, bx, by, px, py = machine
     px, py = px + offset, py + offset
-    a, b = z3.Int('a'), z3.Int('b')
+    a, b = z3.Ints('a b')
     cost = a * 3 + b
     s.add(a * ax + b * bx == px)
     s.add(a * ay + b * by == py)
@@ -37,6 +37,24 @@ def machine_cost_math(machine, offset=0):
     if (a * ax + b * bx, a * ay + b * by) == (px, py):
         return a * 3 + b
     return 0
+
+
+def faster_z3(machines, offset=0):
+    result = 0
+    s = z3.Solver()
+    a, b = z3.Ints('a b')
+    cost = a * 3 + b
+    for ax, ay, bx, by, px, py in machines:
+        px += offset
+        py += offset
+        s.push()
+        s.add(a * ax + b * bx == px)
+        s.add(a * ay + b * by == py)
+        if s.check() == z3.sat:
+            m = s.model()
+            result += m.eval(cost).as_long()
+        s.pop()
+    return result
 
 
 def main():
