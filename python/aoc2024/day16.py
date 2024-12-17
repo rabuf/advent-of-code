@@ -1,6 +1,8 @@
+import heapq
+import math
 import sys
+from collections import defaultdict
 from pathlib import Path
-from queue import PriorityQueue
 
 from aoc_util import print_day
 
@@ -23,68 +25,23 @@ def lines_to_grid(lines):
     return grid, start, end
 
 
-def reindeer_race(grid, start, end):
-    q = PriorityQueue()
-    q.put((0, start, (1, 0)))
+def dijkstra(grid, start, directions):
+    q = [(0, start, d) for d in directions]
+    cost = defaultdict(lambda: math.inf)
     visited = set()
     while q:
-        score, pos, d = q.get()
+        score, pos, d = heapq.heappop(q)
         if (pos, d) in visited:
             continue
         visited.add((pos, d))
-        left, right = (-d[1], -d[0]), (d[1], d[0])
-        if pos == end:
-            return score
-        if grid[(pos[0] + d[0], pos[1] + d[1])] == '.':
-            q.put((score + 1, (pos[0] + d[0], pos[1] + d[1]), d))
-        for turn in (left, right):
-            if grid[(pos[0] + turn[0], pos[1] + turn[1])] == '.':
-                q.put((score + 1000, pos, turn))
-
-
-def best_seats_dfs(grid, start, end, limit):
-    def recur(score, pos, d, visited):
-        visited = visited | {(pos, d)}
-        if pos == end:
-            print(len(visited))
-            return visited
-        left, right = (-d[1], -d[0]), (d[1], d[0])
-        result = set()
-        n = (pos[0] + d[0], pos[1] + d[1])
-        if grid[n] == '.' and score + 1 <= limit and (n, d) not in visited:
-            result.update(recur(score + 1, n, d, visited))
-        for turn in (left, right):
-            n = (pos[0] + turn[0], pos[1] + turn[1])
-            if grid[n] == '.' and score + 1000 <= limit and (pos, turn) not in visited:
-                result.update(recur(score + 1000, pos, turn, visited))
-        return result
-    return recur(0, start, (1, 0), set())
-
-
-def best_seats(grid, start, end, limit):
-    q = []
-    q.append((0, start, (1, 0), (start,)))
-    visited = set()
-    seats = set()
-    while q:
-        score, pos, d, path = q.pop(-1)
-        if score > limit:
-            continue
-        if (d, path) in visited:
-            continue
-        visited.add((d, path))
-        left, right = (-d[1], -d[0]), (d[1], d[0])
-        if pos == end:
-            print('found one')
-            seats.update(path)
-            continue
+        cost[(pos, d)] = min(cost[(pos, d)], score)
+        turns = (-d[1], -d[0]), (d[1], d[0])
         n = (pos[0] + d[0], pos[1] + d[1])
         if grid[n] == '.':
-            q.append((score + 1, n, d, (n, *path)))
-        for turn in (left, right):
-            if grid[(pos[0] + turn[0], pos[1] + turn[1])] == '.':
-                q.append((score + 1000, pos, turn, path))
-    return len(seats)
+            heapq.heappush(q, (score + 1, n, d))
+        for turn in turns:
+            heapq.heappush(q, (score + 1000, pos, turn))
+    return cost
 
 
 def main():
@@ -93,8 +50,11 @@ def main():
         with open(input_dir / "2024" / "16.txt") as f:
             lines = f.read().splitlines()
         grid, start, end = lines_to_grid(lines)
-        p1 = reindeer_race(grid, start, end)
-        p2 = best_seats(grid, start, end, p1)
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        forward_cost = dijkstra(grid, start, [(1, 0)])
+        backward_cost = dijkstra(grid, end, directions)
+        p1 = min(forward_cost[(end, d)] for d in directions)
+        p2 = len({pos for (pos, (dx, dy)), cost in backward_cost.items() if forward_cost[(pos, (-dx, -dy))] + cost == p1})
         print_day("16", p1, p2)
     except IOError as e:
         print(e)
