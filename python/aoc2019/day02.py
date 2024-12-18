@@ -6,6 +6,7 @@ from pathlib import Path
 from aoc2019 import intcode
 from aoc_util import print_day
 
+
 def parse_line(line):
     return list(map(int, re.findall(r'\d+', line)))
 
