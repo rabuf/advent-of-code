@@ -1,8 +1,10 @@
 import sys
 from pathlib import Path
 
-from aoc_util import print_day
 import networkx as nx
+
+from aoc_util import print_day
+
 
 def parse_line(line):
     return line.split(')')
@@ -13,13 +15,13 @@ def main():
     try:
         with open(input_dir / "2019" / "06.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
-        D = nx.DiGraph()
-        D.add_edges_from(lines)
-        sp = dict(nx.all_pairs_shortest_path(D))
+        d = nx.DiGraph()
+        d.add_edges_from(lines)
+        sp = dict(nx.all_pairs_shortest_path(d))
         p1 = sum(len(v) for _, v in sp.items()) - len(sp)
-        G = nx.Graph()
-        G.add_edges_from(lines)
-        p2 = nx.shortest_path(G, 'YOU', 'SAN')
+        g = nx.Graph()
+        g.add_edges_from(lines)
+        p2 = nx.shortest_path(g, 'YOU', 'SAN')
         print_day("06", p1, len(p2) - 3)
     except IOError as e:
         print(e)

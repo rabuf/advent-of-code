@@ -1,6 +1,4 @@
-import re
 import sys
-from itertools import product
 from pathlib import Path
 
 from aoc2019 import intcode
