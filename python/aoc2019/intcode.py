@@ -1,5 +1,7 @@
 import re
+import threading
 from collections import defaultdict
+from queue import Queue
 
 
 def parse_program(line):
@@ -137,3 +139,12 @@ def v3(program, *, overlay=None, read=lambda: 0, write=lambda n: print(n)):
             case _ as op:
                 raise ValueError(op)
         ip = ip + jump[op]
+
+
+def run_with_queues(program) -> tuple[Queue, Queue, threading.Thread]:
+    in_queue, out_queue = Queue(), Queue()
+    read = lambda: in_queue.get()
+    write = lambda n: out_queue.put(n)
+    t = threading.Thread(target=v3, args=(program,), kwargs={'read': read, 'write': write})
+    t.start()
+    return in_queue, out_queue, t
