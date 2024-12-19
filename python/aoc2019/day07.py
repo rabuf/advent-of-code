@@ -13,35 +13,29 @@ def run_vm(program, in_queue: Queue, out_queue: Queue):
                             kwargs={'read': lambda: in_queue.get(), 'write': lambda n: out_queue.put(n)})
 
 
+def thruster_controls(program, r):
+    result = 0
+    for perm in permutations(r):
+        queues = [Queue() for _ in range(5)]
+        threads = []
+        for i in range(5):
+            threads.append(run_vm(program, queues[i], queues[(i + 1) % 5]))
+            threads[i].start()
+            queues[i].put(perm[i], block=False)
+        queues[0].put(0)
+        for t in threads:
+            t.join()
+        result = max(result, queues[0].get())
+    return result
+
+
 def main():
     input_dir = Path(sys.argv[1])
     try:
         with open(input_dir / "2019" / "07.txt") as f:
             program = intcode.parse_program(f.read())
-        p1 = 0
-        for perm in permutations(range(5)):
-            queues = [Queue() for _ in range(6)]
-            threads = []
-            for i in range(5):
-                threads.append(run_vm(program, queues[i], queues[i + 1]))
-                threads[i].start()
-                queues[i].put(perm[i], block=False)
-            queues[0].put(0)
-            for t in threads:
-                t.join()
-            p1 = max(p1, queues[5].get())
-        p2 = 0
-        for perm in permutations(range(5, 10)):
-            queues = [Queue() for _ in range(5)]
-            threads = []
-            for i in range(5):
-                threads.append(run_vm(program, queues[i], queues[(i + 1) % 5]))
-                threads[i].start()
-                queues[i].put(perm[i], block=False)
-            queues[0].put(0)
-            for t in threads:
-                t.join()
-            p2 = max(p2, queues[0].get())
+        p1 = thruster_controls(program, range(5))
+        p2 = thruster_controls(program, range(5, 10))
         print_day("07", p1, p2)
     except IOError as e:
         print(e)
