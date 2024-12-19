@@ -1,4 +1,3 @@
-import math
 import re
 import sys
 from functools import partial
@@ -27,8 +26,9 @@ def safety_factor(positions):
             q4 = q4 + 1
     return q1 * q2 * q3 * q4
 
+
 def parse_line(line):
-    return tuple(map(int,re.findall(r'[+-]?\d+', line)))
+    return tuple(map(int, re.findall(r'[+-]?\d+', line)))
 
 
 def print_positions(positions: list):

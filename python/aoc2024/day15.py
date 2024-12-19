@@ -77,7 +77,7 @@ def apply_moves(grid, moves, start):
                             s = set()
                             for n in {r + d for r in to_move}:
                                 if grid[n] != '.':
-                                    if (n, n+d) not in swaps:
+                                    if (n, n + d) not in swaps:
                                         swaps.append((n, n + d))
                                     s.add(n)
                                     match grid[n]:
