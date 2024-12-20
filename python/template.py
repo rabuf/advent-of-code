@@ -13,7 +13,7 @@ def main():
     try:
         with open(input_dir / "YEAR" / "DAY.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
-        print_day("DAY", len(lines), len(lines))
+        print_day("DAY", lines, len(lines))
     except IOError as e:
         print(e)
 
