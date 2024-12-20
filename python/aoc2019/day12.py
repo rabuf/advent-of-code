@@ -1,8 +1,6 @@
 import math
 import re
 import sys
-from functools import reduce
-from operator import mul
 from pathlib import Path
 
 from aoc_util import print_day
@@ -34,6 +32,7 @@ def cycle_detection(f, x0):
         hare = f(hare)
         mu += 1
     return lam, mu
+
 
 def cycle_length(nums):
     return cycle_detection(step, (nums, [0] * len(nums)))
@@ -80,8 +79,7 @@ def main():
         pos = zip(pxs, pys, pzs)
         vel = zip(vxs, vys, vzs)
         p1 = sum(map(energy, zip(pos, vel)))
-        # p1 = xs, ys, zs
-        print_day("12", p1, p2, lines, len(lines))
+        print_day("12", p1, p2)
     except IOError as e:
         print(e)
 
