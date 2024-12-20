@@ -1,4 +1,5 @@
 import sys
+from itertools import combinations
 from pathlib import Path
 
 from aoc_util import print_day
@@ -43,23 +44,21 @@ def main():
                     case _:
                         walls.append(pos)
         for node in G.nodes:
-            for n in (node + d for d in (1, -1, 1j, -1j)):
-                if n in G.nodes:
-                    G.add_edge(node, n)
-        limit = networkx.dijkstra_path_length(G, start, end)
-        cheats = 0
+            for n in (node + d for d in (1, -1, 1j, -1j) if node + d in G):
+                G.add_edge(node, n)
+        from_start = networkx.single_source_shortest_path_length(G, start)
+        from_end = networkx.single_source_shortest_path_length(G, end)
+        limit = from_start[end]
+        p1 = 0
         for w in walls:
-            if sum(w + d in G.nodes for d in (1, -1, 1j, -1j)) >= 2:
-                G.add_node(w)
-                for n in (w + d for d in (1, -1, 1j, -1j)):
-                    if n in G.nodes:
-                        G.add_edge(w, n)
-                distance = networkx.dijkstra_path_length(G, start, end)
-                if limit - distance >= 100:
-                    cheats += 1
-                G.remove_node(w)
+            neighbors = [w + d for d in (1, -1, 1j, -1j) if w + d in G]
+            if len(neighbors) >= 2:
+                for a, b in zip(neighbors, neighbors[1:]):
+                    distance = min(from_start[a] + from_end[b], from_start[b] + from_end[a]) + 1
+                    if limit - distance >= 100:
+                        p1 += 1
 
-        print_day("20r", cheats, G, len(lines))
+        print_day("20", p1, G, len(lines))
     except IOError as e:
         print(e)
 
