@@ -58,7 +58,7 @@ dir_to_arrow = {
 arrow_to_dir = {v: k for k, v in dir_to_arrow.items()}
 
 
-def recursive_direction_generator(G, buttons, to_pos, to_key):
+def recursive_direction_generator(G, buttons, to_pos, to_key, start='A'):
     def recur(pos, bs):
         if bs:
             dest = bs[0]
@@ -69,7 +69,7 @@ def recursive_direction_generator(G, buttons, to_pos, to_key):
         else:
             yield []
 
-    for path in recur('A', buttons):
+    for path in recur(start, buttons):
         yield ''.join(dir_to_arrow[b - a] for a, b in zip(path, path[1:])) + 'A'
 
 
@@ -104,19 +104,27 @@ def main():
 
         p1 = 0
         for digits in lines:
-            r3_min = math.inf
-            for r1 in recursive_direction_generator(key_graph, digits, key_to_pos, pos_to_arrow):
-                for r2 in recursive_direction_generator(arrow_graph, r1, arrow_to_pos, pos_to_arrow):
-                    for r3 in recursive_direction_generator(arrow_graph, r2, arrow_to_pos, pos_to_arrow):
-                        r3_min = min(len(r3), r3_min)
-                        if len(r3) > r3_min: break
+            part_min = part1(digits)
             n = int(digits[:-1])
-            p1 += r3_min * n
+            p1 += part_min * n
             print(p1)
 
         print_day("21", p1, 2, len(lines))
     except IOError as e:
         print(e)
+
+
+def part1(digits):
+    part_min = 0
+    for a, b in zip('A' + digits, digits):
+        r3_min = math.inf
+        for r1 in recursive_direction_generator(key_graph, b, key_to_pos, pos_to_arrow, a):
+            for r2 in recursive_direction_generator(arrow_graph, r1, arrow_to_pos, pos_to_arrow):
+                for r3 in recursive_direction_generator(arrow_graph, r2, arrow_to_pos, pos_to_arrow):
+                    r3_min = min(len(r3), r3_min)
+                    if len(r3) >= r3_min: break
+        part_min += r3_min
+    return part_min
 
 
 if __name__ == '__main__':
