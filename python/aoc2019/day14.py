@@ -15,7 +15,7 @@ def parse_line(line):
     return inputs, output
 
 
-def required_ore(rules, fuel=1):
+def required_ore(rules):
     available = defaultdict(int)
     consumed = defaultdict(int)
 
@@ -32,7 +32,7 @@ def required_ore(rules, fuel=1):
             available[item] += c
             recur(n, item)
 
-    recur(fuel, 'FUEL')
+    recur(1, 'FUEL')
     return consumed['ORE'] + available['ORE']
 
 
