@@ -141,10 +141,10 @@ def v3(program, *, overlay=None, read=lambda: 0, write=lambda n: print(n)):
         ip = ip + jump[op]
 
 
-def run_with_queues(program) -> tuple[Queue, Queue, threading.Thread]:
+def run_with_queues(program, daemon=False) -> tuple[Queue, Queue, threading.Thread]:
     in_queue, out_queue = Queue(), Queue()
     read = lambda: in_queue.get()
     write = lambda n: out_queue.put(n)
-    t = threading.Thread(target=v3, args=(program,), kwargs={'read': read, 'write': write})
+    t = threading.Thread(target=v3, args=(program,), kwargs={'read': read, 'write': write}, daemon=daemon)
     t.start()
     return in_queue, out_queue, t
