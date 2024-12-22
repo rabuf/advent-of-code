@@ -145,6 +145,7 @@ def run_with_queues(program, overlay=None, daemon=False) -> tuple[Queue, Queue, 
     in_queue, out_queue = Queue(), Queue()
     read = lambda: in_queue.get()
     write = lambda n: out_queue.put(n)
-    t = threading.Thread(target=v3, args=(program,), kwargs={'overlay': overlay, 'read': read, 'write': write}, daemon=daemon)
+    t = threading.Thread(target=v3, args=(program,), kwargs={'overlay': overlay, 'read': read, 'write': write},
+                         daemon=daemon)
     t.start()
     return in_queue, out_queue, t
