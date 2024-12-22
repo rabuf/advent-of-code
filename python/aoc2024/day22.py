@@ -2,6 +2,8 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from more_itertools import windowed
+
 from aoc_util import print_day
 
 
@@ -36,11 +38,10 @@ def part1(secret):
 
 
 def prices(secret):
-    p = [secret % 10]
+    yield secret % 10
     for _ in range(2000):
         secret = process(secret)
-        p.append(secret % 10)
-    return p
+        yield secret % 10
 
 
 def sequences(p):
@@ -50,13 +51,13 @@ def sequences(p):
 
 def signals(ss):
     for s in ss:
-        for a in zip(s, s[1:], s[2:], s[3:]):
-            yield list(a)
+        for k in s:
+            yield k
 
 
 def first_sequence_prices(p):
     deal = defaultdict(int)
-    for a, b, c, d, e in zip(p, p[1:], p[2:], p[3:], p[4:]):
+    for a, b, c, d, e in windowed(p, 5):
         diffs = (b - a, c - b, d - c, e - d)
         if diffs not in deal:
             deal[diffs] = e
