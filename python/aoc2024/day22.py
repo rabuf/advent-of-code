@@ -44,24 +44,13 @@ def prices(secret):
         yield secret % 10
 
 
-def sequences(p):
-    s = [b - a for a, b in zip(p, p[1:])]
-    return s
-
-
-def signals(ss):
-    for s in ss:
-        for k in s:
-            yield k
-
-
 def first_sequence_prices(p):
-    deal = defaultdict(int)
+    seen = set()
     for a, b, c, d, e in windowed(p, 5):
         diffs = (b - a, c - b, d - c, e - d)
-        if diffs not in deal:
-            deal[diffs] = e
-    return deal
+        if diffs not in seen:
+            seen.add(diffs)
+            yield diffs, e
 
 
 def main():
@@ -71,13 +60,12 @@ def main():
             secrets = list(map(parse_line, f.read().splitlines()))
         p1 = sum(map(part1, secrets))
         all_prices = (prices(secret) for secret in secrets)
-        deals = [first_sequence_prices(p) for p in all_prices]
-        max_bananas = 0
-        all_sequences = set()
+        deals = (first_sequence_prices(p) for p in all_prices)
+        totals = defaultdict(int)
         for d in deals:
-            all_sequences.update(d)
-        for seq in all_sequences:
-            max_bananas = max(max_bananas, sum(d[seq] for d in deals))
+            for k, v in d:
+                totals[k] += v
+        max_bananas = max(totals.values())
         print_day("22", p1, max_bananas)
     except IOError as e:
         print(e)
