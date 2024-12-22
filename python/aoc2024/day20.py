@@ -1,8 +1,9 @@
 import sys
 from pathlib import Path
 
-from aoc_util import print_day
 import networkx
+
+from aoc_util import print_day
 
 
 def parse_line(line):
