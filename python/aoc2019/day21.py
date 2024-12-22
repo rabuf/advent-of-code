@@ -30,15 +30,14 @@ def main():
         p1 = robot(program, ['NOT A J',
                              'NOT C T', 'OR T J',
                              'AND D J', 'WALK'], False)
-        p2 = 0 # robot(program, ['NOT A J', 'OR D T', 'AND H T', 'OR T J', 'RUN'])
-        p3 = robot(program, ['NOT A J',
+        p2 = robot(program, ['NOT A J',
                              'NOT B T', 'AND D T', 'AND H T', 'OR T J',
                              'NOT C T', 'AND D T', 'AND E T', 'OR T J',
                              'NOT C T', 'AND D T', 'AND H T', 'OR T J',
                              'AND D J',
                              'RUN'],
                    True)
-        print_day("21", p1, p2, p3)
+        print_day("21", p1, p2)
     except IOError as e:
         print(e)
 
