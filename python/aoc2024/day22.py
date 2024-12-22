@@ -1,5 +1,6 @@
 import sys
 from collections import defaultdict
+from itertools import chain
 from pathlib import Path
 
 from more_itertools import windowed
@@ -44,7 +45,7 @@ def prices(secret):
         yield secret % 10
 
 
-def first_sequence_prices(p):
+def sequence_prices(p):
     seen = set()
     for a, b, c, d, e in windowed(p, 5):
         diffs = (b - a, c - b, d - c, e - d)
@@ -57,14 +58,13 @@ def main():
     input_dir = Path(sys.argv[1])
     try:
         with open(input_dir / "2024" / "22.txt") as f:
-            secrets = list(map(parse_line, f.read().splitlines()))
+            secrets = list(map(parse_line, f))
         p1 = sum(map(part1, secrets))
         all_prices = (prices(secret) for secret in secrets)
-        deals = (first_sequence_prices(p) for p in all_prices)
+        deals = (sequence_prices(p) for p in all_prices)
         totals = defaultdict(int)
-        for d in deals:
-            for k, v in d:
-                totals[k] += v
+        for sequence, price in chain.from_iterable(deals):
+            totals[sequence] += price
         max_bananas = max(totals.values())
         print_day("22", p1, max_bananas)
     except IOError as e:
