@@ -1,6 +1,6 @@
-from aoc2023.day20 import *
-from pytest import mark, fixture
+from pytest import fixture
 
+from aoc2023.day20 import *
 
 sample_1 = """broadcaster -> a, b, c
 %a -> b
@@ -8,7 +8,6 @@ sample_1 = """broadcaster -> a, b, c
 %c -> inv
 &inv -> a
 """
-
 
 sample_2 = """broadcaster -> a
 %a -> inv, con

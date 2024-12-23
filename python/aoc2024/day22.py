@@ -12,24 +12,10 @@ def parse_line(line):
     return int(line)
 
 
-def mix(n, secret):
-    return n ^ secret
-
-
-def prune(secret):
-    return secret % 16777216
-
-
 def process(secret):
-    a = secret * 64
-    b = mix(a, secret)
-    c = prune(b)
-    d = c // 32
-    e = mix(c, d)
-    f = prune(e)
-    g = f * 2048
-    h = mix(f, g)
-    return prune(h)
+    a = ((secret * 64) ^ secret) & 16777215
+    b = ((a // 32) ^ a) & 16777215
+    return ((b * 2048) ^ b) & 16777215
 
 
 def part1(secret):

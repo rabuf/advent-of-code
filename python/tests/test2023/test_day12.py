@@ -1,6 +1,6 @@
-from aoc2023.day12 import *
-
 from pytest import mark
+
+from aoc2023.day12 import *
 
 sample_data = """???.### 1,1,3
 .??..??...?##. 1,1,3

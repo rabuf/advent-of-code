@@ -1,7 +1,6 @@
-from pytest import fixture, mark, skip
+from pytest import fixture, mark
 
 from aoc2023.day21 import *
-
 
 sample = """...........
 .....###.#.

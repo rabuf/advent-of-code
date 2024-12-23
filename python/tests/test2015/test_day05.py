@@ -1,7 +1,6 @@
-import unittest
-from aoc2018.day05 import reactp
-
 from hypothesis import given, strategies as st
+
+from aoc2018.day05 import reactp
 
 
 @given(st.characters(max_codepoint=127, categories=['Ll']))
