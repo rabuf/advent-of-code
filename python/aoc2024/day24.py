@@ -1,3 +1,4 @@
+import random
 import sys
 from collections import Counter
 from itertools import combinations
@@ -103,6 +104,13 @@ def first_wrong(values):
     print('all good')
     return None
 
+def many_trials(values):
+    for _ in range(100):
+        x = random.randint(0, 2**45-1)
+        y = random.randint(0, 2 ** 45 - 1)
+        if with_x_y(values, x_initial=x, y_initial=y) != x + y:
+            return False
+    return True
 
 def part2(values):
     inputs = set(k for k in values if k[0] in 'xy')
@@ -142,14 +150,15 @@ def part2(values):
                 try:
                     match first_wrong(values):
                         case None:
-                            print(with_x_y(values, x_initial=x, y_initial=y), x, y, x + y, with_x_y(values, x_initial=x, y_initial=y) == x + y)
-                            names = {s for s, _ in swapped} | {s for _, s in swapped } | {a, b}
-                            print(names)
-                            print(','.join(sorted(names)))
-                            return swapped | {new}
+                            if many_trials(values):
+                                print(with_x_y(values, x_initial=x, y_initial=y), x, y, x + y, with_x_y(values, x_initial=x, y_initial=y) == x + y)
+                                names = {s for s, _ in swapped} | {s for _, s in swapped } | {a, b}
+                                print(swapped | {(a, b)})
+
+                                return ','.join(sorted(names))
                         case sw if sw > w:
-                            if (result := recur(swapped | {new}, good | {a, b})) is not None:
-                                return result
+                            if (r := recur(swapped | {new}, good | {a, b})) is not None:
+                                return r
 
                 except RecursionError as e:
                     pass
@@ -274,6 +283,7 @@ def main():
         p1 = part1(values)
         p2 = part2(values) # dependencies(values)
         print_day("24", p1, p2, len(wires))
+        assert p2 == 'gbf,hdt,jgt,mht,nbf,z05,z09,z30'
     except IOError as e:
         print(e)
 
