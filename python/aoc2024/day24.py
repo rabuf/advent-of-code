@@ -1,7 +1,5 @@
 import random
 import sys
-from collections import Counter
-from itertools import combinations
 from pathlib import Path
 
 import z3
@@ -21,7 +19,6 @@ def parse_wire(wire):
 
 
 def dependencies(values):
-
     inputs = set(k for k in values if k[0] in 'xy')
 
     def recur(name, depth=None):
@@ -84,6 +81,7 @@ def get_dependencies(values, name):
     op, l, r = values[name]
     return {name} | get_dependencies(values, l) | get_dependencies(values, r)
 
+
 def first_wrong(values):
     inputs = set(k for k in values if k[0] in 'xy')
 
@@ -100,17 +98,19 @@ def first_wrong(values):
         if z & x != 0:
             return i
         if z & (x + x) == 0:
-            return i+1
+            return i + 1
     print('all good')
     return None
 
+
 def many_trials(values):
     for _ in range(100):
-        x = random.randint(0, 2**45-1)
+        x = random.randint(0, 2 ** 45 - 1)
         y = random.randint(0, 2 ** 45 - 1)
         if with_x_y(values, x_initial=x, y_initial=y) != x + y:
             return False
     return True
+
 
 def part2(values):
     inputs = set(k for k in values if k[0] in 'xy')
@@ -122,6 +122,7 @@ def part2(values):
             y = y * 2 + values[v]
     # print(x, y)
     seen = set()
+
     def recur(swapped, good):
         w = first_wrong(values)
         if w is None:
@@ -150,10 +151,11 @@ def part2(values):
                 try:
                     match first_wrong(values):
                         case None:
-                            print(z3_validate(values))
+                            # print(z3_validate(values))
                             if many_trials(values):
-                                print(with_x_y(values, x_initial=x, y_initial=y), x, y, x + y, with_x_y(values, x_initial=x, y_initial=y) == x + y)
-                                names = {s for s, _ in swapped} | {s for _, s in swapped } | {a, b}
+                                print(with_x_y(values, x_initial=x, y_initial=y), x, y, x + y,
+                                      with_x_y(values, x_initial=x, y_initial=y) == x + y)
+                                names = {s for s, _ in swapped} | {s for _, s in swapped} | {a, b}
                                 print(swapped | {(a, b)})
                                 return ','.join(sorted(names))
                         case sw if sw > w:
@@ -253,6 +255,7 @@ def z3_validate(values):
         return True
     return False
 
+
 def print_chart(values):
     def recur(name, depth=0):
         print(f'{"  " * depth}--{name}')
@@ -262,8 +265,10 @@ def print_chart(values):
         print(f'{"  " * depth}---{op}')
         recur(l, depth + 1)
         recur(r, depth + 1)
+
     for z in sorted(k for k in values if k[0] == 'z')[:10]:
         recur(z)
+
 
 def main():
     input_dir = Path(sys.argv[1])
@@ -277,7 +282,7 @@ def main():
         values = dict(initial)
         values.update(wires)
         p1 = part1(values)
-        p2 = part2(values) # dependencies(values)
+        p2 = part2(values)  # dependencies(values)
         print_day("24", p1, p2, len(wires))
         assert p2 == 'gbf,hdt,jgt,mht,nbf,z05,z09,z30'
     except IOError as e:

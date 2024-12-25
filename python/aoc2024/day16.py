@@ -54,7 +54,8 @@ def main():
         forward_cost = dijkstra(grid, start, [(1, 0)])
         backward_cost = dijkstra(grid, end, directions)
         p1 = min(forward_cost[(end, d)] for d in directions)
-        p2 = len({pos for (pos, (dx, dy)), cost in backward_cost.items() if forward_cost[(pos, (-dx, -dy))] + cost == p1})
+        p2 = len(
+            {pos for (pos, (dx, dy)), cost in backward_cost.items() if forward_cost[(pos, (-dx, -dy))] + cost == p1})
         print_day("16", p1, p2)
     except IOError as e:
         print(e)
