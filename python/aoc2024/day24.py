@@ -120,7 +120,7 @@ def part2(values):
             x = x * 2 + values[v]
         if v[0] == 'y':
             y = y * 2 + values[v]
-    print(x, y)
+    # print(x, y)
     seen = set()
     def recur(swapped, good):
         w = first_wrong(values)
@@ -137,7 +137,7 @@ def part2(values):
         potentials = get_dependencies(values, z)
         potentials.difference_update(good)
         others = set(values).difference(good)
-        print(f'{w}: {sorted(swapped)}')
+        # print(f'{w}: {sorted(swapped)}')
         for a in potentials:
             for b in others:
                 if a == b:
@@ -150,11 +150,11 @@ def part2(values):
                 try:
                     match first_wrong(values):
                         case None:
+                            print(z3_validate(values))
                             if many_trials(values):
                                 print(with_x_y(values, x_initial=x, y_initial=y), x, y, x + y, with_x_y(values, x_initial=x, y_initial=y) == x + y)
                                 names = {s for s, _ in swapped} | {s for _, s in swapped } | {a, b}
                                 print(swapped | {(a, b)})
-
                                 return ','.join(sorted(names))
                         case sw if sw > w:
                             if (r := recur(swapped | {new}, good | {a, b})) is not None:
@@ -220,20 +220,19 @@ def z3_validate(values):
     x = z3.BitVec('x', len(xs))
     y = z3.BitVec('y', len(ys))
     z = z3.BitVec('z', len(zs))
-    print(len(zs))
-    s.add(z3.ForAll([x, y], z3.Exists([z], z3.BV2Int(x) + z3.BV2Int(y) == z3.BV2Int(z))))
+    s.add(z3.BV2Int(x) + z3.BV2Int(y) == z3.BV2Int(z))
     for xv in xs:
         variables[xv] = z3.BitVec(xv, 1)
         n = int(xv[1:])
-        s.add(variables[xv] == z3.Extract(n, n, x))
+        variables[xv] = z3.Extract(n, n, x)
     for yv in ys:
         variables[yv] = z3.BitVec(yv, 1)
         n = int(yv[1:])
-        s.add(variables[yv] == z3.Extract(n, n, y))
+        variables[yv] = z3.Extract(n, n, y)
     for zv in zs:
         variables[zv] = z3.BitVec(zv, 1)
         n = int(zv[1:])
-        s.add(variables[zv] == z3.Extract(n, n, z))
+        s.add(variables[zv] != z3.Extract(n, n, z))
     for k in values:
         if k in variables:
             continue
@@ -244,14 +243,11 @@ def z3_validate(values):
         op, l, r = v
         match op:
             case 'AND':
-                s.add(variables[k] == variables[l] & variables[r])
+                variables[k] = variables[l] & variables[r]
             case 'OR':
-                s.add(variables[k] == variables[l] | variables[r])
+                variables[k] = variables[l] | variables[r]
             case 'XOR':
-                s.add(variables[k] == variables[l] ^ variables[r])
-    print(variables)
-    print(s.assertions)
-    print(s.sexpr())
+                variables[k] = variables[l] ^ variables[r]
     if s.check() == z3.sat:
         print(s.model())
         return True
