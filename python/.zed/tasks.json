@@ -1,0 +1,9 @@
+// Project tasks configuration. See https://zed.dev/docs/tasks for documentation.
+//
+// Example:
+[
+  {
+    "label": "Run days",
+    "command": "python3 main.py ../inputs"
+  }
+]

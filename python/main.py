@@ -3,7 +3,7 @@ import importlib
 
 
 def main():
-    for year in range(2024, 2025):
+    for year in range(2025, 2026):
         year_start = datetime.datetime.now()
         days = 0
         for day in range(1, 26):
