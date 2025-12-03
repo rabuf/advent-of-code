@@ -16,12 +16,24 @@ def best_joltage(bank, size=2):
     return int(joltage)
 
 
+def maybe_faster(bank, size=2):
+    bank += "0"
+    joltage = ""
+    digits = size
+    while digits:
+        pos = bank.index(max(bank[:-digits]))
+        joltage += bank[pos]
+        bank = bank[pos + 1 :]
+        digits = digits - 1
+    return int(joltage)
+
+
 def part1(banks):
-    return sum(map(best_joltage, banks))
+    return sum(map(maybe_faster, banks))
 
 
 def part2(banks):
-    return sum(map(partial(best_joltage, size=12), banks))
+    return sum(map(partial(maybe_faster, size=12), banks))
 
 
 def main():
