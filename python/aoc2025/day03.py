@@ -8,11 +8,11 @@ from aoc_util import print_day
 def best_joltage(bank, size=2):
     joltage, rest = bank[:size], bank[size:]
     for c in rest:
-        best = int(joltage)
+        best = joltage
         for i in range(size):
-            contender = int(joltage[:i] + joltage[i + 1 :] + f"{c}")
+            contender = joltage[:i] + joltage[i + 1 :] + f"{c}"
             best = max(best, contender)
-        joltage = str(best)
+        joltage = best
     return int(joltage)
 
 
