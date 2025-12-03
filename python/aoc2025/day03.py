@@ -10,7 +10,7 @@ def best_joltage(bank, size=2):
     for c in rest:
         best = joltage
         for i in range(size):
-            contender = joltage[:i] + joltage[i + 1 :] + f"{c}"
+            contender = joltage[:i] + joltage[i + 1 :] + c
             best = max(best, contender)
         joltage = best
     return int(joltage)
