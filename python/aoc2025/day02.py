@@ -10,15 +10,14 @@ from aoc_util import print_day
 def parse_line(line):
     pattern = r"\d+-\d+"
     return [
-        (int(lower), int(upper))
+        range(int(lower), int(upper) + 1)
         for lower, upper in map(lambda s: s.split("-"), re.findall(pattern, line))
     ]
 
 
-def invalid(lower, upper):
-    # magic = 11
+def invalid(r: range):
     result = 0
-    for i in range(lower, upper + 1):
+    for i in r:
         s = str(i)
         if len(s) % 2 == 0:
             if s[0 : len(s) // 2] == s[len(s) // 2 :]:
@@ -27,12 +26,12 @@ def invalid(lower, upper):
 
 
 def part1(ranges):
-    return sum(invalid(lower, upper) for lower, upper in ranges)
+    return sum(map(invalid, ranges))
 
 
-def invalid2(lower, upper):
+def invalid2(r: range):
     result = 0
-    for i in range(lower, upper + 1):
+    for i in r:
         s = str(i)
         for j in range(2, len(s) + 1):
             if len(s) % j == 0:
@@ -45,7 +44,20 @@ def invalid2(lower, upper):
 
 
 def part2(ranges):
-    return sum(invalid2(lower, upper) for lower, upper in ranges)
+    return sum(map(invalid2, ranges))
+
+
+def combined(ranges: list[range]):
+    p1, p2 = 0, 0
+    r1, r2 = re.compile(r"^(\d+)\1$"), re.compile(r"^(\d+)\1+$")
+    for r in ranges:
+        for i in r:
+            s = str(i)
+            if r1.match(s):
+                p1 += i
+            if r2.match(s):
+                p2 += i
+    return p1, p2
 
 
 def main():
@@ -53,7 +65,7 @@ def main():
     try:
         with open(input_dir / "2025" / "02.txt") as f:
             line = parse_line(f.read())
-        print_day("02", part1(line), part2(line))
+        print_day("02", *combined(line))
     except IOError as e:
         print(e)
 
