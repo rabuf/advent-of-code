@@ -1,4 +1,5 @@
 import sys
+from functools import partial
 from pathlib import Path
 
 from aoc_util import print_day
@@ -16,8 +17,12 @@ def make_grid(lines):
 OFFSETS = (1j, -1j, 1, -1, 1 + 1j, 1 - 1j, -1 + 1j, -1 - 1j)
 
 
+def neighbor_count(grid, pos):
+    return sum(pos + d in grid for d in OFFSETS)
+
+
 def is_removeable(grid, pos):
-    return sum(pos + d in grid for d in OFFSETS) < 4
+    return neighbor_count(grid, pos) < 4
 
 
 def to_remove(grid):
@@ -52,12 +57,31 @@ def part3(grid):
     return count
 
 
+def part4(grid):
+    with_counts = {pos: neighbor_count(grid, pos) for pos in grid}
+    removeable = to_remove(grid)
+    count = len(removeable)
+    for r in removeable:
+        del with_counts[r]
+    while removeable:
+        r = removeable.pop()
+        for n in (r + d for d in OFFSETS):
+            if n in with_counts:
+                with_counts[n] = with_counts[n] - 1
+                if with_counts[n] < 4:
+                    removeable.add(n)
+                    del with_counts[n]
+                    count = count + 1
+
+    return count
+
+
 def main():
     input_dir = Path(sys.argv[1])
     try:
         with open(input_dir / "2025" / "04.txt") as f:
             grid = make_grid(f.read().splitlines())
-        print_day("04", part1(grid), part2(grid), part3(grid))
+        print_day("04", part4(grid))
     except IOError as e:
         print(e)
 
