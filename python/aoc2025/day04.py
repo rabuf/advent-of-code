@@ -36,12 +36,28 @@ def part2(grid):
     return count
 
 
+def fixpoint(f, *args, **kwargs):
+    while (next := f(*args)) != args:
+        args = next
+    return args
+
+
+def p3(grid, count):
+    removeable = to_remove(grid)
+    return grid - removeable, count + len(removeable)
+
+
+def part3(grid):
+    _, count = fixpoint(p3, grid, 0)
+    return count
+
+
 def main():
     input_dir = Path(sys.argv[1])
     try:
         with open(input_dir / "2025" / "04.txt") as f:
             grid = make_grid(f.read().splitlines())
-        print_day("04", part1(grid), part2({*grid}))
+        print_day("04", part1(grid), part2(grid), part3(grid))
     except IOError as e:
         print(e)
 
