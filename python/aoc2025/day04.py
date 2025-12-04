@@ -20,12 +20,12 @@ def is_removeable(grid, pos):
     return sum(pos + d in grid for d in OFFSETS) < 4
 
 
-def part1(grid):
-    return sum(is_removeable(grid, pos) for pos in grid)
-
-
 def to_remove(grid):
     return {pos for pos in grid if is_removeable(grid, pos)}
+
+
+def part1(grid):
+    return len(to_remove(grid))
 
 
 def part2(grid):
