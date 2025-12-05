@@ -7,42 +7,42 @@ from aoc_util import print_day
 def input_to_grid(lines):
     grid = {}
     start = 0
-    for (row, pipes) in enumerate(lines):
-        for (col, pipe) in enumerate(pipes):
+    for row, pipes in enumerate(lines):
+        for col, pipe in enumerate(pipes):
             grid[col + row * 1j] = pipe
-            if pipe == 'S':
+            if pipe == "S":
                 start = col + row * 1j
     return grid, start
 
 
 next_direction = {
-    ('J', 1): -1j,
-    ('J', 1j): -1,
-    ('|', 1j): 1j,
-    ('|', -1j): -1j,
-    ('-', 1): 1,
-    ('-', -1): -1,
-    ('L', -1): -1j,
-    ('L', 1j): 1,
-    ('7', 1): 1j,
-    ('7', -1j): -1,
-    ('F', -1): 1j,
-    ('F', -1j): 1,
+    ("J", 1): -1j,
+    ("J", 1j): -1,
+    ("|", 1j): 1j,
+    ("|", -1j): -1j,
+    ("-", 1): 1,
+    ("-", -1): -1,
+    ("L", -1): -1j,
+    ("L", 1j): 1,
+    ("7", 1): 1j,
+    ("7", -1j): -1,
+    ("F", -1): 1j,
+    ("F", -1j): 1,
 }
 
 turning = {
-    ('J', 1): -1,
-    ('J', 1j): 1,
-    ('|', 1j): 0,
-    ('|', -1j): 0,
-    ('-', 1): 0,
-    ('-', -1): 0,
-    ('L', -1): 1,
-    ('L', 1j): -1,
-    ('7', 1): 1,
-    ('7', -1j): -1,
-    ('F', -1): -1,
-    ('F', -1j): 1,
+    ("J", 1): -1,
+    ("J", 1j): 1,
+    ("|", 1j): 0,
+    ("|", -1j): 0,
+    ("-", 1): 0,
+    ("-", -1): 0,
+    ("L", -1): 1,
+    ("L", 1j): -1,
+    ("7", 1): 1,
+    ("7", -1j): -1,
+    ("F", -1): -1,
+    ("F", -1j): 1,
 }
 
 
@@ -58,42 +58,42 @@ def enclosed_area(grid, start):
         if pos in grid:
             side.add(pos)
 
-    while grid[pos] != 'S':
+    while grid[pos] != "S":
         match grid[pos], direction:
-            case ('|', -1j):
+            case ("|", -1j):
                 check(pos + 1, right)
                 check(pos - 1, left)
-            case ('|', 1j):
+            case ("|", 1j):
                 check(pos - 1, right)
                 check(pos + 1, left)
-            case ('-', 1):
+            case ("-", 1):
                 check(pos + 1j, right)
                 check(pos - 1j, left)
-            case ('-', -1):
+            case ("-", -1):
                 check(pos - 1j, right)
                 check(pos + 1j, left)
-            case ('J', 1):
+            case ("J", 1):
                 check(pos + 1j, right)
                 check(pos + 1, right)
-            case ('L', 1j):
+            case ("L", 1j):
                 check(pos - 1, right)
                 check(pos + 1j, right)
-            case ('7', -1j):
+            case ("7", -1j):
                 check(pos + 1, right)
                 check(pos - 1j, right)
-            case ('F', -1):
+            case ("F", -1):
                 check(pos - 1, right)
                 check(pos - 1j, right)
-            case ('J', 1j):
+            case ("J", 1j):
                 check(pos + 1j, left)
                 check(pos + 1, left)
-            case ('L', -1):
+            case ("L", -1):
                 check(pos - 1, left)
                 check(pos + 1j, left)
-            case ('7', 1):
+            case ("7", 1):
                 check(pos + 1, left)
                 check(pos - 1j, left)
-            case ('F', -1j):
+            case ("F", -1j):
                 check(pos - 1, left)
                 check(pos - 1j, left)
         turns += turning[(grid[pos], direction)]
@@ -115,11 +115,11 @@ def enclosed_area(grid, start):
 
 
 def initial_direction(grid, start):
-    if grid.get(start - 1j, '.') in '7F|':
+    if grid.get(start - 1j, ".") in "7F|":
         start_direction = -1j
-    elif grid.get(start + 1j, '.') in 'LJ|':
+    elif grid.get(start + 1j, ".") in "LJ|":
         start_direction = 1j
-    elif grid.get(start + 1, '.') in '-J7':
+    elif grid.get(start + 1, ".") in "-J7":
         start_direction = 1
     else:
         start_direction = -1
@@ -137,8 +137,7 @@ def loop_length(grid, start):
     return length
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "10.txt") as f:
         grid, start = input_to_grid(f.read().splitlines())
         length = loop_length(grid, start)
@@ -146,5 +145,5 @@ def main():
         print_day(10, length // 2, enclosed)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

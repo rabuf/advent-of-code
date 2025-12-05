@@ -57,8 +57,14 @@ class FlipFlop(PulseModule):
         match pulse:
             case Pulse.LOW:
                 self._state = State.ON - self._state
-                return [(destination, self.name, Pulse.LOW if self._state == State.OFF else Pulse.HIGH)
-                        for destination in self.destinations]
+                return [
+                    (
+                        destination,
+                        self.name,
+                        Pulse.LOW if self._state == State.OFF else Pulse.HIGH,
+                    )
+                    for destination in self.destinations
+                ]
             case Pulse.HIGH:
                 return []
 
@@ -82,14 +88,14 @@ class Conjunction(PulseModule):
 
 
 def parse_line(line):
-    names = re.findall(r'\w+', line)
+    names = re.findall(r"\w+", line)
     name = names[0]
     destinations = names[1:]
     if name == "broadcaster":
         return Broadcast(name, destinations)
-    if line[0] == '&':
+    if line[0] == "&":
         return Conjunction(name, destinations)
-    if line[0] == '%':
+    if line[0] == "%":
         return FlipFlop(name, destinations)
     raise ValueError(f"Invalid line {line}")
 
@@ -124,7 +130,7 @@ def lowest_presses(modules: dict[str, PulseModule], sink):
 def press_button(modules: dict[str, PulseModule], times=1):
     low, high = 0, 0
     for n in range(times):
-        pulses = modules["broadcaster"].apply('button', Pulse.LOW)
+        pulses = modules["broadcaster"].apply("button", Pulse.LOW)
         low += 1
         while pulses:
             destination, source, pulse = pulses.pop(0)
@@ -134,18 +140,17 @@ def press_button(modules: dict[str, PulseModule], times=1):
     return low, high
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "20.txt") as f:
         raw = f.read().splitlines()
         modules = list(map(parse_line, raw))
         p1_modules = process_module_list(modules)
         p2_modules = process_module_list(list(map(parse_line, raw)))
         low, high = press_button(p1_modules, times=1000)
-        last_conjunction = p2_modules['rx'].sources[0]
+        last_conjunction = p2_modules["rx"].sources[0]
         cycles = lowest_presses(p2_modules, last_conjunction)
         print_day(20, low * high, cycles)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

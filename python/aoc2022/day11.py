@@ -2,11 +2,11 @@ import re
 import sys
 from dataclasses import dataclass
 from functools import reduce
-from operator import add, mul, mod, floordiv
+from operator import add, floordiv, mod, mul
 from pathlib import Path
 from typing import Callable
 
-from aoc_util import print_day, chunk_fill
+from aoc_util import chunk_fill, print_day
 
 
 @dataclass
@@ -21,39 +21,39 @@ class Monkey:
 
 
 def parse_expression(expr):
-    r = re.compile(r'Operation: new = (old|\d+) (\*|\+) (old|\d+)')
+    r = re.compile(r"Operation: new = (old|\d+) (\*|\+) (old|\d+)")
     m = r.search(expr)
     match m.group(2):
-        case '*':
+        case "*":
             op = mul
-        case '+':
+        case "+":
             op = add
     match m.group(1):
-        case 'old':
-            lhs = 'old'
+        case "old":
+            lhs = "old"
         case n:
             lhs = int(n)
     match m.group(3):
-        case 'old':
-            rhs = 'old'
+        case "old":
+            rhs = "old"
         case n:
             rhs = int(n)
 
     match (lhs, rhs):
-        case ('old', 'old'):
-            operation = lambda old: op(old, old)
-        case ('old', n):
-            operation = lambda old: op(old, n)
-        case (n, 'old'):
-            operation = lambda old: op(n, old)
+        case ("old", "old"):
+            operation = lambda old: op(old, old)  # noqa: E731
+        case ("old", n):
+            operation = lambda old: op(old, n)  # noqa: E731
+        case (n, "old"):
+            operation = lambda old: op(n, old)  # noqa: E731
         case (m, n):
-            operation = lambda old: op(m, n)
+            operation = lambda old: op(m, n)  # noqa: E731
 
     return operation
 
 
 def parse_monkey(lines):
-    r = re.compile(r'\d+')
+    r = re.compile(r"\d+")
     n = int(r.search(lines[0])[0])
     items = list(map(int, r.findall(lines[1])))
     op = parse_expression(lines[2])
@@ -78,8 +78,7 @@ def monkey_business(monkeys, rounds=20, op=floordiv, divisor=3):
     return mul(*sorted([m.examined for m in monkeys])[-2:])
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2022" / "11.txt") as f:
         lines = f.read().splitlines()
         monkeys = list(map(parse_monkey, chunk_fill(lines, 7)))
@@ -90,5 +89,5 @@ def main():
         print_day(11, part1, part2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

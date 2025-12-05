@@ -20,16 +20,17 @@ def part1(line):
 
 
 def part2(line):
-    return min(part1(line.replace(c, '').replace(c.upper(), ''))
-               for c in string.ascii_lowercase)
+    return min(
+        part1(line.replace(c, "").replace(c.upper(), ""))
+        for c in string.ascii_lowercase
+    )
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2018" / "05.txt") as f:
         line = f.readline().strip()
         print_day(1, part1(line), part2(line))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

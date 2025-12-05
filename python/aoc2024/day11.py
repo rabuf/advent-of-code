@@ -15,7 +15,7 @@ def apply(n):
         return [1]
     s = str(n)
     if len(s) % 2 == 0:
-        return [int(s[:len(s) // 2]), int(s[len(s) // 2:])]
+        return [int(s[: len(s) // 2]), int(s[len(s) // 2 :])]
     return [n * 2024]
 
 
@@ -36,8 +36,7 @@ def blink_single_stone(stone, times=25):
     return sum(blink_single_stone(s, times - 1) for s in stones)
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2024" / "11.txt") as f:
         stones = list(map(int, f.readline().split()))
     p1 = sum(blink_single_stone(s, times=25) for s in stones)
@@ -46,5 +45,5 @@ def main():
     print_day(11, p1, p2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

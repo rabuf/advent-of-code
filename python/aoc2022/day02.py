@@ -22,12 +22,12 @@ def beats(first: RPS, second: RPS) -> bool:
     return second == a_beats_b[first]
 
 
-def decode(c, base='A'):
+def decode(c, base="A"):
     return RPS(ord(c) - ord(base) + 1)
 
 
 def parse_line(line):
-    return decode(line[0]), decode(line[2], 'X')
+    return decode(line[0]), decode(line[2], "X")
 
 
 def score(elf, me):
@@ -55,8 +55,7 @@ def solve(plays):
     return a, b
 
 
-def main():
-    input_path = Path(sys.argv[1])
+def main(input_path=Path(sys.argv[1])):
     with open(input_path / "2022" / "02.txt", "r") as f:
         plays = parse(f)
         print_day(2, *solve(plays))

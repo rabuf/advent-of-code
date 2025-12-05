@@ -38,8 +38,7 @@ def part2(lines):
     return password
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2025" / "01.txt") as f:
         lines = list(map(parse_line, f.read().splitlines()))
         p1 = part1(lines)

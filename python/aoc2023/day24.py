@@ -4,13 +4,13 @@ from itertools import combinations
 from pathlib import Path
 
 import z3
-from shapely import LineString, box, Point
+from shapely import LineString, Point, box
 
 from aoc_util import print_day
 
 
 def parse_line(line):
-    return [int(n) for n in re.findall(r'-?\d+', line)]
+    return [int(n) for n in re.findall(r"-?\d+", line)]
 
 
 def extend_line(stone, lower=7, upper=27):
@@ -25,7 +25,7 @@ def extend_line(stone, lower=7, upper=27):
 
 
 def solve_p2(hailstones):
-    [x, y, z, dx, dy, dz] = [z3.Int(name) for name in ['x', 'y', 'z', 'dx', 'dy', 'dz']]
+    [x, y, z, dx, dy, dz] = [z3.Int(name) for name in ["x", "y", "z", "dx", "dy", "dz"]]
     times = z3.IntVector("times", len(hailstones))
     s = z3.Solver()
     for t, [hx, hy, hz, hdx, hdy, hdz] in zip(times, hailstones):
@@ -39,12 +39,13 @@ def solve_p2(hailstones):
 
 def solve_p1(hailstones, lower, upper):
     region = box(lower, lower, upper, upper)
-    extended = [extend_line(stone, lower=lower, upper=upper) & region for stone in hailstones]
+    extended = [
+        extend_line(stone, lower=lower, upper=upper) & region for stone in hailstones
+    ]
     return sum(bool(s1 & s2) for s1, s2 in combinations(extended, 2))
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "24.txt") as f:
         hailstones = list(map(parse_line, f.read().splitlines()))
         # lower, upper = 7, 27
@@ -54,5 +55,5 @@ def main():
         print_day(24, p1, p2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

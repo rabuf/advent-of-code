@@ -8,23 +8,23 @@ def parse_line(line):
     result = []
     position = 0
     for i, length in enumerate(line):
-        l = int(length)
+        l = int(length)  # noqa: E741
         if i % 2 == 0:
-            result[position:position + l] = [i // 2] * l
+            result[position : position + l] = [i // 2] * l
         else:
-            result[position:position + l] = [None] * l
+            result[position : position + l] = [None] * l
         position += l
     return result
 
 
 def compact(files: list):
     compacted = files[:]
-    l, r = 0, len(files) - 1
+    l, r = 0, len(files) - 1  # noqa: E741
     while l < r:
         while compacted[r] is None:
             r = r - 1
         while compacted[l] is not None:
-            l = l + 1
+            l = l + 1  # noqa: E741
         if l < r:
             compacted[l], compacted[r] = compacted[r], compacted[l]
     return compacted
@@ -36,13 +36,15 @@ def checksum(files: list):
 
 def compact_whole_files(disk, file_blocks, free_blocks: list[tuple[int, int]]):
     compacted = disk[:]
-    for (file_number, start, length) in reversed(file_blocks):
-        for i, (p, l) in enumerate(free_blocks):
+    for file_number, start, length in reversed(file_blocks):
+        for i, (p, l) in enumerate(free_blocks):  # noqa: E741
             if p > start:
                 break
             if l >= length:
-                compacted[p:p + length], compacted[start:start + length] = compacted[start:start + length], compacted[
-                                                                                                            p:p + length]
+                compacted[p : p + length], compacted[start : start + length] = (
+                    compacted[start : start + length],
+                    compacted[p : p + length],
+                )
                 if length < l:
                     free_blocks[i] = (p + length, l - length)
                 else:
@@ -56,7 +58,7 @@ def to_file_blocks(line):
     free = []
     position = 0
     for i, length in enumerate(line):
-        l = int(length)
+        l = int(length)  # noqa: E741
         if i % 2 == 0:
             blocks.append((i // 2, position, l))
             position = position + l
@@ -66,8 +68,7 @@ def to_file_blocks(line):
     return blocks, free
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2024" / "09.txt") as f:
         line = f.readline().strip()
     files = parse_line(line)
@@ -80,5 +81,5 @@ def main():
     assert p2 == 6377400869326
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

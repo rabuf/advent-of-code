@@ -5,8 +5,7 @@ from aoc2019 import intcode
 from aoc_util import print_day
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "05.txt") as f:
             program = intcode.parse_program(f.read())
@@ -21,5 +20,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -3,7 +3,7 @@ from functools import reduce
 from operator import mul, or_
 from pathlib import Path
 
-from aoc_util import print_day, input_to_grid
+from aoc_util import input_to_grid, print_day
 
 
 def scenic_distance(grid, x, y, dx, dy):
@@ -31,21 +31,28 @@ def sees_edge(grid, x, y, dx, dy):
 def print_grid(grid):
     for row in grid:
         for c in row:
-            print(c, end='')
+            print(c, end="")
         print()
 
 
 def search_from(grid, x, y, op=None, func=None):
-    return reduce(op, [func(grid, x, y, 0, 1),
-                       func(grid, x, y, 0, -1),
-                       func(grid, x, y, 1, 0),
-                       func(grid, x, y, -1, 0)])
+    return reduce(
+        op,
+        [
+            func(grid, x, y, 0, 1),
+            func(grid, x, y, 0, -1),
+            func(grid, x, y, 1, 0),
+            func(grid, x, y, -1, 0),
+        ],
+    )
 
 
 def search(grid, op=None, func=None, res=None):
-    return res(search_from(grid, x, y, op=op, func=func)
-               for x in range(len(grid))
-               for y in range(len(grid[0])))
+    return res(
+        search_from(grid, x, y, op=op, func=func)
+        for x in range(len(grid))
+        for y in range(len(grid[0]))
+    )
 
 
 def count_visible_trees(grid):
@@ -56,14 +63,11 @@ def max_scenic_score(grid):
     return search(grid, op=mul, func=scenic_distance, res=max)
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2022" / "08.txt") as f:
         grid = input_to_grid(f.readlines(), int)
-        print_day(8,
-                  count_visible_trees(grid),
-                  max_scenic_score(grid))
+        print_day(8, count_visible_trees(grid), max_scenic_score(grid))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

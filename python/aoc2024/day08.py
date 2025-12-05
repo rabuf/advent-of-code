@@ -10,7 +10,7 @@ def lines_to_grid(lines):
     antennas = defaultdict(set)
     for j, line in enumerate(lines):
         for i, c in enumerate(line):
-            if c != '.':
+            if c != ".":
                 antennas[c].add(i + j * 1j)
     return antennas, len(lines[0]), len(lines)
 
@@ -43,8 +43,7 @@ def find_all_antinodes(positions: set[complex], max_x, max_y):
     return antinodes
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2024" / "08.txt") as f:
         antennas, max_x, max_y = lines_to_grid(f.read().splitlines())
         antinodes = set()
@@ -55,5 +54,5 @@ def main():
         print_day(8, len(antinodes), len(all_antinodes))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -19,26 +19,26 @@ def energized(grid, start=(0 + 0j), direction=(1 + 0j)):
         e[direction].add(position)
         c = grid[position]
         match c:
-            case '.':
+            case ".":
                 state.append((direction, position + direction))
-            case '|':
+            case "|":
                 if direction == 1j or direction == -1j:
                     state.append((direction, position + direction))
                 else:
                     state.append((-1j, position - 1j))
                     state.append((1j, position + 1j))
-            case '-':
+            case "-":
                 if direction == 1 or direction == -1:
                     state.append((direction, position + direction))
                 else:
                     state.append((-1, position - 1))
                     state.append((1, position + 1))
-            case '/':
+            case "/":
                 if direction == 1 or direction == -1:
                     state.append((direction * -1j, position + direction * -1j))
                 else:
                     state.append((direction * 1j, position + direction * 1j))
-            case '\\':
+            case "\\":
                 if direction == 1 or direction == -1:
                     state.append((direction * 1j, position + direction * 1j))
                 else:
@@ -61,12 +61,13 @@ def maximize_energized_region(grid, height, width):
         energy = max(energy, energized(grid, start=(width - 1 + y * 1j), direction=-1))
     for x in range(width):
         energy = max(energy, energized(grid, start=x, direction=1j))
-        energy = max(energy, energized(grid, start=(x + (height - 1) * 1j), direction=-1j))
+        energy = max(
+            energy, energized(grid, start=(x + (height - 1) * 1j), direction=-1j)
+        )
     return energy
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "16.txt") as f:
         lines = f.read().splitlines()
     height, width = len(lines), len(lines[0])
@@ -76,5 +77,5 @@ def main():
     print_day(16, energy, max_energy)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

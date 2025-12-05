@@ -7,7 +7,7 @@ from aoc_util import print_day
 
 
 def parse_line(line):
-    return list(map(int, re.findall(r'[+-]?\d+', line)))
+    return list(map(int, re.findall(r"[+-]?\d+", line)))
 
 
 def cycle_detection(f, x0):
@@ -49,7 +49,12 @@ def step(nums):
 def calculate_gravity(nums):
     gravity = []
     for i in range(len(nums)):
-        gravity.append(sum(1 if nums[i] < nums[j] else -1 if nums[i] > nums[j] else 0 for j in range(len(nums))))
+        gravity.append(
+            sum(
+                1 if nums[i] < nums[j] else -1 if nums[i] > nums[j] else 0
+                for j in range(len(nums))
+            )
+        )
     return gravity
 
 
@@ -58,14 +63,13 @@ def energy(nums):
     return sum(map(abs, pos)) * sum(map(abs, vel))
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "12.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
         planets = xs, ys, zs = [[p[i] for p in lines] for i in range(3)]
         cycles = list(map(cycle_length, planets))
-        p2 = math.lcm(*(l for l, _ in cycles))
+        p2 = math.lcm(*(v for v, _ in cycles))
         xs = xs, [0] * len(xs)
         ys = ys, [0] * len(ys)
         zs = zs, [0] * len(zs)
@@ -84,5 +88,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

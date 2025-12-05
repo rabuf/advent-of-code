@@ -60,8 +60,7 @@ def combined(ranges: list[range]):
     return p1, p2
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2025" / "02.txt") as f:
             line = parse_line(f.read())

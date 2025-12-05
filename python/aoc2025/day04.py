@@ -1,5 +1,4 @@
 import sys
-from functools import partial
 from pathlib import Path
 
 from aoc_util import print_day
@@ -76,12 +75,11 @@ def part4(grid):
     return count
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2025" / "04.txt") as f:
             grid = make_grid(f.read().splitlines())
-        print_day("04", part4(grid))
+        print_day("04", part1(grid), part4(grid))
     except IOError as e:
         print(e)
 

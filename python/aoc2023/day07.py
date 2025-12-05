@@ -43,8 +43,8 @@ def hand_to_kind(hand) -> HandKind:
 
 def hand_to_kind_joker(hand) -> HandKind:
     best = HandKind.HighCard
-    for card in '23456789TQKA':
-        alternate = hand.replace('J', card)
+    for card in "23456789TQKA":
+        alternate = hand.replace("J", card)
         kind = hand_to_kind(alternate)
         best = max(kind, best)
     return best
@@ -53,7 +53,7 @@ def hand_to_kind_joker(hand) -> HandKind:
 def card_to_value(card: str):
     if card.isnumeric():
         return int(card)
-    return {'T': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}[card]
+    return {"T": 10, "J": 11, "Q": 12, "K": 13, "A": 14}[card]
 
 
 def compare_cards(c1: str, c2: str):
@@ -79,15 +79,17 @@ def score_hand(hands):
     return score
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "07.txt") as f:
         hands = list(map(parse_line, f.read().splitlines()))
         score = score_hand(hands)
-        joker_hands = [(hand.replace('J', '1'), hand_to_kind_joker(hand), bid) for (hand, _, bid) in hands]
+        joker_hands = [
+            (hand.replace("J", "1"), hand_to_kind_joker(hand), bid)
+            for (hand, _, bid) in hands
+        ]
         joker_score = score_hand(joker_hands)
         print_day(7, score, joker_score)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

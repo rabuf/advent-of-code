@@ -14,12 +14,12 @@ def lines_to_grid(lines):
     for j, line in enumerate(lines):
         for i, c in enumerate(line):
             pos = (i, j)
-            if c == 'S':
+            if c == "S":
                 start = pos
-                grid[pos] = '.'
-            elif c == 'E':
+                grid[pos] = "."
+            elif c == "E":
                 end = pos
-                grid[pos] = '.'
+                grid[pos] = "."
             else:
                 grid[pos] = c
     return grid, start, end
@@ -37,15 +37,14 @@ def dijkstra(grid, start, directions):
         cost[(pos, d)] = min(cost[(pos, d)], score)
         turns = (-d[1], -d[0]), (d[1], d[0])
         n = (pos[0] + d[0], pos[1] + d[1])
-        if grid[n] == '.':
+        if grid[n] == ".":
             heapq.heappush(q, (score + 1, n, d))
         for turn in turns:
             heapq.heappush(q, (score + 1000, pos, turn))
     return cost
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2024" / "16.txt") as f:
             lines = f.read().splitlines()
@@ -55,11 +54,16 @@ def main():
         backward_cost = dijkstra(grid, end, directions)
         p1 = min(forward_cost[(end, d)] for d in directions)
         p2 = len(
-            {pos for (pos, (dx, dy)), cost in backward_cost.items() if forward_cost[(pos, (-dx, -dy))] + cost == p1})
+            {
+                pos
+                for (pos, (dx, dy)), cost in backward_cost.items()
+                if forward_cost[(pos, (-dx, -dy))] + cost == p1
+            }
+        )
         print_day("16", p1, p2)
     except IOError as e:
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

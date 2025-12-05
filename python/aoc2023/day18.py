@@ -6,7 +6,7 @@ from aoc_util import print_day
 
 def parse_line(line):
     direction, length, color = line.split()
-    direction = {'R': 1, 'L': -1, 'U': -1j, 'D': 1j}[direction]
+    direction = {"R": 1, "L": -1, "U": -1j, "D": 1j}[direction]
     length = int(length)
     return direction, length, color
 
@@ -19,19 +19,26 @@ def coordinates(lines):
 
 
 def shoelace(coords):
-    return int(sum((i.real * j.imag - i.imag * j.real + abs(i - j))
-                   for i, j in zip(coords, coords[1:] + coords[:1]))) // 2 + 1
+    return (
+        int(
+            sum(
+                (i.real * j.imag - i.imag * j.real + abs(i - j))
+                for i, j in zip(coords, coords[1:] + coords[:1])
+            )
+        )
+        // 2
+        + 1
+    )
 
 
 def decode(color):
-    color = color.strip('()')
-    direction = {'0': 1, '1': 1j, '2': -1, '3': -1j}[color[-1]]
+    color = color.strip("()")
+    direction = {"0": 1, "1": 1j, "2": -1, "3": -1j}[color[-1]]
     length = int(color[1:-1], 16)
     return direction, length
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "18.txt") as f:
         lines = map(parse_line, f.read().splitlines())
     directions, lengths, colors = list(zip(*lines))
@@ -44,5 +51,5 @@ def main():
     print_day(18, area, decoded_area)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

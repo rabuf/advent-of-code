@@ -9,8 +9,11 @@ from aoc_util import print_day
 
 
 def run_vm(program, in_queue: Queue, out_queue: Queue):
-    return threading.Thread(target=intcode.v2, args=(program,),
-                            kwargs={'read': lambda: in_queue.get(), 'write': lambda n: out_queue.put(n)})
+    return threading.Thread(
+        target=intcode.v2,
+        args=(program,),
+        kwargs={"read": lambda: in_queue.get(), "write": lambda n: out_queue.put(n)},
+    )
 
 
 def thruster_controls(program, r):
@@ -29,8 +32,7 @@ def thruster_controls(program, r):
     return result
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "07.txt") as f:
             program = intcode.parse_program(f.read())
@@ -41,5 +43,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

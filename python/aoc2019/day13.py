@@ -42,14 +42,13 @@ def play(program):
     return score
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "13.txt") as f:
             program = intcode.parse_program(f.read())
         write, read, t = intcode.run_with_queues(program)
         t.join()
-        screen = defaultdict(lambda: ' ')
+        screen = defaultdict(lambda: " ")
         while read.qsize() > 0:
             x = read.get()
             y = read.get()
@@ -62,5 +61,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

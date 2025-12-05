@@ -49,8 +49,7 @@ def part3(operations):
     return result
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2024" / "03.txt") as f:
         lines = list(chain(*list(map(parse_line, f.read().splitlines()))))
         p1 = part1(lines)
@@ -59,5 +58,5 @@ def main():
         print_day(3, p1, p2, p3)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -6,11 +6,13 @@ from more_itertools import nth_or_last, unzip
 
 from aoc_util import print_day
 
-pieces = [{3, 4, 5, 6},
-          {4, 3 + 1j, 4 + 1j, 5 + 1j, 4 + 2j},
-          {3, 4, 5, 5 + 1j, 5 + 2j},
-          {3, 3 + 1j, 3 + 2j, 3 + 3j},
-          {3, 4, 3 + 1j, 4 + 1j}]
+pieces = [
+    {3, 4, 5, 6},
+    {4, 3 + 1j, 4 + 1j, 5 + 1j, 4 + 2j},
+    {3, 4, 5, 5 + 1j, 5 + 2j},
+    {3, 3 + 1j, 3 + 2j, 3 + 3j},
+    {3, 4, 3 + 1j, 4 + 1j},
+]
 
 
 def make_piece(level):
@@ -19,7 +21,7 @@ def make_piece(level):
 
 
 def wind_cycle(winds):
-    return cycle(-1 if w == '<' else 1 for w in winds)
+    return cycle(-1 if w == "<" else 1 for w in winds)
 
 
 def can_drop(piece, world):
@@ -46,7 +48,7 @@ def shift_piece(piece, direction):
 
 def make_relative(top, levels):
     # top = max(levels)
-    return [top - l for l in levels]
+    return [top - level for level in levels]
 
 
 def play_game(wind):
@@ -111,7 +113,7 @@ def brent(winds):
     portion preceding the cycle. Using this, the level for 1 trillion can be calculated."""
     game = play_game(winds)
     _, fingerprints = unzip(game)
-    l, f1, f2 = tee(fingerprints, 3)
+    l, f1, f2 = tee(fingerprints, 3)  # noqa: E741
     power = lam = 1
     tortoise = next(l)
     hare = next(l)
@@ -147,13 +149,14 @@ def high_level(winds, number_pieces):
     lam_height = heights[mu + lam - 1] - mu_height
     extra_height = heights[mu + lam + extra - 1] - lam_height - mu_height
 
-    target_height = mu_height + extra_height + lam_height * ((number_pieces - mu) // lam)
+    target_height = (
+        mu_height + extra_height + lam_height * ((number_pieces - mu) // lam)
+    )
 
     return target_height
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2022" / "17.txt") as f:
         winds = f.readline().strip()
     game = play_game(winds)
@@ -161,5 +164,5 @@ def main():
     print_day(17, level, high_level(winds, 1000000000000))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

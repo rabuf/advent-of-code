@@ -7,15 +7,15 @@ from aoc_util import print_day
 
 def parse_command(command):
     match command.split():
-        case [_, 'cd', directory]:
-            return 'cd', Path(directory)
-        case [_, 'ls']:
-            return 'ls'
+        case [_, "cd", directory]:
+            return "cd", Path(directory)
+        case [_, "ls"]:
+            return "ls"
 
 
 def parse_listing(listing):
     match listing.split():
-        case ['dir', directory]:
+        case ["dir", directory]:
             return Path(directory)
         case [size, name]:
             return Path(name), int(size)
@@ -23,7 +23,7 @@ def parse_listing(listing):
 
 def parse_line(line):
     match line.split():
-        case ['$', *rest]:
+        case ["$", *_]:
             return parse_command(line)
         case _:
             return parse_listing(line)
@@ -34,9 +34,9 @@ def process_interactions(interactions):
     pwd = Path()
     for interaction in interactions:
         match interaction:
-            case ('cd', '/'):
-                pwd = Path('/')
-            case ('cd', path):
+            case ("cd", "/"):
+                pwd = Path("/")
+            case ("cd", path):
                 pwd = pwd / path
                 pwd = pwd.resolve()
             case Path() as path:
@@ -46,7 +46,7 @@ def process_interactions(interactions):
     return filesystem
 
 
-def collect_sizes(filesystem, path=Path('/').resolve(), sizes=None):
+def collect_sizes(filesystem, path=Path("/").resolve(), sizes=None):
     if sizes is None:
         sizes = defaultdict(int)
     if path not in sizes:
@@ -61,8 +61,7 @@ def collect_sizes(filesystem, path=Path('/').resolve(), sizes=None):
     return sizes
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2022" / "07.txt") as f:
         interactions = [parse_line(line) for line in f.readlines()]
         filesystem = process_interactions(interactions)
@@ -70,11 +69,11 @@ def main():
         under_limit = sum(size for size in sizes.values() if size <= 100000)
         available = 70000000
         needed = 30000000
-        limit = sizes[Path('/').resolve()] - (available - needed)
+        limit = sizes[Path("/").resolve()] - (available - needed)
         to_remove = min(*[size for size in sizes.values() if size >= limit])
         print_day(7, under_limit, to_remove)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(sys.argv[1])
     main()

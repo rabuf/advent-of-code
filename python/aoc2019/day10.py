@@ -12,20 +12,20 @@ def parse_line(line):
     return line
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "10.txt") as f:
             lines = map(parse_line, f.read().splitlines())
         grid = {}
         for j, line in enumerate(lines):
             for i, c in enumerate(line):
-                if c == '#':
+                if c == "#":
                     grid[(i, j)] = 0
-        for (ax, ay) in grid:
+        for ax, ay in grid:
             visible = defaultdict(list)
-            for (ox, oy) in grid:
-                if (ox, oy) == (ax, ay): continue
+            for ox, oy in grid:
+                if (ox, oy) == (ax, ay):
+                    continue
                 sx, sy = ax - ox, ay - oy
                 visible[atan2(sy, sx)].append((ox, oy))
             grid[(ax, ay)] = visible
@@ -45,7 +45,8 @@ def main():
             if visible[slope]:
                 ax, ay = visible[slope].pop()
                 i = i + 1
-                if i == 200: break
+                if i == 200:
+                    break
 
         p2 = 100 * ax + ay
         print_day("10", p1, p2)
@@ -53,5 +54,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

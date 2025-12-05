@@ -40,8 +40,7 @@ def sequence_prices(p):
             yield diffs, e
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2024" / "22.txt") as f:
             secrets = list(map(parse_line, f))
@@ -57,5 +56,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

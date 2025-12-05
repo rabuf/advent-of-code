@@ -8,11 +8,10 @@ from aoc_util import print_day
 
 
 def parse_line(line):
-    return list(map(int, re.findall(r'\d+', line)))
+    return list(map(int, re.findall(r"\d+", line)))
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "02.txt") as f:
             program = parse_line(f.read())
@@ -27,5 +26,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -7,23 +7,20 @@ from aoc_util import print_day
 
 def lines_to_state(lines, depth=2):
     rooms = [[lines[i][x] for i in range(depth + 1, 1, -1)] for x in [3, 5, 7, 9]]
-    return '  | | | |  ', *rooms
+    return "  | | | |  ", *rooms
 
 
 def copy_state(state):
     return tuple(part.copy() for part in state)
 
 
-COST = {'A': 1, 'B': 10, 'C': 100, 'D': 1000}
-HOME = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
+COST = {"A": 1, "B": 10, "C": 100, "D": 1000}
+HOME = {"A": 0, "B": 1, "C": 2, "D": 3}
 ROOM_DONE = {
-    2: [['A', 'A'], ['B', 'B'], ['C', 'C'], ['D', 'D']],
-    4: [['A'] * 4, ['B'] * 4, ['C'] * 4, ['D'] * 4]
+    2: [["A", "A"], ["B", "B"], ["C", "C"], ["D", "D"]],
+    4: [["A"] * 4, ["B"] * 4, ["C"] * 4, ["D"] * 4],
 }
-END_STATE = {
-    2: ('  | | | |  ', *ROOM_DONE[2]),
-    4: ('  | | | |  ', *ROOM_DONE[4])
-}
+END_STATE = {2: ("  | | | |  ", *ROOM_DONE[2]), 4: ("  | | | |  ", *ROOM_DONE[4])}
 
 
 def heuristic(state):
@@ -42,7 +39,7 @@ def to_room_moves(state, depth=2):
     rooms = state[1:]
     for i, amphipod in enumerate(hallway):
         # empty spot in hallway
-        if amphipod not in 'ABCD':
+        if amphipod not in "ABCD":
             continue
         next_rooms = [r.copy() for r in rooms]
         home_room = next_rooms[HOME[amphipod]]
@@ -54,12 +51,12 @@ def to_room_moves(state, depth=2):
         if i > home_column:
             path = hallway[home_column:i]
         else:
-            path = hallway[i + 1:home_column + 1]
+            path = hallway[i + 1 : home_column + 1]
         # Not a clear path
-        if any(c in 'ABCD' for c in path):
+        if any(c in "ABCD" for c in path):
             continue
         cost = COST[amphipod] * (len(path) + depth - len(home_room))
-        next_hallway = hallway[:i] + ' ' + hallway[i + 1:]
+        next_hallway = hallway[:i] + " " + hallway[i + 1 :]
         home_room.append(amphipod)
         next_state = (cost, (next_hallway, *next_rooms))
         result.append(next_state)
@@ -78,17 +75,17 @@ def to_hallway_moves(state, depth=2):
         amphipod = next_rooms[i].pop()
         for next_x in range(x + 1, len(hallway)):
             # Hallway blocked from this point
-            if hallway[next_x] in 'ABCD':
+            if hallway[next_x] in "ABCD":
                 break
-            if hallway[next_x] == ' ':
-                next_hall = hallway[:next_x] + amphipod + hallway[next_x + 1:]
+            if hallway[next_x] == " ":
+                next_hall = hallway[:next_x] + amphipod + hallway[next_x + 1 :]
                 cost = COST[amphipod] * (next_x - x + 1 + depth - len(room))
                 result.append((cost, (next_hall, *next_rooms)))
         for next_x in range(x, -1, -1):
-            if hallway[next_x] in 'ABCD':
+            if hallway[next_x] in "ABCD":
                 break
-            if hallway[next_x] == ' ':
-                next_hall = hallway[:next_x] + amphipod + hallway[next_x + 1:]
+            if hallway[next_x] == " ":
+                next_hall = hallway[:next_x] + amphipod + hallway[next_x + 1 :]
                 cost = COST[amphipod] * (x - next_x + 1 + depth - len(room))
                 result.append((cost, (next_hall, *next_rooms)))
     return result
@@ -117,8 +114,7 @@ def search(initial_state, depth=2):
                 q.put((c + cost + heuristic(s), c + cost, s))
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2021" / "23.txt") as f:
         lines = f.read().splitlines()
         unfolded = lines[0:3] + ["  #D#C#B#A#", "  #D#B#A#C#"] + lines[3:]
@@ -129,5 +125,5 @@ def main():
         print_day(23, p1, p2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

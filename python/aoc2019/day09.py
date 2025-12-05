@@ -9,8 +9,7 @@ def parse_line(line):
     return line
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "09.txt") as f:
             program = intcode.parse_program(f.read())
@@ -22,5 +21,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

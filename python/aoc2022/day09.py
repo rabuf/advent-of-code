@@ -4,10 +4,10 @@ from pathlib import Path
 from aoc_util import print_day
 
 directions = {
-    'U': 1j,
-    'D': -1j,
-    'R': 1,
-    'L': -1,
+    "U": 1j,
+    "D": -1j,
+    "R": 1,
+    "L": -1,
 }
 
 
@@ -36,20 +36,19 @@ def apply_direction(direction, snake):
 def part_1(lines, length=2):
     snake = [0] * length
     locations = [{x} for x in snake]
-    for (direction, dist) in lines:
+    for direction, dist in lines:
         for _ in range(dist):
             apply_direction(direction, snake)
             [locations[i].add(snake[i]) for i in range(length)]
     return locations
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2022" / "09.txt") as f:
         lines = list(map(parse_line, f.read().splitlines()))
         visited = part_1(lines, length=10)
         print_day(9, len(visited[1]), len(visited[9]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

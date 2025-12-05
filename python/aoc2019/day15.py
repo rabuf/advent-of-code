@@ -40,8 +40,7 @@ def search(read: Queue, write: Queue, G: networkx.Graph):
     return oxygen
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "15.txt") as f:
             program = intcode.parse_program(f.read())
@@ -57,5 +56,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

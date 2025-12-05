@@ -29,15 +29,18 @@ def cheats(G, start, limit=20, threshold=50):
     cheat_count = 0
     distances = networkx.single_source_shortest_path_length(G, start)
     for a in G:
-        for b in (b for o in offsets(limit) if (b := a + o) in G and distances[b] - distances[a] >= threshold):
+        for b in (
+            b
+            for o in offsets(limit)
+            if (b := a + o) in G and distances[b] - distances[a] >= threshold
+        ):
             m = abs(a.imag - b.imag) + abs(a.real - b.real)
             if distances[b] - distances[a] >= threshold + m:
                 cheat_count = cheat_count + 1
     return cheat_count
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2024" / "20.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
@@ -47,10 +50,10 @@ def main():
             for i, c in enumerate(line):
                 pos = complex(i, j)
                 match c:
-                    case 'S':
+                    case "S":
                         start = pos
                         G.add_node(pos)
-                    case '.' | 'E':
+                    case "." | "E":
                         G.add_node(pos)
                     case _:
                         pass
@@ -64,5 +67,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

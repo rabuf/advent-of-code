@@ -6,9 +6,9 @@ from aoc_util import print_day
 
 def parse(line):
     match line.split():
-        case ['noop']:
+        case ["noop"]:
             pass
-        case ['addx', num]:
+        case ["addx", num]:
             return int(num)
 
 
@@ -21,7 +21,7 @@ def cycle(op, state: tuple[int, int]) -> tuple[int, int]:
     match op:
         case None:
             yield x + v, 0
-        case int as n:
+        case int() as n:
             yield x + v, 0
             yield x + v, n
 
@@ -43,21 +43,20 @@ def sum_signal_strengths(instructions):
 
 
 def render(instructions):
-    s = ''
+    s = ""
     for index, pos in enumerate(apply(instructions), 0):
         t = index % 40
-        s += '#' if t - 1 <= pos <= t + 1 else ' '
+        s += "#" if t - 1 <= pos <= t + 1 else " "
         if index % 40 == 39:
-            s += '\n'
+            s += "\n"
     return s
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2022" / "10.txt") as f:
         instructions = parse_lines(f.read().splitlines())
-        print_day(10, sum_signal_strengths(instructions), '\n' + render(instructions))
+        print_day(10, sum_signal_strengths(instructions), "\n" + render(instructions))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

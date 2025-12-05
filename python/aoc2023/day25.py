@@ -8,13 +8,12 @@ from aoc_util import print_day
 
 
 def parse_line(line):
-    name, neighbors = line.split(':')
+    name, neighbors = line.split(":")
     neighbors = neighbors.strip().split()
     return name, neighbors
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "25.txt") as f:
         lines = map(parse_line, f.read().splitlines())
         graph = networkx.to_networkx_graph(dict(lines))
@@ -23,5 +22,5 @@ def main():
         print_day(25, p1, "FREEBIE!!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -55,7 +55,7 @@ def solve(G: nx.Graph, doors: dict, keys: dict, start: list[tuple[int, int]]):
             reachable = reachable_keys(p, held)
             for n in reachable:
                 n_pos = key_to_pos[n]
-                positions = pos[:i] + [n_pos] + pos[i + 1:]
+                positions = pos[:i] + [n_pos] + pos[i + 1 :]
                 d = distances[p][n_pos]
                 n_held = tuple(sorted((n, *held)))
                 if (n_held, *positions) in seen:
@@ -72,9 +72,9 @@ def lines_to_graph(lines: list[str]):
         for i, c in enumerate(line):
             p = (i, j)
             match c:
-                case '#':
+                case "#":
                     continue
-                case '@':
+                case "@":
                     start = p
                 case _ if c.isupper():
                     doors[p] = c
@@ -88,8 +88,7 @@ def lines_to_graph(lines: list[str]):
     return G, doors, keys, start
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "18.txt") as f:
             lines = list(f.read().splitlines())
@@ -98,7 +97,9 @@ def main():
         print(p1)
         P2 = G.copy()
         x, y = start
-        for p in [(x + dx, y + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (0, 0))]:
+        for p in [
+            (x + dx, y + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (0, 0))
+        ]:
             P2.remove_node(p)
         starts = [(x + dx, y + dy) for (dx, dy) in ((-1, -1), (1, 1), (-1, 1), (1, -1))]
         p2 = solve(P2, doors, keys, starts)
@@ -107,5 +108,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

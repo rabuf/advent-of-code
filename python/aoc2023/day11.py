@@ -9,20 +9,20 @@ from aoc_util import print_day
 def empty_space(space: list[str]) -> tuple[list[int], list[int]]:
     rows = []
     columns = []
-    for (i, line) in enumerate(space):
-        if not line.count('#'):
+    for i, line in enumerate(space):
+        if not line.count("#"):
             rows.append(i)
-    for (j, column) in enumerate(transpose(space)):
-        if not column.count('#'):
+    for j, column in enumerate(transpose(space)):
+        if not column.count("#"):
             columns.append(j)
     return rows, columns
 
 
 def galaxy_locations(space: list[str]) -> list[tuple[int, int]]:
     locations = []
-    for (j, row) in enumerate(space):
-        for (i, col) in enumerate(row):
-            if col == '#':
+    for j, row in enumerate(space):
+        for i, col in enumerate(row):
+            if col == "#":
                 locations.append((i, j))
     return locations
 
@@ -33,8 +33,8 @@ def manhattan(g1: tuple[int, int], g2: tuple[int, int]) -> int:
 
 def all_pair_distances(locations, empty_rows, empty_columns, gap=1):
     distances = []
-    for (i, a) in enumerate(locations):
-        for b in locations[i + 1:]:
+    for i, a in enumerate(locations):
+        for b in locations[i + 1 :]:
             ax, ay = a
             bx, by = b
             distance = 0
@@ -48,8 +48,7 @@ def all_pair_distances(locations, empty_rows, empty_columns, gap=1):
     return distances
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "11.txt") as f:
         space = f.read().splitlines()
         locations = galaxy_locations(space)
@@ -61,5 +60,5 @@ def main():
         print_day(11, total, p2_total)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

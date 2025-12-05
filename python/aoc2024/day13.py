@@ -9,7 +9,7 @@ from aoc_util import print_day
 
 
 def parse_machine(machine):
-    nums = tuple(map(int, re.findall(r'\d+', machine)))
+    nums = tuple(map(int, re.findall(r"\d+", machine)))
     return nums
 
 
@@ -17,7 +17,7 @@ def machine_cost(machine, offset=0):
     s = z3.Optimize()
     ax, ay, bx, by, px, py = machine
     px, py = px + offset, py + offset
-    a, b = z3.Ints('a b')
+    a, b = z3.Ints("a b")
     cost = a * 3 + b
     s.add(a * ax + b * bx == px)
     s.add(a * ay + b * by == py)
@@ -42,7 +42,7 @@ def machine_cost_math(machine, offset=0):
 def faster_z3(machines, offset=0):
     result = 0
     s = z3.Solver()
-    a, b = z3.Ints('a b')
+    a, b = z3.Ints("a b")
     cost = a * 3 + b
     for ax, ay, bx, by, px, py in machines:
         px += offset
@@ -57,11 +57,10 @@ def faster_z3(machines, offset=0):
     return result
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2024" / "13.txt") as f:
-            machines = list(map(parse_machine, f.read().split('\n\n')))
+            machines = list(map(parse_machine, f.read().split("\n\n")))
         p1 = sum(map(machine_cost_math, machines))
         p2 = sum(map(partial(machine_cost_math, offset=10000000000000), machines))
         print_day(13, p1, p2)
@@ -69,5 +68,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

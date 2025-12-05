@@ -20,9 +20,10 @@ def extract(grid, kind, location):
     frontier = {location}
     squares = set()
     while frontier:
-        l = frontier.pop()
+        l = frontier.pop()  # noqa: E741
         squares.add(l)
-        if l in grid: del grid[l]
+        if l in grid:
+            del grid[l]
         neighbors = [l + n for n in (1, -1, 1j, -1j)]
         for n in neighbors:
             if n in grid and grid[n] == kind:
@@ -35,7 +36,7 @@ def process_map(grid: dict[complex, str]):
     p1_cost = 0
     p2_cost = 0
     while grid:
-        l, kind = grid.popitem()
+        l, kind = grid.popitem()  # noqa: E741
         squares = extract(grid, kind, l)
         area = len(squares)
         perimeter = area * 4
@@ -65,8 +66,7 @@ def process_map(grid: dict[complex, str]):
     return p1_cost, p2_cost
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2024" / "12.txt") as f:
         garden_map = lines_to_map(f.read().splitlines())
     p1, p2 = process_map(garden_map.copy())
@@ -75,5 +75,5 @@ def main():
     assert p2 == 886364
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

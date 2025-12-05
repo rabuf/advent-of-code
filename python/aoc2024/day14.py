@@ -28,7 +28,7 @@ def safety_factor(positions):
 
 
 def parse_line(line):
-    return tuple(map(int, re.findall(r'[+-]?\d+', line)))
+    return tuple(map(int, re.findall(r"[+-]?\d+", line)))
 
 
 def print_positions(positions: list):
@@ -36,14 +36,13 @@ def print_positions(positions: list):
         for x in range(101):
             p = x, y
             if p in positions:
-                print(positions.count(p), end='')
+                print(positions.count(p), end="")
             else:
-                print('.', end='')
+                print(".", end="")
         print()
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2024" / "14.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
@@ -60,5 +59,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -24,18 +24,21 @@ def lines_to_graph(lines):
         for i, c in enumerate(line):
             pos = (i, j)
             match c:
-                case '.':
+                case ".":
                     max_x = max(max_x, i)
                     max_y = max(max_y, j)
                     min_x = min(min_x, i)
                     min_y = min(min_y, i)
                     g.add_node(pos)
-                    for n in ((i + dx, j + dy) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                    for n in (
+                        (i + dx, j + dy)
+                        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                    ):
                         if n in g:
                             g.add_edge(pos, n)
-                case '#':
+                case "#":
                     pass
-                case ' ':
+                case " ":
                     pass
                 case _:
                     portal_letters[pos] = c
@@ -44,7 +47,7 @@ def lines_to_graph(lines):
     outer = {}
     portals = defaultdict(list)
     for x, y in portal_letters:
-        name = ''
+        name = ""
         portal = x, y
         pos = x, y
         down = x, y + 1
@@ -79,21 +82,23 @@ def lines_to_graph(lines):
             outer[name] = portal
     h = g.copy()
     for p, pos in portals.items():
-        if p not in ('AA', 'ZZ'):
+        if p not in ("AA", "ZZ"):
             g.add_edge(*pos)
-        assert len(pos) == 2 or p == 'AA' or p == 'ZZ'
-    return g, portals['AA'][0], portals['ZZ'][0], h, inner, outer
+        assert len(pos) == 2 or p == "AA" or p == "ZZ"
+    return g, portals["AA"][0], portals["ZZ"][0], h, inner, outer
 
 
-def part2(g: nx.Graph, inner: dict[str, tuple[int, int]], outer: dict[str, tuple[int, int]]):
+def part2(
+    g: nx.Graph, inner: dict[str, tuple[int, int]], outer: dict[str, tuple[int, int]]
+):
     """
     A fairly standard Dijkstra's algorithm based search. Whenever a node is also a portal, can go up/down a level
     of depth. Target is still 'AA' and 'ZZ'. Fortunately they're given in the `outer` set of nodes.
     """
-    outer_portals = {v: k for k, v in outer.items() if k not in ('AA', 'ZZ')}
+    outer_portals = {v: k for k, v in outer.items() if k not in ("AA", "ZZ")}
     inner_portals = {v: k for k, v in inner.items()}
-    start = 0, outer['AA']
-    target = 0, outer['ZZ']
+    start = 0, outer["AA"]
+    target = 0, outer["ZZ"]
     frontier = []
     heapq.heappush(frontier, (0, *start))
     seen = set()
@@ -115,8 +120,7 @@ def part2(g: nx.Graph, inner: dict[str, tuple[int, int]], outer: dict[str, tuple
             heapq.heappush(frontier, (distance + 1, depth + 1, n))
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "20.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
@@ -128,5 +132,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

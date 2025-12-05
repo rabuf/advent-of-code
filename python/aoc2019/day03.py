@@ -7,8 +7,8 @@ from aoc_util import print_day
 
 
 def parse_line(line):
-    directions = {'R': 1, 'L': -1, 'U': 1j, 'D': -1j}
-    steps = [(directions[p[0]], int(p[1:])) for p in line.split(',')]
+    directions = {"R": 1, "L": -1, "U": 1j, "D": -1j}
+    steps = [(directions[p[0]], int(p[1:])) for p in line.split(",")]
     return steps
 
 
@@ -17,14 +17,16 @@ def process(instructions):
     position = 0
     steps = 0
     for d, distance in instructions:
-        visited.update((position + d * n, min(visited[position + d * n], steps + n)) for n in range(1, distance + 1))
+        visited.update(
+            (position + d * n, min(visited[position + d * n], steps + n))
+            for n in range(1, distance + 1)
+        )
         steps = steps + distance
         position = position + d * distance
     return visited
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "03.txt") as f:
             s1, s2 = list(map(parse_line, f.read().splitlines()))
@@ -39,5 +41,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

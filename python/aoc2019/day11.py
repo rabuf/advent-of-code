@@ -10,8 +10,7 @@ def parse_line(line):
     return line
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "11.txt") as f:
             program = intcode.parse_program(f.read())
@@ -45,12 +44,12 @@ def main():
             pos = pos + d
         for j in range(nw[1], se[1] - 1, -1):
             for i in range(nw[0], se[0]):
-                print('#' if grid[i + j * 1j] else ' ', end='')
+                print("#" if grid[i + j * 1j] else " ", end="")
             print()
-        print_day("11", p1, 'EGHKGJER')
+        print_day("11", p1, "EGHKGJER")
     except IOError as e:
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

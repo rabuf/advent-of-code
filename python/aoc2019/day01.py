@@ -20,8 +20,7 @@ def rocket(n):
     return result
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "01.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
@@ -32,5 +31,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

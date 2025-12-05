@@ -5,12 +5,11 @@ from pathlib import Path
 from aoc_util import print_day
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2024" / "19.txt") as f:
-            patterns, designs = f.read().split('\n\n')
-            patterns = set(patterns.split(', '))
+            patterns, designs = f.read().split("\n\n")
+            patterns = set(patterns.split(", "))
             designs = designs.splitlines()
 
         @cache
@@ -18,7 +17,7 @@ def main():
             if design in patterns:
                 return True
             for i in range(1, len(design)):
-                l, r = design[:i], design[i:]
+                l, r = design[:i], design[i:]  # noqa: E741
                 if l in patterns:
                     if possible(r):
                         return True
@@ -30,7 +29,7 @@ def main():
             if design in patterns:
                 result = 1
             for i in range(1, len(design)):
-                l, r = design[:i], design[i:]
+                l, r = design[:i], design[i:]  # noqa: E741
                 if l in patterns:
                     result = result + ways(r)
             return result
@@ -42,5 +41,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -35,8 +35,7 @@ def least_heat(grid, height, width, minimum_streak=0, maximum_steak=3):
                 frontier.put((right_cost, right_position, (rx, ry), 0))
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "17.txt") as f:
         lines = f.read().splitlines()
     height, width = len(lines), len(lines[0])
@@ -46,5 +45,5 @@ def main():
     print_day(17, p1, p2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

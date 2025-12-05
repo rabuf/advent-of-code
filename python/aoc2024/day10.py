@@ -51,8 +51,7 @@ def rating(trailhead, map_grid):
     return len(trails)
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2024" / "10.txt") as f:
         map_grid, trailheads = lines_to_map(f.read().splitlines())
     p1 = sum(score(trailhead, map_grid) for trailhead in trailheads)
@@ -60,5 +59,5 @@ def main():
     print_day(10, p1, p2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

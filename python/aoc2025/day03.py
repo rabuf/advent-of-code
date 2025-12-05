@@ -36,8 +36,7 @@ def part2(banks):
     return sum(map(partial(maybe_faster, size=12), banks))
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2025" / "03.txt") as f:
             banks = f.read().splitlines()

@@ -8,7 +8,7 @@ from aoc_util import print_day
 
 
 def parse_line(line):
-    [xmin, ymin, zmin, xmax, ymax, zmax] = [int(n) for n in re.split(r'[~,]', line)]
+    [xmin, ymin, zmin, xmax, ymax, zmax] = [int(n) for n in re.split(r"[~,]", line)]
     shape = {(xmin, ymin)}
     if xmin != xmax:
         shape = {(xmin + dx, ymin) for dx in range(xmax - xmin + 1)}
@@ -17,15 +17,17 @@ def parse_line(line):
     return shape, min(zmin, zmax), max(zmin, zmax)
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2023" / "22.txt") as f:
         lines = list(map(parse_line, f.read().splitlines()))
         lines = drop_blocks(lines)
         support_graph = create_support_graph(lines)
         removable = set()
         for node in support_graph:
-            if all(support_graph.in_degree(neighbor) > 1 for neighbor in support_graph.neighbors(node)):
+            if all(
+                support_graph.in_degree(neighbor) > 1
+                for neighbor in support_graph.neighbors(node)
+            ):
                 removable.add(node)
         drops = 0
         for node in support_graph:
@@ -70,5 +72,5 @@ def drop_blocks(lines):
     return lines
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

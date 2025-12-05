@@ -52,7 +52,7 @@ def simulate(a, program):
             case 7:  # cdv
                 c = a // (2 ** combo(operand))
                 ip = ip + 2
-    return ','.join(map(str, output))
+    return ",".join(map(str, output))
 
 
 def translated(a):
@@ -65,7 +65,7 @@ def translated(a):
         # 1 1
         b = b ^ 1
         # 7 5
-        c = a // (2 ** b)
+        c = a // (2**b)
         # 1 5
         b = b ^ 5
         # 4 2
@@ -73,14 +73,14 @@ def translated(a):
         # 5 5
         out.append(b % 8)
         # 0 3
-        a = a // (2 ** 3)
+        a = a // (2**3)
         if a == 0:
             break
     return out
 
 
 def solver(program):
-    target = ','.join(map(str, program))
+    target = ",".join(map(str, program))
 
     def recur(a):
         for i in range(8):
@@ -96,20 +96,19 @@ def solver(program):
     return recur(0)
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2024" / "17.txt") as f:
-            a, b, c, *program = map(int, re.findall(r'\d+', f.read()))
+            a, b, c, *program = map(int, re.findall(r"\d+", f.read()))
         p1 = simulate(a, program)
         p2 = solver(program)
         result = simulate(p2, program)
-        assert result == ','.join(map(str, program))
+        assert result == ",".join(map(str, program))
         print_day("17", p1, p2, oct(p2))
         assert p2 == 164278496489149
     except IOError as e:
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

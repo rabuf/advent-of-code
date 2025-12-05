@@ -20,8 +20,7 @@ def overlaps(ranges):
     return a <= d and c <= b
 
 
-def main():
-    input_path = Path(sys.argv[1])
+def main(input_path=Path(sys.argv[1])):
     with open(input_path / "2022" / "04.txt", "r") as f:
         lines = f.readlines()
         ranges = list(map(parse_line, lines))

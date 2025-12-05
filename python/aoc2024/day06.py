@@ -14,7 +14,7 @@ def lines_to_grid(lines):
     for j, line in enumerate(lines):
         for i, c in enumerate(line):
             grid[i + j * 1j] = c
-            if c == '^':
+            if c == "^":
                 start = i + j * 1j
     return grid, start
 
@@ -24,7 +24,7 @@ def loops(grid, position, direction, visited):
         if (position, direction) in visited:
             return True
         visited.add((position, direction))
-        if grid[position + direction] == '#':
+        if grid[position + direction] == "#":
             direction *= 1j
         else:
             position += direction
@@ -39,24 +39,24 @@ def looping_obstruction_count(grid, position):
     while position in grid:
         next_position = position + direction
         visited.add(position)
-        if next_position not in grid: break
+        if next_position not in grid:
+            break
         moves.add((position, direction))
         match grid[next_position]:
-            case '#':
+            case "#":
                 direction *= 1j
-            case '.' if next_position not in visited:
-                grid[next_position] = '#'
+            case "." if next_position not in visited:
+                grid[next_position] = "#"
                 if loops(grid, position, direction, moves - {(position, direction)}):
                     obstacles += 1
-                grid[next_position] = '.'
+                grid[next_position] = "."
                 position += direction
             case _:
                 position += direction
     return len(visited), obstacles
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     with open(input_dir / "2024" / "06.txt") as f:
         lines = list(map(parse_line, f.read().splitlines()))
         grid, start = lines_to_grid(lines)
@@ -64,5 +64,5 @@ def main():
         print_day(6, p1, p2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

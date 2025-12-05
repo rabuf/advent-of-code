@@ -3,28 +3,27 @@ from pathlib import Path
 
 import networkx
 
-from aoc_util import print_day
 from aoc2019 import intcode
+from aoc_util import print_day
 
 
 def parse_line(line):
     return line
 
 
-def main():
-    input_dir = Path(sys.argv[1])
+def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / "2019" / "17.txt") as f:
             lines = f.read()
         program = intcode.parse_program(lines)
         output = []
         intcode.v3(program, write=lambda n: output.append(chr(n)))
-        lines = ''.join(output).splitlines()
+        lines = "".join(output).splitlines()
         G = networkx.Graph()
         for i, line in enumerate(lines):
             for j, c in enumerate(line):
                 p = complex(j, i)
-                if c in '#^':
+                if c in "#^":
                     G.add_node(p)
                     for n in (p + d for d in (1, -1, 1j, -1j)):
                         if n in G:
@@ -35,5 +34,5 @@ def main():
         print(e)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
