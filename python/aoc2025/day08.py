@@ -44,17 +44,18 @@ def part1(boxes):
 
 def part2(boxes):
     ordered = all_pairs_distances(boxes)
-    graph = nx.Graph()
+    G = nx.Graph()
 
     for box in boxes:
-        graph.add_node(box)
+        G.add_node(box)
 
-    while nx.number_connected_components(graph) > 1:
+    while not nx.is_connected(G):
         _, a, b = heapq.heappop(ordered)
-        graph.add_edge(a, b)
-        if nx.number_connected_components(graph) == 1:
-            return a[0] * b[0]
-    return 0
+        while nx.has_path(G, a, b):
+            G.add_edge(a, b)
+            _, a, b = heapq.heappop(ordered)
+        G.add_edge(a, b)
+    return a[0] * b[0]
 
 
 def main(input_dir=Path(sys.argv[1])):
