@@ -19,7 +19,7 @@ def parse_line(line):
 def all_pairs_distances(junction_boxes):
     ordered = []
     for i, (ax, ay, az) in enumerate(junction_boxes):
-        for bx, by, bz in junction_boxes[i + 1:]:
+        for bx, by, bz in junction_boxes[i + 1 :]:
             a = (ax, ay, az)
             b = (bx, by, bz)
             distance = ((ax - bx) ** 2 + (ay - by) ** 2 + (az - bz) ** 2) ** (1 / 2)
