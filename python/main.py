@@ -7,7 +7,7 @@ def main():
     for year in range(2025, 2026):
         year_start = datetime.datetime.now()
         days = 0
-        for day in range(5, 26):
+        for day in range(8, 26):
             days += load_and_run(year, day)
         year_end = datetime.datetime.now()
         if days:
