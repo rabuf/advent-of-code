@@ -17,7 +17,8 @@ func main() {
 		println(err.Error())
 	}
 	var years = make(map[int][]Solver)
-	years[2015] = []Solver{aoc2015.Day01{}, aoc2015.Day02{}, aoc2015.Day03{}, aoc2015.Day04{}, aoc2015.Day05{}}
+	years[2015] = []Solver{aoc2015.Day01{}, aoc2015.Day02{}, aoc2015.Day03{}, aoc2015.Day04{}, aoc2015.Day05{},
+		aoc2015.Day06{}}
 	years[2016] = []Solver{}
 	wg := sync.WaitGroup{}
 	for year, days := range years {

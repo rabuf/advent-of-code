@@ -40,16 +40,12 @@ def dfs(G, node, target):
 
 
 def part2(G):
-    @cache
-    def local_dfs(node, target="out"):
-        if node == target:
-            return 1
-        return sum(dfs(s, target) for s in G.successors(node))
-
     svr_to_fft = dfs(G, "svr", "fft")
     fft_to_dac = dfs(G, "fft", "dac")
+    dac_to_fft = dfs(G, "dac", "fft")
     dac_to_out = dfs(G, "dac", "out")
-    return svr_to_fft * fft_to_dac * dac_to_out
+    fft_to_out = dfs(G, "fft", "out")
+    return svr_to_fft * (fft_to_dac * dac_to_out + dac_to_fft * fft_to_out)
 
 
 def main(input_dir=Path(sys.argv[1])):

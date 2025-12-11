@@ -4,6 +4,6 @@
 [
   {
     "label": "Run days",
-    "command": "python3 main.py ../inputs"
+    "command": "python3 main.py ../input"
   }
 ]
