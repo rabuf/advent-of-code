@@ -1,10 +1,9 @@
 import heapq
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import regex as re
-from z3 import Int, Optimize, sat
+from z3 import IntVector, Optimize, sat
 
 from aoc_util import print_day
 
@@ -49,23 +48,22 @@ def part1(schematics):
 
 def solve2_z3(buttons, joltages):
     s = Optimize()
-    button_vars = defaultdict(dict)
-    presses = {}
+    button_vars = {}
+    presses = IntVector("p", len(buttons))
     for i, button in enumerate(buttons):
+        button_vars[i] = IntVector(f"b{i}", len(joltages))
         for b in range(len(joltages)):
-            button_vars[b][i] = Int(f"b{i}{b}")
             if b in button:
-                s.add(button_vars[b][i] == 1)
+                s.add(button_vars[i][b] == 1)
             else:
-                s.add(button_vars[b][i] == 0)
-        presses[i] = Int(f"p{i}")
+                s.add(button_vars[i][b] == 0)
         s.add(presses[i] >= 0)
     for b, j in enumerate(joltages):
-        s.add(sum(presses[i] * button_vars[b][i] for i in presses) == j)
-    s.minimize(sum(presses.values()))
+        s.add(sum(presses[i] * button_vars[i][b] for i in button_vars) == j)
+    s.minimize(sum(presses))
     if s.check() == sat:
         m = s.model()
-        return sum(m.evaluate(p).as_long() for p in presses.values())
+        return sum(m[p].as_long() for p in presses)
     else:
         print("No solution?")
         print(s)
