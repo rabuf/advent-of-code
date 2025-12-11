@@ -17,67 +17,48 @@ def parse_line(line):
     return source, destinations
 
 
-def part1(data):
+def make_graph(data):
     G = nx.DiGraph()
     for source, destinations in data:
         for d in destinations:
             G.add_edge(source, d)
-    return len(list(nx.all_simple_paths(G, "you", "out")))
+    return G
 
 
-def part2(data):
-    G = nx.DiGraph()
-    for source, destinations in data:
-        for d in destinations:
-            G.add_edge(source, d)
+def part1(G):
+    return dfs(G, "you", "out")
 
+
+def dfs(G, node, target):
     @cache
-    def dfs(node, target="out"):
+    def wrapped(node):
         if node == target:
             return 1
-        return reduce(add, (dfs(s, target) for s in G.successors(node)), 0)
+        return sum(wrapped(s) for s in G.successors(node))
 
-    svr_to_fft = dfs("svr", "fft")
-    fft_to_dac = dfs("fft", "dac")
-    dac_to_out = dfs("dac", "out")
+    return wrapped(node)
+
+
+def part2(G):
+    @cache
+    def local_dfs(node, target="out"):
+        if node == target:
+            return 1
+        return sum(dfs(s, target) for s in G.successors(node))
+
+    svr_to_fft = dfs(G, "svr", "fft")
+    fft_to_dac = dfs(G, "fft", "dac")
+    dac_to_out = dfs(G, "dac", "out")
     return svr_to_fft * fft_to_dac * dac_to_out
-
-
-SAMPLE = """aaa: you hhh
-you: bbb ccc
-bbb: ddd eee
-ccc: ddd eee fff
-ddd: ggg
-eee: out
-fff: out
-ggg: out
-hhh: ccc fff iii
-iii: out
-"""
-
-SAMPLE2 = """svr: aaa bbb
-aaa: fft
-fft: ccc
-bbb: tty
-tty: ccc
-ccc: ddd eee
-ddd: hub
-hub: fff
-eee: dac
-dac: fff
-fff: ggg hhh
-ggg: out
-hhh: out
-"""
 
 
 def main(input_dir=Path(sys.argv[1])):
     try:
         with open(input_dir / YEAR / f"{DAY}.txt") as f:
             lines = list(map(parse_line, f.read().splitlines()))
-        sample1 = list(map(parse_line, SAMPLE.splitlines()))
-        sample2 = list(map(parse_line, SAMPLE2.splitlines()))
-        print_day(DAY, part1(lines), part2(lines), part2(sample2))
+        G = make_graph(lines)
+
+        print_day(DAY, part1(G), part2(G))
     except IOError as e:
         print(e)
 
