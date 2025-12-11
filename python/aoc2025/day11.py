@@ -40,12 +40,16 @@ def dfs(G, node, target):
 
 
 def part2(G):
-    svr_to_fft = dfs(G, "svr", "fft")
-    fft_to_dac = dfs(G, "fft", "dac")
-    dac_to_fft = dfs(G, "dac", "fft")
-    dac_to_out = dfs(G, "dac", "out")
-    fft_to_out = dfs(G, "fft", "out")
-    return svr_to_fft * (fft_to_dac * dac_to_out + dac_to_fft * fft_to_out)
+    if nx.has_path(G, "fft", "dac"):
+        svr_to_fft = dfs(G, "svr", "fft")
+        fft_to_dac = dfs(G, "fft", "dac")
+        dac_to_out = dfs(G, "dac", "out")
+        return svr_to_fft * fft_to_dac * dac_to_out
+    else:
+        svr_to_dac = dfs(G, "svr", "dac")
+        dac_to_fft = dfs(G, "dac", "fft")
+        fft_to_out = dfs(G, "fft", "out")
+        return svr_to_dac * dac_to_fft * fft_to_out
 
 
 def main(input_dir=Path(sys.argv[1])):
